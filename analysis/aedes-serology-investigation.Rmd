@@ -7,12 +7,320 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = TRUE,
+  echo = FALSE,
   warning = FALSE,
   message = FALSE,
-  fig.align = "center"
+  fig.align = "center",
+  fig.pos = "h"
 )
 ```
 
 
+```{r libraries}
+library(tidyverse)
+library(here)
+library(readxl)
+library(janitor)
+library(viridis)
+library(zoo)
+library(qwraps2)
+library(knitr)
+library(kableExtra)
+```
+
+
+```{r read-process-data}
+sched_visit_names <- c(
+  "VISIT 1 DENGUE INDEX",
+  "VISIT 2  DENGUE INDEX",
+  "VISIT 3 DENGUE INDEX",
+  "VISIT 4 INDEX"
+)
+
+aedes_survey_og <- read_excel(here("data", "pagodas_combined_data3.xlsx"))
+aedes_survey_cleaned <- aedes_survey_og %>% 
+  clean_names() %>% 
+  mutate(visit = factor(visit)) %>% 
+  mutate(age = as.numeric(age)) %>% 
+  mutate(gender = factor(gender)) %>% 
+  mutate(school_attended = factor(school_attended)) %>% 
+  mutate(housing_type = factor(housing_type)) %>% 
+  mutate(socioeconomic_class = factor(socioeconomic_class)) %>% 
+  mutate(visit_date = as.Date(visit_date)) %>% 
+  mutate(sched_visit = ifelse(visit %in% sched_visit_names, yes = "yes", no = "no")) %>% 
+  mutate(num_domestic_water_containers_in_home = as.numeric(num_domestic_water_containers_in_home)) %>% 
+  mutate(num_toilets_in_home = as.numeric(num_toilets_in_home)) %>% 
+  mutate(how_often_use_bed_net = factor(how_often_use_bed_net)) %>% 
+  mutate(insecticide_spray = factor(insecticide_spray)) %>% 
+  mutate(larvicide_applied_to_water = factor(larvicide_applied_to_water)) %>% 
+  mutate(how_often_mosquito_coils_burned = factor(how_often_mosquito_coils_burned)) %>% 
+  mutate(visit_date_abr = factor(as.yearmon(visit_date)))
+
+aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
+aedes_coord_cleaned <- aedes_coord_og %>%
+  clean_names()
+
+aedes_full <- full_join(aedes_survey_cleaned, aedes_coord_cleaned)  
+
+aedes_red <- aedes_full %>%
+  filter(!is.na(saliva_elisa_value)) %>% 
+  filter(visit == "VISIT 1 DENGUE INDEX") %>% 
+  mutate(visit = droplevels(visit)) 
+
+aedes_red <- aedes_red[order(aedes_red$saliva_elisa_value, decreasing = TRUE), ][-c(1:4), ]
+
+aedes_red_ind <- aedes_red %>% filter(visit == "VISIT 1 DENGUE INDEX")
+```
+
+
+```{r visit_measurement_counts}
+aedes_full %>% 
+  filter(!is.na(saliva_elisa_value)) %>% 
+  select(visit) %>% 
+  summary()
+```
+
+\newpage
+
+```{r eda_tab}
+aedes_summary <- list(
+  "Age" = list(
+    "min" = ~ min(age),
+    "mean (sd)" = ~ mean_sd(age),
+    "max" = ~ max(age)
+  ),
+  "Gender" = list(
+    "Male" = ~ n_perc0(gender == "Female"),
+    "Female" = ~ n_perc0(gender == "Male")
+  ),
+  "School attended" = list(
+    "Ampe phnom" = ~ n_perc0(school_attended == "Ampe phnom"),
+    "Ang seri" = ~ n_perc0(school_attended == "Ang seri"),
+    "Anouvotta" = ~ n_perc0(school_attended == "Anouvotta"),
+    "Aphivodth" = ~ n_perc0(school_attended == "Aphivodth"),
+    "Mroum cheung" = ~ n_perc0(school_attended == "Mroum cheung"),
+    "Mroum tbaung" = ~ n_perc0(school_attended == "Mroum tbaung"),
+    "Phoumi thmei" = ~ n_perc0(school_attended == "Phoumi thmei"),
+    "Rkathom" = ~ n_perc0(school_attended == "Rkathom"),
+    "Santiphap" = ~ n_perc0(school_attended == "Santiphap"),
+    "Other" = ~ n_perc0(school_attended == "Other, specify:"),
+    "Not in school" = ~ n_perc0(school_attended == "Subject not in school")
+  ),
+  "Socioeconomic class" = list(
+    "Lower" = ~ n_perc0(socioeconomic_class == "Lower"),
+    "Middle" = ~ n_perc0(socioeconomic_class == "Middle"),
+    "Upper" = ~ n_perc0(socioeconomic_class == "Upper"),
+    "Very Poor" = ~ n_perc0(socioeconomic_class == "Very Poor")
+  ),
+  "Domestic water containers" = list(
+    "min" = ~ min(num_domestic_water_containers_in_home),
+    "mean (sd)" = ~ mean_sd(num_domestic_water_containers_in_home),
+    "max" = ~ max(num_domestic_water_containers_in_home)
+  ),
+  "Number toilets in home" = list(
+    "min" = ~ min(num_toilets_in_home),
+    "mean (sd)" = ~ mean_sd(num_toilets_in_home),
+    "max" = ~ max(num_toilets_in_home)
+  ),
+  "Bed net use" = list(
+    "Never" = ~ n_perc0(how_often_use_bed_net == "Never"),
+    "Rarely" = ~ n_perc0(how_often_use_bed_net == "Rarely"),
+    "Regularly/ Most of the time" = ~ n_perc0(how_often_use_bed_net == "Regularly/ Most of the time"),
+    "All of the time" = ~ n_perc0(how_often_use_bed_net == "All of the time")
+  ),
+  "Insecticide spray" = list(
+    "No" = ~ n_perc0(insecticide_spray == "No"),
+    "Yes" = ~ n_perc0(insecticide_spray == "Yes")
+  ),
+  "Larvicide applied to water" = list(
+    "No" = ~ n_perc0(larvicide_applied_to_water == "No"),
+    "Yes" = ~ n_perc0(larvicide_applied_to_water == "Yes")
+  ),
+  "Mosquito coils burned" = list(
+    "Never" = ~ n_perc0(how_often_mosquito_coils_burned == "Never"),
+    "Rarely (about 1x/month)" = ~ n_perc0(how_often_mosquito_coils_burned == "Rarely (about 1x/month)"),
+    "Sometimes (about 1x/week)" = ~ n_perc0(how_often_mosquito_coils_burned == "Sometimes (about 1x/week)"),
+    "Often (about 3x/week)" = ~ n_perc0(how_often_mosquito_coils_burned == "Often (about 3x/week)"),
+    "Daily" = ~ n_perc0(how_often_mosquito_coils_burned == "Daily")
+  )
+)
+
+aedes_summary_tab <- summary_table(aedes_red_ind, aedes_summary)
+kable(aedes_summary_tab) %>% 
+  kable_styling(latex_options = "HOLD_position") %>% 
+  group_rows(group_label = "Age", start_row = 1, end_row = 3) %>% 
+  group_rows(group_label = "Gender", 4, 5) %>% 
+  group_rows(group_label = "School attended", 6, 16) %>% 
+  group_rows(group_label = "Socioeconomic level", 17, 20) %>% 
+  group_rows(group_label = "Domestic water containers", 21, 23) %>% 
+  group_rows(group_label = "Number toilets in home", 24, 26) %>% 
+  group_rows(group_label = "Bed net use", 27, 30) %>% 
+  group_rows(group_label = "Insecticide spray", 31, 32) %>% 
+  group_rows(group_label = "Larvicide applied to water", 33, 34) %>% 
+  group_rows(group_label = "Mosquito coils burned", 35, 39)
+```
+
+
+
+```{r elisa-mapped-by-location-including-NA, fig.height=6.5, fig.width=7.5}
+aedes_full %>% 
+  filter(sched_visit == "yes") %>% 
+ggplot(mapping = aes(x = x, y = y, color = saliva_elisa_value)) +
+  geom_point(size = 2.5, alpha = 0.75) +
+  theme_bw() +
+  scale_color_viridis() +
+  facet_wrap(~ visit) +
+#  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Elisa  mapped by visit (including NA's)")
+```
+
+\newpage
+
+```{r elisa-mapped-by-location-excluding-NA, fig.height=6.5, fig.width=7.5}
+aedes_full %>% 
+  filter(!is.na(saliva_elisa_value)) %>% 
+  filter(sched_visit == "yes") %>% 
+ggplot(aedes_red, mapping = aes(x = x, y = y, color = saliva_elisa_value)) +
+  geom_point(size = 2.5, alpha = 0.75) +
+  theme_bw() +
+  scale_color_viridis() +
+  facet_wrap(~ visit) +
+#  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Elisa mapped by visit (excluding NA's)")
+```
+
+\newpage
+
+```{r elisa-by-visit-date, fig.height=6.5, fig.width=7.5}
+aedes_full %>% 
+  filter(!is.na(saliva_elisa_value)) %>% 
+  filter(sched_visit == "yes") %>% 
+  ggplot(mapping = aes(x = visit_date, y = saliva_elisa_value)) +
+    geom_point() +
+    theme_bw() +
+    ggtitle("Saliva ELISA value by visit data")
+```
+
+
+<!-- Variables mappped out then colored by elisa saliva value -->
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-age, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ age) + -->
+<!--   ggtitle("Elisa mapped by age") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-gender, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ gender) + -->
+<!--   ggtitle("Elisa mapped by gender") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-school_attended, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ school_attended) + -->
+<!--   ggtitle("Elisa mapped by school") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-socioeconomic_class, fig.height=6.5, fig.width=7.5} -->
+<!-- aedes_red_ind %>%  -->
+<!--   filter(socioeconomic_class %in% c("Lower", "Middle")) %>%  -->
+<!--   ggplot(mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--     geom_point(size = 2.5, alpha = 0.75) + -->
+<!--     theme_bw() + -->
+<!--     scale_color_viridis() + -->
+<!--     facet_wrap(~ socioeconomic_class) + -->
+<!--     ggtitle("Elisa mapped by socioeconomic class") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-num_domestic_water_containers_in_home, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ num_domestic_water_containers_in_home) + -->
+<!--   ggtitle("Elisa mapped by water containers") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-num_toilets_in_home, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ num_toilets_in_home) + -->
+<!--   ggtitle("Elisa mapped by num_toilets_in_home") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-how_often_use_bed_net, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ how_often_use_bed_net) + -->
+<!--   ggtitle("Elisa mapped by bed net") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-insecticide_spray, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ insecticide_spray) + -->
+<!--   ggtitle("Elisa mapped by insecticide spray") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-larvicide_applied_to_water, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ larvicide_applied_to_water) + -->
+<!--   ggtitle("Elisa mapped by larvicide applied to water") -->
+<!-- ``` -->
+
+<!-- \newpage -->
+
+<!-- ```{r elisa-mapped-by-how_often_mosquito_coils_burned, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = x, y = y, color = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   facet_wrap(~ how_often_mosquito_coils_burned) + -->
+<!--   ggtitle("Elisa mapped by how often mosquito coils burned") -->
+<!-- ``` -->
+
+
+<!-- ```{r elisa-by-elevation, fig.height=6.5, fig.width=7.5} -->
+<!-- ggplot(aedes_red_ind, mapping = aes(x = elevation, y = saliva_elisa_value)) + -->
+<!--   geom_point(size = 2.5, alpha = 0.75) + -->
+<!--   theme_bw() + -->
+<!--   scale_color_viridis() + -->
+<!--   ggtitle("Elisa mapped by how often mosquito coils burned") -->
+<!-- ``` -->
 
