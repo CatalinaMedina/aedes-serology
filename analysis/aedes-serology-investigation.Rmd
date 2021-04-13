@@ -27,6 +27,7 @@ library(zoo)
 library(qwraps2)
 library(knitr)
 library(kableExtra)
+library(lubridate)
 ```
 
 
@@ -106,44 +107,50 @@ aedes_red_ind <- aedes_full %>%
 ```{r read-process-spatial-data}
 # what column do the environmental variables start?
 sat_var_col_start <- 7
-sat_var_names <- c("EVI", "NVI", "NFI")
+sat_var_names <- c("EVI", "NVI", "NFI") # keep order that it appear in df
 id_col_name <- "Study.ID"
 df_og <- read_csv(here("data", "MODIS_500m.csv"))
+#day_interval <- 16
+
 
 
 # sort_sat_data function start
+df_og <- data.frame(df_og[-1, ])
 num_vars <- length(sat_var_names)
 
 sat_cols <- sat_var_col_start:ncol(df_og)
 non_sat_cols <- 1:(sat_var_col_start - 1)
 
+
+
 new_df <- data.frame(matrix(
   NA, 
-  nrow = nrow(df_og) * num_vars,
-  ncol = length(non_sat_cols) + length(sat_cols) / num_vars + 1
+  nrow = nrow(df_og) * length(sat_cols) ,
+  ncol = length(non_sat_cols) +  3
 ))
 
-colnames(new_df)[non_sat_cols] <- colnames(df_og)[non_sat_cols]
-colnames(new_df)[sat_cols[1]] <- "var_type"
+colnames(new_df) <- c(
+  colnames(df_og)[non_sat_cols], 
+  "date", "var_type", "sat_var_ind"
+)
 
-
-col_types <- rep(NA, ncol(df_og))
-
-for(k in 1:num_vars) {
-  col_types[str_detect(colnames(df_og), sat_var_names[k])] <- sat_var_names[k]
-  
-}
+sat_col_ex <- df_og[, sat_cols]
 
 new_row <- 1
 
 for(i in 1:nrow(df_og)) {
-  for(k in 0:(num_vars - 1)) {
-    new_df[new_row + k, non_sat_cols] <- data.frame(df_og[i, non_sat_cols])
+  for(j in 0:(length(sat_cols) - 1)) {
+    new_df[new_row + j, non_sat_cols] <- df_og[i, non_sat_cols]
+    col_name_ex <- str_split(colnames(sat_col_ex)[j + 1], pattern = "_")
+    measure_date <- as.Date(paste0("20", col_name_ex[[1]][2], "-01-01")) +
+      days(as.numeric(col_name_ex[[1]][3]) - 1)
+    
+    new_df[new_row + j, "date"] <- measure_date
+    new_df[new_row + j, "var_type"] <- col_name_ex[[1]][1]
+    new_df[new_row + j, "sat_var_ind"] <- sat_col_ex[j + 1]
   }
-
   
-  
-  new_row <- new_row + num_vars
+  new_row <- new_row + length(sat_cols)
 }
 ```
 
