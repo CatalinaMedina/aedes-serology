@@ -45,15 +45,30 @@ aedes_survey_cleaned <- aedes_survey_og %>%
   mutate(gender = factor(gender)) %>% 
   mutate(school_attended = factor(school_attended)) %>% 
   mutate(housing_type = factor(housing_type)) %>% 
-  mutate(socioeconomic_class = factor(socioeconomic_class)) %>% 
+  mutate(socioeconomic_class = factor(
+    socioeconomic_class,
+    levels = c("Very Poor", "Lower", "Middle", "Upper")
+  )) %>% 
   mutate(visit_date = as.Date(visit_date)) %>% 
   mutate(sched_visit = ifelse(visit %in% sched_visit_names, yes = "yes", no = "no")) %>% 
   mutate(num_domestic_water_containers_in_home = as.numeric(num_domestic_water_containers_in_home)) %>% 
   mutate(num_toilets_in_home = as.numeric(num_toilets_in_home)) %>% 
-  mutate(how_often_use_bed_net = factor(how_often_use_bed_net)) %>% 
+  mutate(how_often_use_bed_net = factor(
+    how_often_use_bed_net,
+    levels = c("Never", "Rarely", "Regularly/ Most of the time", "All of the time")
+  )) %>% 
   mutate(insecticide_spray = factor(insecticide_spray)) %>% 
   mutate(larvicide_applied_to_water = factor(larvicide_applied_to_water)) %>% 
-  mutate(how_often_mosquito_coils_burned = factor(how_often_mosquito_coils_burned)) %>% 
+  mutate(how_often_mosquito_coils_burned = factor(
+    how_often_mosquito_coils_burned,
+    levels = c(
+      "Never", 
+      "Rarely (about 1x/month)", 
+      "Sometimes (about 1x/week)",
+      "Often (about 3x/week)",
+      "Daily"
+    )
+  )) %>% 
   mutate(visit_date_abr = factor(as.yearmon(visit_date)))
 
 aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
@@ -62,14 +77,10 @@ aedes_coord_cleaned <- aedes_coord_og %>%
 
 aedes_full <- full_join(aedes_survey_cleaned, aedes_coord_cleaned)  
 
-aedes_red <- aedes_full %>%
+aedes_red_ind <- aedes_full %>%
   filter(!is.na(saliva_elisa_value)) %>% 
   filter(visit == "VISIT 1 DENGUE INDEX") %>% 
   mutate(visit = droplevels(visit)) 
-
-aedes_red <- aedes_red[order(aedes_red$saliva_elisa_value, decreasing = TRUE), ][-c(1:4), ]
-
-aedes_red_ind <- aedes_red %>% filter(visit == "VISIT 1 DENGUE INDEX")
 ```
 
 
@@ -81,6 +92,7 @@ aedes_full %>%
 ```
 
 \newpage
+## EDA table
 
 ```{r eda_tab}
 aedes_summary <- list(
@@ -162,36 +174,120 @@ kable(aedes_summary_tab) %>%
 
 
 
-```{r elisa-mapped-by-location-including-NA, fig.height=6.5, fig.width=7.5}
-aedes_full %>% 
-  filter(sched_visit == "yes") %>% 
-ggplot(mapping = aes(x = x, y = y, color = saliva_elisa_value)) +
-  geom_point(size = 2.5, alpha = 0.75) +
+\newpage
+
+## Plots of saliva ELISA value by predictors
+
+```{r elisa-by-age, fig.asp=0.5}
+aedes_red_ind %>% 
+  mutate(age = factor(age)) %>% 
+  ggplot(mapping = aes(x = age, y = saliva_elisa_value)) +
+  geom_boxplot() +
+  theme_bw()
+```
+
+
+```{r elisa-by-age-mapped, fig.asp=0.8}
+
+
+aedes_red_ind %>% 
+  mutate(age = factor(age)) %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = age)) +
+  geom_point() +
+  scale_color_viridis(discrete = TRUE, direction = -1) +
   theme_bw() +
-  scale_color_viridis() +
-  facet_wrap(~ visit) +
-#  theme(axis.text.x = element_text(angle = 90)) +
-  ggtitle("Elisa  mapped by visit (including NA's)")
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1)
 ```
 
 \newpage
 
-```{r elisa-mapped-by-location-excluding-NA, fig.height=6.5, fig.width=7.5}
+```{r elisa-by-gender}
+aedes_red_ind %>% 
+  ggplot(mapping = aes(x = gender, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
+```
+
+\newpage
+
+```{r elisa-by-school_attended}
+aedes_red_ind %>% 
+  ggplot(mapping = aes(x = school_attended, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
+```
+
+\newpage
+
+```{r elisa-by-num_domestic_water_containers_in_home}
+aedes_red_ind %>% 
+  mutate(num_domestic_water_containers_in_home = factor(num_domestic_water_containers_in_home)) %>% 
+  ggplot(mapping = aes(x = num_domestic_water_containers_in_home, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
+```
+
+\newpage
+
+```{r elisa-by-num_toilets_in_home}
+aedes_red_ind %>% 
+  mutate(num_toilets_in_home = factor(num_toilets_in_home)) %>% 
+  ggplot(mapping = aes(x = num_toilets_in_home, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
+```
+
+\newpage
+
+```{r elisa-by-how_often_use_bed_net}
+aedes_red_ind %>% 
+  ggplot(mapping = aes(x = how_often_use_bed_net, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
+```
+
+\newpage
+
+```{r elisa-by-insecticide_spray}
+aedes_red_ind %>% 
+  ggplot(mapping = aes(x = insecticide_spray, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
+```
+
+\newpage
+
+```{r elisa-by-larvicide_applied_to_water}
+aedes_red_ind %>% 
+  ggplot(mapping = aes(x = larvicide_applied_to_water, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
+```
+
+\newpage
+
+```{r elisa-by-how_often_mosquito_coils_burned}
+aedes_red_ind %>% 
+  ggplot(mapping = aes(x = how_often_mosquito_coils_burned, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
+```
+
+\newpage
+
+```{r elisa-by-visit}
 aedes_full %>% 
+  filter(sched_visit == "yes") %>%  
   filter(!is.na(saliva_elisa_value)) %>% 
-  filter(sched_visit == "yes") %>% 
-ggplot(aedes_red, mapping = aes(x = x, y = y, color = saliva_elisa_value)) +
-  geom_point(size = 2.5, alpha = 0.75) +
-  theme_bw() +
-  scale_color_viridis() +
-  facet_wrap(~ visit) +
-#  theme(axis.text.x = element_text(angle = 90)) +
-  ggtitle("Elisa mapped by visit (excluding NA's)")
+  ggplot(mapping = aes(x = visit, y = saliva_elisa_value)) +
+    geom_boxplot() +
+  theme_bw()
 ```
 
 \newpage
 
-```{r elisa-by-visit-date, fig.height=6.5, fig.width=7.5}
+```{r elisa-by-visit_date}
 aedes_full %>% 
   filter(!is.na(saliva_elisa_value)) %>% 
   filter(sched_visit == "yes") %>% 
@@ -200,6 +296,18 @@ aedes_full %>%
     theme_bw() +
     ggtitle("Saliva ELISA value by visit data")
 ```
+
+\newpage
+
+```{r elisa-by-elevation}
+aedes_red_ind %>% 
+  ggplot(mapping = aes(x = elevation, y = saliva_elisa_value)) +
+    geom_point() +
+  theme_bw()
+```
+
+
+## 
 
 
 <!-- Variables mappped out then colored by elisa saliva value -->
