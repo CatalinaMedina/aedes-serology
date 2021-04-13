@@ -193,6 +193,41 @@ kable(aedes_summary_tab) %>%
 
 \newpage
 
+```{r saliva-elisa-mapped, fig.dim=c(8,8.25)}
+aedes_full %>% 
+  filter(sched_visit == "yes") %>% 
+  filter(!is.na(saliva_elisa_value)) %>% 
+  mutate(visit = droplevels(visit)) %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
+    geom_point(alpha = 0.75) +
+    scale_color_viridis(direction = -1) +
+    theme_bw() +
+    lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+    coord_equal(ratio = 1) +
+    facet_wrap(~ visit) +
+    theme(legend.position="bottom")
+```
+
+\newpage
+
+```{r saliva-elisa-mapped-extreme-dropped, fig.dim=c(8,8.25)}
+aedes_full %>% 
+  filter(sched_visit == "yes") %>% 
+  filter(!is.na(saliva_elisa_value)) %>% 
+  filter(study_id != "100-0022") %>% 
+  mutate(visit = droplevels(visit)) %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
+    geom_point(alpha = 0.75) +
+    scale_color_viridis(direction = -1) +
+    theme_bw() +
+    lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+    coord_equal(ratio = 1) +
+    facet_wrap(~ visit) +
+    theme(legend.position="bottom")
+```
+
+\newpage
+
 ```{r elisa-by-visit, fig.asp=0.7}
 aedes_full %>% 
   filter(sched_visit == "yes") %>%  
@@ -202,7 +237,6 @@ aedes_full %>%
   theme_bw()
 ```
 
-\newpage
 
 ```{r elisa-by-visit_date, fig.asp=0.7}
 aedes_full %>% 
@@ -224,7 +258,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-elevation-mapped, fig.asp=0.9}
+```{r elevation-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = elevation)) +
   geom_point(alpha = 0.75) +
@@ -239,7 +273,7 @@ aedes_red_ind %>%
 
 ## Plots of saliva ELISA value by predictors
 
-```{r elisa-by-age, fig.asp=0.7}
+```{r elisa-by-age, fig.asp=0.6}
 aedes_red_ind %>% 
   mutate(age = factor(age)) %>% 
   ggplot(mapping = aes(x = age, y = saliva_elisa_value)) +
@@ -248,7 +282,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-age-mapped, fig.asp=0.85}
+```{r age-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   mutate(age = factor(age)) %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = age)) +
@@ -269,7 +303,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-gender-mapped, fig.asp=0.9}
+```{r gender-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = gender, shape = gender)) +
   geom_point(alpha = 0.75) +
@@ -289,7 +323,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-school_attended-mapped, fig.asp=0.9}
+```{r school_attended-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = school_attended)) +
   geom_point(alpha = 0.75) +
@@ -309,7 +343,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-num_domestic_water_containers_in_home-mapped, fig.asp=0.9}
+```{r num_domestic_water_containers_in_home-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   mutate(water_cont = num_domestic_water_containers_in_home) %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = water_cont)) +
@@ -331,7 +365,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-num_toilets_in_home-mapped, fig.asp=0.9}
+```{r num_toilets_in_home-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   mutate(toilets = num_toilets_in_home) %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = toilets)) +
@@ -352,7 +386,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-how_often_use_bed_net-mapped, fig.asp=0.9}
+```{r how_often_use_bed_net-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   mutate(bed_net = how_often_use_bed_net) %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = bed_net)) +
@@ -373,7 +407,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-insecticide_spray-mapped, fig.asp=0.9}
+```{r insecticide_spray-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   mutate(insecticide = insecticide_spray) %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = insecticide)) +
@@ -393,7 +427,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-larvicide_applied_to_water-mapped, fig.asp=0.9}
+```{r larvicide_applied_to_water-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   mutate(larvicide = larvicide_applied_to_water) %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = larvicide)) +
@@ -413,7 +447,7 @@ aedes_red_ind %>%
 ```
 
 
-```{r elisa-by-how_often_mosquito_coils_burned-mapped, fig.asp=0.9}
+```{r how_often_mosquito_coils_burned-mapped, fig.asp=0.9}
 aedes_red_ind %>% 
   mutate(coils = how_often_mosquito_coils_burned) %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = coils)) +
