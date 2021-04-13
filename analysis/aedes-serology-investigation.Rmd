@@ -30,7 +30,7 @@ library(kableExtra)
 ```
 
 
-```{r read-process-data}
+```{r read-process-survey-data}
 sched_visit_names <- c(
   "VISIT 1 DENGUE INDEX",
   "VISIT 2  DENGUE INDEX",
@@ -100,6 +100,51 @@ aedes_red_ind <- aedes_full %>%
   filter(!is.na(saliva_elisa_value)) %>% 
   filter(visit == "VISIT 1 DENGUE INDEX") %>% 
   mutate(visit = droplevels(visit)) 
+```
+
+
+```{r read-process-spatial-data}
+# what column do the environmental variables start?
+sat_var_col_start <- 7
+sat_var_names <- c("EVI", "NVI", "NFI")
+id_col_name <- "Study.ID"
+df_og <- read_csv(here("data", "MODIS_500m.csv"))
+
+
+# sort_sat_data function start
+num_vars <- length(sat_var_names)
+
+sat_cols <- sat_var_col_start:ncol(df_og)
+non_sat_cols <- 1:(sat_var_col_start - 1)
+
+new_df <- data.frame(matrix(
+  NA, 
+  nrow = nrow(df_og) * num_vars,
+  ncol = length(non_sat_cols) + length(sat_cols) / num_vars + 1
+))
+
+colnames(new_df)[non_sat_cols] <- colnames(df_og)[non_sat_cols]
+colnames(new_df)[sat_cols[1]] <- "var_type"
+
+
+col_types <- rep(NA, ncol(df_og))
+
+for(k in 1:num_vars) {
+  col_types[str_detect(colnames(df_og), sat_var_names[k])] <- sat_var_names[k]
+  
+}
+
+new_row <- 1
+
+for(i in 1:nrow(df_og)) {
+  for(k in 0:(num_vars - 1)) {
+    new_df[new_row + k, non_sat_cols] <- data.frame(df_og[i, non_sat_cols])
+  }
+
+  
+  
+  new_row <- new_row + num_vars
+}
 ```
 
 
