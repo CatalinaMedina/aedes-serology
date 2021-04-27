@@ -99,8 +99,11 @@ aedes_full <- full_join(aedes_survey_cleaned, aedes_coord_cleaned) %>%
   filter(sched_visit == "yes") %>% 
   mutate(visit = droplevels(visit))
 
-aedes_red_ind <- aedes_full %>%
+aedes_red <- aedes_full %>% 
   filter(!is.na(saliva_elisa_value)) %>% 
+  filter(!is.na(visit_date))
+
+aedes_red_ind <- aedes_red %>%
   filter(visit == "VISIT 1 DENGUE INDEX") %>% 
   mutate(visit = droplevels(visit)) 
 ```
@@ -171,11 +174,20 @@ sat_data <- process_spatial_data(
 
 ```{r store-value-by-data-id-function}
 sat_df <- sat_data
-df_og <- aedes_full
-df_new <- df_og
+df_og <- aedes_red
+df_new <- cbind(
+  df_og, 
+  "EVI" = rep(NA, nrow(df_og)),
+  "NFI" = rep(NA, nrow(df_og)),
+  "NVI" = rep(NA, nrow(df_og))
+)
 
 num_vars <- 3
 var_types <- levels(factor(sat_df$var_type))
+
+max_date_diff <- 30
+
+
 
 
 for(i in 1:nrow(df_og)) {
@@ -185,17 +197,29 @@ for(i in 1:nrow(df_og)) {
   for(j in 1:num_vars) {
     df_id_var <- df_id %>% 
       filter(var_type == var_types[j])
+    
+    if (sum(!is.na(df_id_var$sat_var_value)) > 0) {
+      curr <- df_id_var[which.min(abs(df_id_var$date - df_og$visit_date[i])), ]
+      
+      if (abs(curr$date - df_og$visit_date[i]) > max_date_diff) {
+        print(paste0(
+          "Warning: Study ID ", df_og[i, "study_id"], " does not have ", 
+          var_types[j], " value within ", max_date_diff, " days!"
+        ))
+      } else {
+        df_new[i, var_types[j]] <- curr$sat_var_value
+      }
+    }
   }
 }
+
+
+aedes_red <- df_new
 ```
 
 
-
 ```{r visit_measurement_counts}
-aedes_full %>% 
-  filter(!is.na(saliva_elisa_value)) %>% 
-  select(visit) %>% 
-  summary()
+summary(aedes_red$visit)
 ```
 
 \newpage
@@ -265,6 +289,7 @@ aedes_summary <- list(
 )
 
 aedes_summary_tab <- summary_table(aedes_red_ind, aedes_summary)
+
 kable(aedes_summary_tab) %>% 
   kable_styling(latex_options = "HOLD_position") %>% 
   group_rows(group_label = "Age", start_row = 1, end_row = 3) %>% 
@@ -282,10 +307,7 @@ kable(aedes_summary_tab) %>%
 \newpage
 
 ```{r saliva-elisa-mapped, fig.dim=c(8,8.25)}
-aedes_full %>% 
-  filter(sched_visit == "yes") %>% 
-  filter(!is.na(saliva_elisa_value)) %>% 
-  mutate(visit = droplevels(visit)) %>% 
+aedes_red %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
     geom_point(alpha = 0.75) +
     scale_color_viridis(direction = -1) +
@@ -299,11 +321,8 @@ aedes_full %>%
 \newpage
 
 ```{r saliva-elisa-mapped-extreme-dropped, fig.dim=c(8,8.25)}
-aedes_full %>% 
-  filter(sched_visit == "yes") %>% 
-  filter(!is.na(saliva_elisa_value)) %>% 
+aedes_red %>% 
   filter(study_id != "100-0022") %>% 
-  mutate(visit = droplevels(visit)) %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
     geom_point(alpha = 0.75) +
     scale_color_viridis(direction = -1) +
@@ -317,9 +336,7 @@ aedes_full %>%
 \newpage
 
 ```{r elisa-by-visit, fig.asp=0.7}
-aedes_full %>% 
-  filter(sched_visit == "yes") %>%  
-  filter(!is.na(saliva_elisa_value)) %>% 
+aedes_red %>% 
   ggplot(mapping = aes(x = visit, y = saliva_elisa_value)) +
     geom_boxplot() +
   theme_bw()
@@ -327,9 +344,7 @@ aedes_full %>%
 
 
 ```{r elisa-by-visit_date, fig.asp=0.7}
-aedes_full %>% 
-  filter(!is.na(saliva_elisa_value)) %>% 
-  filter(sched_visit == "yes") %>% 
+aedes_red %>% 
   ggplot(mapping = aes(x = visit_date, y = saliva_elisa_value)) +
     geom_point() +
     theme_bw() +
