@@ -568,3 +568,188 @@ aedes_red_ind %>%
   coord_equal(ratio = 1)
 ```
 
+\newpage
+
+```{r elisa-by-EVI, fig.asp=0.7}
+aedes_red %>% 
+  ggplot(mapping = aes(x = EVI, y = saliva_elisa_value)) +
+    geom_point() +
+  theme_bw() +
+  facet_wrap(~ visit)
+```
+
+
+```{r EVI-visit1-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 1 DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 1")
+```
+
+
+```{r EVI-visit2-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 2  DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 2")
+```
+
+
+```{r EVI-visit3-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 3 DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 3")
+```
+
+
+```{r EVI-visit4-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 4 INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 4")
+```
+
+
+```{r elisa-by-NFI, fig.asp=0.7}
+aedes_red %>% 
+  ggplot(mapping = aes(x = NFI, y = saliva_elisa_value)) +
+    geom_point() +
+  theme_bw() +
+  facet_wrap(~ visit)
+```
+
+
+```{r NFI-visit1-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 1 DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 1")
+```
+
+
+```{r NFI-visit2-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 2  DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 2")
+```
+
+
+```{r NFI-visit3-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 3 DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 3")
+```
+
+
+```{r NFI-visit4-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 4 INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 4")
+```
+
+\newpage
+
+```{r elisa-by-NVI, fig.asp=0.7}
+aedes_red %>% 
+  ggplot(mapping = aes(x = NVI, y = saliva_elisa_value)) +
+    geom_point() +
+  theme_bw() +
+  facet_wrap(~ visit)
+```
+
+
+```{r NVI-visit1-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 1 DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 1")
+```
+
+
+```{r NVI-visit2-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 2  DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 2")
+```
+
+
+```{r NVI-visit3-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 3 DENGUE INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 3")
+```
+
+
+```{r NVI-visit4-mapped, fig.asp=0.9}
+aedes_red %>% 
+  filter(visit == "VISIT 4 INDEX") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  ggtitle("Visit 4")
+```
+
