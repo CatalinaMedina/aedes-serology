@@ -95,7 +95,9 @@ aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
 aedes_coord_cleaned <- aedes_coord_og %>%
   clean_names()
 
-aedes_full <- full_join(aedes_survey_cleaned, aedes_coord_cleaned)  
+aedes_full <- full_join(aedes_survey_cleaned, aedes_coord_cleaned) %>% 
+  filter(sched_visit == "yes") %>% 
+  mutate(visit = droplevels(visit))
 
 aedes_red_ind <- aedes_full %>%
   filter(!is.na(saliva_elisa_value)) %>% 
@@ -106,7 +108,7 @@ aedes_red_ind <- aedes_full %>%
 
 ```{r process-spatial-data-function}
 process_spatial_data <- function(df_og, sat_var_names, sat_var_col_start){
-  df_og <- data.frame(df_og[-1, ])
+  df_og <- data.frame(df_og)
   num_vars <- length(sat_var_names)
   
   sat_cols <- sat_var_col_start:ncol(df_og)
@@ -158,13 +160,35 @@ process_spatial_data <- function(df_og, sat_var_names, sat_var_col_start){
 ```
 
 
-```{r actually-process-data}
+```{r include-spatial-data}
 sat_data <- process_spatial_data(
   df_og = read_csv(here("data", "MODIS_500m.csv")), 
   sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
   sat_var_col_start = 7
 )
 ```
+
+
+```{r store-value-by-data-id-function}
+sat_df <- sat_data
+df_og <- aedes_full
+df_new <- df_og
+
+num_vars <- 3
+var_types <- levels(factor(sat_df$var_type))
+
+
+for(i in 1:nrow(df_og)) {
+  df_id <- sat_df %>% 
+    filter(Study.ID == as.character(df_og[i, "study_id"]))
+  
+  for(j in 1:num_vars) {
+    df_id_var <- df_id %>% 
+      filter(var_type == var_types[j])
+  }
+}
+```
+
 
 
 ```{r visit_measurement_counts}
