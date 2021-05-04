@@ -163,7 +163,7 @@ if (params$rerun_data) {
   
   
   #### Incorporate satellite data
-  sat_data <- process_spatial_data(
+  sat_data <- process_modis_data(
     df_og = read_csv(here("data", "MODIS_500m.csv")), 
     sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
     sat_var_col_start = 7
