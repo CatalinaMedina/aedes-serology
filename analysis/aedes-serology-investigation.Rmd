@@ -716,3 +716,19 @@ ggpairs(aedes_red_ind[, c(3:5, 8:14, 29, 36:39)])
 dev.off()
 ```
 
+
+
+```{r}
+ggplot(aedes_red_ind, aes(x = saliva_elisa_value)) +
+  geom_histogram()
+
+
+ggplot(aedes_red_ind, aes(x = log(saliva_elisa_value + 0.015))) +
+  geom_histogram()
+
+
+ggplot(aedes_red, aes(x = log(saliva_elisa_value + 0.015))) +
+  geom_histogram()
+```
+
+
