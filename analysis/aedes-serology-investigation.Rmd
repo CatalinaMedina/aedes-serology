@@ -14,7 +14,8 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
   fig.align = "center",
-  fig.pos = "h"
+  fig.pos = "h",
+  eval = FALSE
 )
 ```
 
@@ -210,10 +211,10 @@ if (params$rerun_data) {
   
   aedes_red <- df_new
   
-  saveRDS(aedes_red, file = here("data", "processed_aedes_data"))
+  saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
   
 } else { 
-  aedes_red <- readRDS(file = here("data", "processed_aedes_data")) 
+  aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds")) 
 }
   
 aedes_red_ind <- aedes_red %>%
@@ -778,5 +779,23 @@ ggplot(aedes_red_ind, aes(x = log(saliva_elisa_value + 0.015))) +
 ggplot(aedes_red, aes(x = log(saliva_elisa_value + 0.015))) +
   geom_histogram()
 ```
+
+
+
+
+
+\newpage
+
+## Model  
+Initial model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,4$).
+\begin{equation*}
+  \begin{split}
+    \log(\text{Saliva ELISA value})_{ij} &= b_{0_{i}} + \beta_{0} + \beta_{1}\text{Female}_i + \beta_{2-11}\text{School}_{i} \\
+    &+ \beta_{12}(\text{Age} - 6)_{i} + \beta_{13}\text{Toilets}_{i} + \beta_{14}\text{Insecticide}_{i} + \beta_{15}\text{Larvicide}_{i} \\
+    &+ \beta_{16}\text{NFI}_{ij} + \beta_{17}\text{NVI}_{ij} \\
+    &+ \beta_{18}\text{Visit2}_{ij} + \beta_{19}\text{Visit3}_{ij} + \beta_{20}\text{Visit4}_{ij},
+  \end{split}
+\end{equation*}
+with "subject not in school" as reference group for school covariate.
 
 
