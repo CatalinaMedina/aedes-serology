@@ -46,13 +46,61 @@ if (params$rerun_data) {
     "VISIT 4 INDEX"
   )
   
+  low_count_schools <- c( # schools with <= 5 study participants with saliva measurement
+    "Amnor Antarak Cheat School",
+    "Ampe Phnom",
+    "Aphivodth", 
+    "Christian School Khum Skus",
+    "Kdey Amnor", 
+    "Kindergarten Asian",
+    "Kindergarten Kampuchea Asian",
+    "Kindergarten Wattbor",
+    "Kindergarten​ Salon",
+    "Meatophoum School",
+    "No Name",
+    "Phoumi Thmei",
+    "Sinsisamuth"
+  ) 
+  
+  
   aedes_survey_og <- read_excel(here("data", "pagodas_combined_data3.xlsx"))
+  
+  
   aedes_survey_cleaned <- aedes_survey_og %>% 
     clean_names() %>% 
     mutate(visit = factor(visit)) %>% 
     mutate(age = as.numeric(age)) %>% 
+    mutate(age_cented = age - 6) %>% 
     mutate(gender = factor(gender)) %>% 
-    mutate(school_attended = factor(school_attended)) %>% 
+    mutate(school_attended = str_to_title(school_attended)) %>% 
+    mutate(specify_if_other = str_to_title(specify_if_other)) %>% 
+    mutate(school_attended_all = ifelse(
+      school_attended == "Other, Specify:",
+      yes = specify_if_other,
+      no = school_attended
+    )) %>% 
+    mutate(school_attended_red = factor(
+      case_when(
+        school_attended_all %in% low_count_schools ~ "other",
+        school_attended_all %in% c("Kindergarten New Town", "New Town") ~ "New Town",
+        school_attended_all == "Kindergarten Sin Si Sa Muth" ~ "Sin Si Sa Muth",
+        TRUE ~ school_attended_all
+      ),
+      levels = c(
+        "Subject Not In School",
+        "Ang Seri",              
+        "Anouvotta",             
+        "Mroum Cheung",          
+        "Mroum Tbaung",          
+        "New Town",
+        "Panha Bot School",
+        "Rkathom",
+        "Santiphap",
+        "Sin Si Sa Muth",
+        "other"
+      )
+    )) %>% 
+    select(-c("school_attended", "specify_if_other")) %>% 
     mutate(housing_type = factor(housing_type)) %>% 
     mutate(socioeconomic_class = factor(
       socioeconomic_class,
@@ -99,6 +147,7 @@ if (params$rerun_data) {
     mutate(visit_date_abr = factor(as.yearmon(visit_date)))
   
   aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
+  
   aedes_coord_cleaned <- aedes_coord_og %>%
     clean_names()
   
@@ -170,7 +219,6 @@ if (params$rerun_data) {
 aedes_red_ind <- aedes_red %>%
   filter(visit == "VISIT 1 DENGUE INDEX") %>% 
   mutate(visit = droplevels(visit)) 
-
 ```
 
 
