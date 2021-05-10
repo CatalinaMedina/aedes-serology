@@ -4,8 +4,13 @@ author: "Catalina Medina"
 date: "4/5/2021"
 geometry: margin=0.5cm
 output: pdf_document
+header-includes:
+- \usepackage{pdflscape}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
 params:
   rerun_data: FALSE
+  rerun_fit1: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -14,8 +19,7 @@ knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
   fig.align = "center",
-  fig.pos = "h",
-  eval = FALSE
+  fig.pos = "h"
 )
 ```
 
@@ -32,6 +36,8 @@ library(knitr)
 library(kableExtra)
 library(lubridate)
 library(rstanarm)
+library(bayesplot)
+library(gridExtra)
 
 
 source(here("analysis", "process-modis-data-function.R"))
@@ -92,6 +98,7 @@ if (params$rerun_data) {
         school_attended_all %in% low_count_schools ~ "other",
         school_attended_all %in% c("Kindergarten New Town", "New Town") ~ "New Town",
         school_attended_all == "Kindergarten Sin Si Sa Muth" ~ "Sin Si Sa Muth",
+        school_attended_all == "Panha Bot School" ~ "Panha Bot",
         TRUE ~ school_attended_all
       ),
       levels = c(
@@ -798,7 +805,7 @@ ggplot(aedes_red, aes(x = log(saliva_elisa_value + 0.015))) +
 Initial model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,4$).
 \begin{equation*}
   \begin{split}
-    \log(\text{Saliva ELISA value})_{ij} &= b_{0_{i}} + \beta_{0} + \beta_{1}\text{Female}_i + \beta_{2-11}\text{School}_{i} \\
+    \log(\text{Saliva ELISA value})_{ij} &= b_{0_{i}} + \beta_{0} + \beta_{1}\text{Male}_i + \beta_{2-11}\text{School}_{i} \\
     &+ \beta_{12}(\text{Age} - 6)_{i} + \beta_{13}\text{Toilets}_{i} + \beta_{14}\text{Insecticide}_{i} + \beta_{15}\text{Larvicide}_{i} \\
     &+ \beta_{16}\text{NFI}_{ij} + \beta_{17}\text{NVI}_{ij} \\
     &+ \beta_{18}\text{Visit2}_{ij} + \beta_{19}\text{Visit3}_{ij} + \beta_{20}\text{Visit4}_{ij},
@@ -807,8 +814,62 @@ Initial model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 with "subject not in school" as reference group for school covariate.
 
 ```{r fit-model1}
-fit1 <- stan_lmer(
-  formula = 
+if(params$rerun_fit1) {
+  fit1 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
+      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      NFI + NVI + visit,
+    data = aedes_red,
+    prior = normal(location = 0, scale = 100, autoscale = FALSE),
+    prior_intercept = normal(location = 0, scale = 100, autoscale = FALSE),
+    seed = seed_val
+  )
+  
+  saveRDS(fit1, file = here("output", "fit1.rds"))
+  
+} else { 
+  fit1 <- readRDS(file = here("output", "fit1.rds")) 
+}
+```
+
+
+\blandscape
+
+```{r model-results, fig.width=10, fig.height=7.5}
+fit1_post_area1 <- mcmc_areas(fit1, regex_pars = "school") +
+  ggtitle("Posterior for school preds") +
+  scale_y_discrete(labels = c(
+    "school_attended_redAng Seri" = "Ang Seri",
+    "school_attended_redAnouvotta" = "Anouvotta",
+    "school_attended_redMroum Cheung" = "Mroum Cheung",
+    "school_attended_redMroum Tbaung" = "Mroum Tbaung",
+    "school_attended_redNew Town" = "New Town",
+    "school_attended_redPanha Bot" = "Panha Bot",
+    "school_attended_redRkathom" = "Rkathom",
+    "school_attended_redSantiphap" = "Santiphap",
+    "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
+    "school_attended_redother" = "other"
+  ))
+
+fit1_post_area2 <- mcmc_areas(
+  fit1,
+  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
+)
+
+fit1_post_area3 <- mcmc_areas(fit1, regex_pars = c("NFI", "NVI"))
+
+fit1_post_area4 <- mcmc_areas(fit1, regex_pars = c("visit")) +
+  scale_y_discrete(labels = c(
+    "visitVISIT 2  DENGUE INDEX" = "visit 2",
+    "visitVISIT 3 DENGUE INDEX" = "visit 3",
+    "visitVISIT 4 INDEX" = "visit 4"
+  ))
+
+grid.arrange(
+  fit1_post_area1, fit1_post_area2, fit1_post_area3, fit1_post_area4, 
+  nrow = 2
 )
 ```
+
+\endlandscape
 
