@@ -31,15 +31,22 @@ library(qwraps2)
 library(knitr)
 library(kableExtra)
 library(lubridate)
+library(rstanarm)
 
 
 source(here("analysis", "process-modis-data-function.R"))
+
+seed_val <- 1423
+set.seed(seed_val)
 ```
 
 
 ```{r read-process-data}
 if (params$rerun_data) {
   ##### read-process-survey-data
+  
+  saliva_ELISA_log_shift <- 0.15
+  
   sched_visit_names <- c(
     "VISIT 1 DENGUE INDEX",
     "VISIT 2  DENGUE INDEX",
@@ -145,7 +152,8 @@ if (params$rerun_data) {
         "Daily"
       )
     )) %>% 
-    mutate(visit_date_abr = factor(as.yearmon(visit_date)))
+    mutate(visit_date_abr = factor(as.yearmon(visit_date))) %>% 
+    mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift))
   
   aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
   
@@ -798,4 +806,9 @@ Initial model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 \end{equation*}
 with "subject not in school" as reference group for school covariate.
 
+```{r fit-model1}
+fit1 <- stan_lmer(
+  formula = 
+)
+```
 
