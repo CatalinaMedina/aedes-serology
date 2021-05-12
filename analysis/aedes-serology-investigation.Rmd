@@ -224,7 +224,58 @@ if (params$rerun_data) {
     }
   }
   
-  aedes_red <- df_new
+  aedes_red <- df_new %>% 
+    rename(EVI500 = EVI, NVI500 = NVI, NFI500 = NFI)
+  
+  
+  #### Incorporate satellite data 
+  sat_data <- process_modis_data(
+    df_og = read_csv(here("data", "MODIS_250m.csv")), 
+    sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
+    sat_var_col_start = 7
+  )
+  
+  
+  sat_df <- sat_data
+  df_og <- aedes_red
+  df_new <- cbind(
+    df_og, 
+    "EVI" = rep(NA, nrow(df_og)),
+    "NFI" = rep(NA, nrow(df_og)),
+    "NVI" = rep(NA, nrow(df_og))
+  )
+  
+  num_vars <- 3
+  var_types <- levels(factor(sat_df$var_type))
+  
+  max_date_diff <- 30
+  
+  
+  for(i in 1:nrow(df_og)) {
+    df_id <- sat_df %>% 
+      filter(Study.ID == as.character(df_og[i, "study_id"]))
+    
+    for(j in 1:num_vars) {
+      df_id_var <- df_id %>% 
+        filter(var_type == var_types[j])
+      
+      if (sum(!is.na(df_id_var$sat_var_value)) > 0) {
+        curr <- df_id_var[which.min(abs(df_id_var$date - df_og$visit_date[i])), ]
+        
+        if (abs(curr$date - df_og$visit_date[i]) > max_date_diff) {
+          print(paste0(
+            "Warning: Study ID ", df_og[i, "study_id"], " does not have ", 
+            var_types[j], " value within ", max_date_diff, " days!"
+          ))
+        } else {
+          df_new[i, var_types[j]] <- curr$sat_var_value
+        }
+      }
+    }
+  }
+  
+  aedes_red <- df_new %>% 
+    rename(EVI250 = EVI, NVI250 = NVI, NFI250 = NFI)
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
   
@@ -813,15 +864,13 @@ Initial model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 \end{equation*}
 with "subject not in school" as reference group for school covariate.
 
-```{r fit-model1}
+```{r fit-model1-}
 if(params$rerun_fit1) {
   fit1 <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
       NFI + NVI + visit,
     data = aedes_red,
-    prior = normal(location = 0, scale = 100, autoscale = FALSE),
-    prior_intercept = normal(location = 0, scale = 100, autoscale = FALSE),
     seed = seed_val
   )
   
