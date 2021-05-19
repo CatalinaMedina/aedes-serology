@@ -10,10 +10,14 @@ header-includes:
 - \newcommand{\elandscape}{\end{landscape}}
 params:
   rerun_data: FALSE
-  rerun_fit1: FALSE
-  rerun_fit2: FALSE
-  rerun_fit3: FALSE
-  rerun_fit4: FALSE
+  rerun_fit1_bayes: FALSE
+  rerun_fit2_bayes: FALSE
+  rerun_fit3_bayes: FALSE
+  rerun_fit4_bayes: FALSE
+  rerun_fit1_freq: FALSE
+  rerun_fit2_freq: FALSE
+  rerun_fit3_freq: FALSE
+  rerun_fit4_freq: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -41,6 +45,7 @@ library(lubridate)
 library(rstanarm)
 library(bayesplot)
 library(gridExtra)
+library(lme4)
 
 
 source(here("analysis", "process-modis-data-function.R"))
@@ -836,7 +841,7 @@ dev.off()
 
 
 
-```{r}
+```{r, eval = FALSE}
 ggplot(aedes_red_ind, aes(x = saliva_elisa_value)) +
   geom_histogram()
 
@@ -867,9 +872,9 @@ Initial model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 \end{equation*}
 with "subject not in school" as reference group for school covariate.
 
-```{r fit1-NVI500}
-if(params$rerun_fit1) {
-  fit1 <- stan_lmer(
+```{r fit1-bayes-NVI500}
+if(params$rerun_fit1_bayes) {
+  fit1_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
       NFI500 + NVI500 + visit,
@@ -877,35 +882,35 @@ if(params$rerun_fit1) {
     seed = seed_val
   )
   
-  saveRDS(fit1, file = here("output", "fit1.rds"))
+  saveRDS(fit1_bayes, file = here("output", "fit1-bayes.rds"))
   
 } else { 
-  fit1 <- readRDS(file = here("output", "fit1.rds")) 
+  fit1_bayes <- readRDS(file = here("output", "fit1-bayes.rds")) 
 }
 ```
 
 
-```{r fit2-NVI250}
-if(params$rerun_fit2) {
-  fit2 <- stan_lmer(
+```{r fit2-bayes-NVI250}
+if(params$rerun_fit2_bayes) {
+  fit2_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
-      NFI500 + NVI250 + visit,
+      NFI250 + NVI250 + visit,
     data = aedes_red,
     seed = seed_val
   )
   
-  saveRDS(fit2, file = here("output", "fit2.rds"))
+  saveRDS(fit2_bayes, file = here("output", "fit2-bayes.rds"))
   
 } else { 
-  fit2 <- readRDS(file = here("output", "fit2.rds")) 
+  fit2_bayes <- readRDS(file = here("output", "fit2-bayes.rds")) 
 }
 ```
 
 
-```{r fit3-EVI500}
-if(params$rerun_fit3) {
-  fit3 <- stan_lmer(
+```{r fit3-bayes-EVI500}
+if(params$rerun_fit3_bayes) {
+  fit3_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
       NFI500 + EVI500 + visit,
@@ -913,229 +918,233 @@ if(params$rerun_fit3) {
     seed = seed_val
   )
   
-  saveRDS(fit3, file = here("output", "fit3.rds"))
+  saveRDS(fit3_bayes, file = here("output", "fit3-bayes.rds"))
   
 } else { 
-  fit3 <- readRDS(file = here("output", "fit3.rds")) 
+  fit3_bayes <- readRDS(file = here("output", "fit3-bayes.rds")) 
 }
 ```
 
 
-```{r fit4-EVI250}
-if(params$rerun_fit4) {
-  fit4 <- stan_lmer(
+```{r fit4-bayes-EVI250}
+if(params$rerun_fit4_bayes) {
+  fit4_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
-      NFI500 + EVI250 + visit,
+      NFI250 + EVI250 + visit,
     data = aedes_red,
     seed = seed_val
   )
   
-  saveRDS(fit4, file = here("output", "fit4.rds"))
+  saveRDS(fit4_bayes, file = here("output", "fit4-bayes.rds"))
   
 } else { 
-  fit4 <- readRDS(file = here("output", "fit4.rds")) 
+  fit4_bayes <- readRDS(file = here("output", "fit4-bayes.rds")) 
 }
 ```
 
 \blandscape
 
-Fit 1 (NVI500) Results
-```{r fit1-results, fig.width=10, fig.height=7.5}
-fit1_post_area1 <- mcmc_areas(fit1, regex_pars = "school") +
-  scale_y_discrete(labels = c(
-    "school_attended_redAng Seri" = "Ang Seri",
-    "school_attended_redAnouvotta" = "Anouvotta",
-    "school_attended_redMroum Cheung" = "Mroum Cheung",
-    "school_attended_redMroum Tbaung" = "Mroum Tbaung",
-    "school_attended_redNew Town" = "New Town",
-    "school_attended_redPanha Bot" = "Panha Bot",
-    "school_attended_redRkathom" = "Rkathom",
-    "school_attended_redSantiphap" = "Santiphap",
-    "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
-    "school_attended_redother" = "other"
-  ))
-
-fit1_post_area2 <- mcmc_areas(
-  fit1,
-  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
-)
-
-fit1_post_area3 <- mcmc_areas(fit1, regex_pars = c("NFI", "NVI"))
-
-fit1_post_area4 <- mcmc_areas(fit1, regex_pars = c("visit")) +
-  scale_y_discrete(labels = c(
-    "visitVISIT 2  DENGUE INDEX" = "visit 2",
-    "visitVISIT 3 DENGUE INDEX" = "visit 3",
-    "visitVISIT 4 INDEX" = "visit 4"
-  ))
-
-grid.arrange(
-  fit1_post_area1, fit1_post_area2, fit1_post_area3, fit1_post_area4, 
-  nrow = 2
-)
+```{r gen_post_plots-function}
+gen_post_plots <- function(fit){
+  fit_post_area1 <- mcmc_areas(fit, regex_pars = "school") +
+    scale_y_discrete(labels = c(
+      "school_attended_redAng Seri" = "Ang Seri",
+      "school_attended_redAnouvotta" = "Anouvotta",
+      "school_attended_redMroum Cheung" = "Mroum Cheung",
+      "school_attended_redMroum Tbaung" = "Mroum Tbaung",
+      "school_attended_redNew Town" = "New Town",
+      "school_attended_redPanha Bot" = "Panha Bot",
+      "school_attended_redRkathom" = "Rkathom",
+      "school_attended_redSantiphap" = "Santiphap",
+      "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
+      "school_attended_redother" = "other"
+    ))
+  
+  fit_post_area2 <- mcmc_areas(
+    fit,
+    regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
+  )
+  
+  fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI", "NVI", "EVI"))
+  
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit")) +
+    scale_y_discrete(labels = c(
+      "visitVISIT 2  DENGUE INDEX" = "visit 2",
+      "visitVISIT 3 DENGUE INDEX" = "visit 3",
+      "visitVISIT 4 INDEX" = "visit 4"
+    ))
+  
+  grid.arrange(
+    fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
+    nrow = 2
+  )
+}
 ```
 
-```{r fit1-noschool-results, fig.width=10, fig.height=7.5}
-fit1_post_area2 <- mcmc_areas(
-  fit1_no_sch ,
-  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
-)
 
-fit1_post_area3 <- mcmc_areas(fit1_no_sch , regex_pars = c("NFI", "NVI"))
-
-fit1_post_area4 <- mcmc_areas(fit1_no_sch , regex_pars = c("visit")) +
-  scale_y_discrete(labels = c(
-    "visitVISIT 2  DENGUE INDEX" = "visit 2",
-    "visitVISIT 3 DENGUE INDEX" = "visit 3",
-    "visitVISIT 4 INDEX" = "visit 4"
-  ))
-
-grid.arrange(
-  fit1_post_area2, fit1_post_area3, fit1_post_area4, 
-  nrow = 2
-)
+Fit 1 (NVI500) Results
+```{r fit1-bayes-results, fig.width=10, fig.height=7.5}
+gen_post_plots(fit1_bayes)
 ```
 
 
 \newpage
 
 Fit 2 (NVI250) Results
-```{r fit2-results, fig.width=10, fig.height=7.5}
-fit2_post_area1 <- mcmc_areas(fit2, regex_pars = "school") +
-  scale_y_discrete(labels = c(
-    "school_attended_redAng Seri" = "Ang Seri",
-    "school_attended_redAnouvotta" = "Anouvotta",
-    "school_attended_redMroum Cheung" = "Mroum Cheung",
-    "school_attended_redMroum Tbaung" = "Mroum Tbaung",
-    "school_attended_redNew Town" = "New Town",
-    "school_attended_redPanha Bot" = "Panha Bot",
-    "school_attended_redRkathom" = "Rkathom",
-    "school_attended_redSantiphap" = "Santiphap",
-    "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
-    "school_attended_redother" = "other"
-  ))
-
-fit2_post_area2 <- mcmc_areas(
-  fit2,
-  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
-)
-
-fit2_post_area3 <- mcmc_areas(fit2, regex_pars = c("NFI", "NVI"))
-
-fit2_post_area4 <- mcmc_areas(fit2, regex_pars = c("visit")) +
-  scale_y_discrete(labels = c(
-    "visitVISIT 2  DENGUE INDEX" = "visit 2",
-    "visitVISIT 3 DENGUE INDEX" = "visit 3",
-    "visitVISIT 4 INDEX" = "visit 4"
-  ))
-
-grid.arrange(
-  fit2_post_area1, fit2_post_area2, fit2_post_area3, fit2_post_area4, 
-  nrow = 2
-)
+```{r fit2-bayes-results, fig.width=10, fig.height=7.5}
+gen_post_plots(fit2_bayes)
 ```
 
 \newpage
 
 Fit 3 (EVI500) Results
-```{r fit3-results, fig.width=10, fig.height=7.5}
-fit3_post_area1 <- mcmc_areas(fit3, regex_pars = "school") +
-  scale_y_discrete(labels = c(
-    "school_attended_redAng Seri" = "Ang Seri",
-    "school_attended_redAnouvotta" = "Anouvotta",
-    "school_attended_redMroum Cheung" = "Mroum Cheung",
-    "school_attended_redMroum Tbaung" = "Mroum Tbaung",
-    "school_attended_redNew Town" = "New Town",
-    "school_attended_redPanha Bot" = "Panha Bot",
-    "school_attended_redRkathom" = "Rkathom",
-    "school_attended_redSantiphap" = "Santiphap",
-    "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
-    "school_attended_redother" = "other"
-  ))
-
-fit3_post_area2 <- mcmc_areas(
-  fit3,
-  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
-)
-
-fit3_post_area3 <- mcmc_areas(fit3, regex_pars = c("NFI", "EVI"))
-
-fit3_post_area4 <- mcmc_areas(fit3, regex_pars = c("visit")) +
-  scale_y_discrete(labels = c(
-    "visitVISIT 2  DENGUE INDEX" = "visit 2",
-    "visitVISIT 3 DENGUE INDEX" = "visit 3",
-    "visitVISIT 4 INDEX" = "visit 4"
-  ))
-
-grid.arrange(
-  fit3_post_area1, fit3_post_area2, fit3_post_area3, fit3_post_area4, 
-  nrow = 2
-)
+```{r fit3-bayes-results, fig.width=10, fig.height=7.5}
+gen_post_plots(fit3_bayes)
 ```
 
 
 \newpage
 
 Fit 4 (EVI250) Results
-```{r fit4-results, fig.width=10, fig.height=7.5}
-fit4_post_area1 <- mcmc_areas(fit4, regex_pars = "school") +
-  ggtitle("Posterior for school preds") +
-  scale_y_discrete(labels = c(
-    "school_attended_redAng Seri" = "Ang Seri",
-    "school_attended_redAnouvotta" = "Anouvotta",
-    "school_attended_redMroum Cheung" = "Mroum Cheung",
-    "school_attended_redMroum Tbaung" = "Mroum Tbaung",
-    "school_attended_redNew Town" = "New Town",
-    "school_attended_redPanha Bot" = "Panha Bot",
-    "school_attended_redRkathom" = "Rkathom",
-    "school_attended_redSantiphap" = "Santiphap",
-    "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
-    "school_attended_redother" = "other"
-  ))
-
-fit4_post_area2 <- mcmc_areas(
-  fit4,
-  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
-)
-
-fit4_post_area3 <- mcmc_areas(fit4, regex_pars = c("NFI", "EVI"))
-
-fit4_post_area4 <- mcmc_areas(fit4, regex_pars = c("visit")) +
-  scale_y_discrete(labels = c(
-    "visitVISIT 2  DENGUE INDEX" = "visit 2",
-    "visitVISIT 3 DENGUE INDEX" = "visit 3",
-    "visitVISIT 4 INDEX" = "visit 4"
-  ))
-
-grid.arrange(
-  fit4_post_area1, fit4_post_area2, fit4_post_area3, fit4_post_area4, 
-  nrow = 2
-)
+```{r fit4-bayes-results, fig.width=10, fig.height=7.5}
+gen_post_plots(fit4_bayes)
 ```
 
-\endlandscape
+\elandscape
 
 
-```{r, eval = FALSE}
-mcmc_trace(fit1, regex_pars = "school")
-mcmc_trace(fit2, regex_pars = "school")
-mcmc_trace(fit3, regex_pars = "school")
-mcmc_trace(fit4, regex_pars = "school")
+```{r trace-plots, eval = FALSE}
+mcmc_trace(fit1_bayes, regex_pars = "school")
+mcmc_trace(fit2_bayes, regex_pars = "school")
+mcmc_trace(fit3_bayes, regex_pars = "school")
+mcmc_trace(fit4_bayes, regex_pars = "school")
 
-mcmc_trace(fit1, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
-mcmc_trace(fit2, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
-mcmc_trace(fit3, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
-mcmc_trace(fit4, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
+mcmc_trace(fit1_bayes, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
+mcmc_trace(fit2_bayes, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
+mcmc_trace(fit3_bayes, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
+mcmc_trace(fit4_bayes, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
 
-mcmc_trace(fit1, , regex_pars = c("NFI", "NVI"))
-mcmc_trace(fit2, , regex_pars = c("NFI", "NVI"))
-mcmc_trace(fit3, , regex_pars = c("NFI", "EVI"))
-mcmc_trace(fit4, , regex_pars = c("NFI", "EVI"))
+mcmc_trace(fit1_bayes, regex_pars = c("NFI", "NVI"))
+mcmc_trace(fit2_bayes, regex_pars = c("NFI", "NVI"))
+mcmc_trace(fit3_bayes, regex_pars = c("NFI", "EVI"))
+mcmc_trace(fit4_bayes, regex_pars = c("NFI", "EVI"))
 
-mcmc_trace(fit1, regex_pars = c("visit"))
-mcmc_trace(fit2, regex_pars = c("visit"))
-mcmc_trace(fit3, regex_pars = c("visit"))
-mcmc_trace(fit4, regex_pars = c("visit"))
+mcmc_trace(fit1_bayes, regex_pars = c("visit"))
+mcmc_trace(fit2_bayes, regex_pars = c("visit"))
+mcmc_trace(fit3_bayes, regex_pars = c("visit"))
+mcmc_trace(fit4_bayes, regex_pars = c("visit"))
+```
+
+
+\newpage
+## Frequentist fit
+```{r fit1-freq-NVI500}
+if(params$rerun_fit1_freq) {
+  fit1_freq <- lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
+      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      NFI500 + NVI500 + visit,
+    data = aedes_red
+  )
+  
+  saveRDS(fit1_freq, file = here("output", "fit1-freq.rds"))
+  
+} else { 
+  fit1_freq <- readRDS(file = here("output", "fit1-freq.rds")) 
+}
+```
+
+
+```{r fit2-freq-NVI250}
+if(params$rerun_fit2_freq) {
+  fit2_freq <- lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
+      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      NFI250 + NVI250 + visit,
+    data = aedes_red
+  )
+  
+  saveRDS(fit2_freq, file = here("output", "fit2-freq.rds"))
+  
+} else { 
+  fit2_freq <- readRDS(file = here("output", "fit2-freq.rds")) 
+}
+```
+
+
+```{r fit3-freq-EVI500}
+if(params$rerun_fit3_freq) {
+  fit3_freq <- lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
+      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      NFI500 + EVI500 + visit,
+    data = aedes_red
+  )
+  
+  saveRDS(fit3_freq, file = here("output", "fit3-freq.rds"))
+  
+} else { 
+  fit3_freq <- readRDS(file = here("output", "fit3-freq.rds")) 
+}
+```
+
+
+```{r fit4-freq-EVI250}
+if(params$rerun_fit1_freq) {
+  fit4_freq <- lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
+      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      NFI250 + EVI250 + visit,
+    data = aedes_red
+  )
+  
+  saveRDS(fit4_freq, file = here("output", "fit4-freq.rds"))
+  
+} else { 
+  fit4_freq <- readRDS(file = here("output", "fit4-freq.rds")) 
+}
+```
+
+
+```{r gen_res_plot-function}
+gen_res_plot <- function(fit){
+  fit_freq_sum <- summary(fit)
+  coeffs <- data.frame(fit_freq_sum$coefficients)[-1, ]
+  fit_res <- data.frame(
+    pred = rownames(coeffs),
+    "estimates" = coeffs$Estimate,
+    "lb95" = coeffs$Estimate - qnorm(0.025) * coeffs$Std..Error,
+    "up95" = coeffs$Estimate + qnorm(0.025) * coeffs$Std..Error
+  )
+  rownames(fit_res) <- rownames(coeffs)
+  
+  ggplot(fit_res, mapping = aes(x = estimates, y = pred)) +
+    geom_point() +
+    geom_linerange(aes(xmin = lb95, xmax = up95)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    scale_y_discrete(limits = rev(fit_res$pred)) +
+    theme_bw()
+}
+```
+
+
+```{r fit1-freq-NVI500-results}
+gen_res_plot(fit1_freq)
+```
+
+
+```{r fit2-freq-NVI250-results}
+gen_res_plot(fit2_freq)
+```
+
+
+```{r fit3-freq-EVI500-results}
+gen_res_plot(fit3_freq)
+```
+
+
+```{r fit3-freq-EVI250-results}
+gen_res_plot(fit4_freq)
 ```
 
