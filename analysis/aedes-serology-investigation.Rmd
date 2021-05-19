@@ -11,6 +11,9 @@ header-includes:
 params:
   rerun_data: FALSE
   rerun_fit1: FALSE
+  rerun_fit2: FALSE
+  rerun_fit3: FALSE
+  rerun_fit4: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -72,6 +75,7 @@ if (params$rerun_data) {
     "Kindergarten​ Salon",
     "Meatophoum School",
     "No Name",
+    "Panha Bot School",
     "Phoumi Thmei",
     "Sinsisamuth"
   ) 
@@ -108,14 +112,13 @@ if (params$rerun_data) {
         "Mroum Cheung",          
         "Mroum Tbaung",          
         "New Town",
-        "Panha Bot School",
         "Rkathom",
         "Santiphap",
         "Sin Si Sa Muth",
         "other"
       )
     )) %>% 
-    select(-c("school_attended", "specify_if_other")) %>% 
+    select(-c("specify_if_other")) %>% 
     mutate(housing_type = factor(housing_type)) %>% 
     mutate(socioeconomic_class = factor(
       socioeconomic_class,
@@ -634,7 +637,7 @@ aedes_red_ind %>%
 
 \newpage
 
-```{r elisa-by-EVI, fig.asp=0.7}
+```{r elisa-by-EVI, fig.asp=0.7, eval = FALSE}
 aedes_red %>% 
   ggplot(mapping = aes(x = EVI, y = saliva_elisa_value)) +
     geom_point() +
@@ -643,7 +646,7 @@ aedes_red %>%
 ```
 
 
-```{r EVI-visit1-mapped, fig.asp=0.9}
+```{r EVI-visit1-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 1 DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
@@ -656,7 +659,7 @@ aedes_red %>%
 ```
 
 
-```{r EVI-visit2-mapped, fig.asp=0.9}
+```{r EVI-visit2-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 2  DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
@@ -669,7 +672,7 @@ aedes_red %>%
 ```
 
 
-```{r EVI-visit3-mapped, fig.asp=0.9}
+```{r EVI-visit3-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 3 DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
@@ -682,7 +685,7 @@ aedes_red %>%
 ```
 
 
-```{r EVI-visit4-mapped, fig.asp=0.9}
+```{r EVI-visit4-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 4 INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
@@ -695,7 +698,7 @@ aedes_red %>%
 ```
 
 
-```{r elisa-by-NFI, fig.asp=0.7}
+```{r elisa-by-NFI, fig.asp=0.7, eval = FALSE}
 aedes_red %>% 
   ggplot(mapping = aes(x = NFI, y = saliva_elisa_value)) +
     geom_point() +
@@ -704,7 +707,7 @@ aedes_red %>%
 ```
 
 
-```{r NFI-visit1-mapped, fig.asp=0.9}
+```{r NFI-visit1-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 1 DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
@@ -717,7 +720,7 @@ aedes_red %>%
 ```
 
 
-```{r NFI-visit2-mapped, fig.asp=0.9}
+```{r NFI-visit2-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 2  DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
@@ -730,7 +733,7 @@ aedes_red %>%
 ```
 
 
-```{r NFI-visit3-mapped, fig.asp=0.9}
+```{r NFI-visit3-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 3 DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
@@ -743,7 +746,7 @@ aedes_red %>%
 ```
 
 
-```{r NFI-visit4-mapped, fig.asp=0.9}
+```{r NFI-visit4-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 4 INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
@@ -757,7 +760,7 @@ aedes_red %>%
 
 \newpage
 
-```{r elisa-by-NVI, fig.asp=0.7}
+```{r elisa-by-NVI, fig.asp=0.7, eval = FALSE}
 aedes_red %>% 
   ggplot(mapping = aes(x = NVI, y = saliva_elisa_value)) +
     geom_point() +
@@ -766,7 +769,7 @@ aedes_red %>%
 ```
 
 
-```{r NVI-visit1-mapped, fig.asp=0.9}
+```{r NVI-visit1-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 1 DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
@@ -779,7 +782,7 @@ aedes_red %>%
 ```
 
 
-```{r NVI-visit2-mapped, fig.asp=0.9}
+```{r NVI-visit2-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 2  DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
@@ -792,7 +795,7 @@ aedes_red %>%
 ```
 
 
-```{r NVI-visit3-mapped, fig.asp=0.9}
+```{r NVI-visit3-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 3 DENGUE INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
@@ -805,7 +808,7 @@ aedes_red %>%
 ```
 
 
-```{r NVI-visit4-mapped, fig.asp=0.9}
+```{r NVI-visit4-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
   filter(visit == "VISIT 4 INDEX") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
@@ -864,12 +867,12 @@ Initial model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 \end{equation*}
 with "subject not in school" as reference group for school covariate.
 
-```{r fit-model1-}
+```{r fit1-NVI500}
 if(params$rerun_fit1) {
   fit1 <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
-      NFI + NVI + visit,
+      NFI500 + NVI500 + visit,
     data = aedes_red,
     seed = seed_val
   )
@@ -882,11 +885,64 @@ if(params$rerun_fit1) {
 ```
 
 
+```{r fit2-NVI250}
+if(params$rerun_fit2) {
+  fit2 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
+      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      NFI500 + NVI250 + visit,
+    data = aedes_red,
+    seed = seed_val
+  )
+  
+  saveRDS(fit2, file = here("output", "fit2.rds"))
+  
+} else { 
+  fit2 <- readRDS(file = here("output", "fit2.rds")) 
+}
+```
+
+
+```{r fit3-EVI500}
+if(params$rerun_fit3) {
+  fit3 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
+      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      NFI500 + EVI500 + visit,
+    data = aedes_red,
+    seed = seed_val
+  )
+  
+  saveRDS(fit3, file = here("output", "fit3.rds"))
+  
+} else { 
+  fit3 <- readRDS(file = here("output", "fit3.rds")) 
+}
+```
+
+
+```{r fit4-EVI250}
+if(params$rerun_fit4) {
+  fit4 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
+      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      NFI500 + EVI250 + visit,
+    data = aedes_red,
+    seed = seed_val
+  )
+  
+  saveRDS(fit4, file = here("output", "fit4.rds"))
+  
+} else { 
+  fit4 <- readRDS(file = here("output", "fit4.rds")) 
+}
+```
+
 \blandscape
 
-```{r model-results, fig.width=10, fig.height=7.5}
+Fit 1 (NVI500) Results
+```{r fit1-results, fig.width=10, fig.height=7.5}
 fit1_post_area1 <- mcmc_areas(fit1, regex_pars = "school") +
-  ggtitle("Posterior for school preds") +
   scale_y_discrete(labels = c(
     "school_attended_redAng Seri" = "Ang Seri",
     "school_attended_redAnouvotta" = "Anouvotta",
@@ -920,5 +976,166 @@ grid.arrange(
 )
 ```
 
+```{r fit1-noschool-results, fig.width=10, fig.height=7.5}
+fit1_post_area2 <- mcmc_areas(
+  fit1_no_sch ,
+  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
+)
+
+fit1_post_area3 <- mcmc_areas(fit1_no_sch , regex_pars = c("NFI", "NVI"))
+
+fit1_post_area4 <- mcmc_areas(fit1_no_sch , regex_pars = c("visit")) +
+  scale_y_discrete(labels = c(
+    "visitVISIT 2  DENGUE INDEX" = "visit 2",
+    "visitVISIT 3 DENGUE INDEX" = "visit 3",
+    "visitVISIT 4 INDEX" = "visit 4"
+  ))
+
+grid.arrange(
+  fit1_post_area2, fit1_post_area3, fit1_post_area4, 
+  nrow = 2
+)
+```
+
+
+\newpage
+
+Fit 2 (NVI250) Results
+```{r fit2-results, fig.width=10, fig.height=7.5}
+fit2_post_area1 <- mcmc_areas(fit2, regex_pars = "school") +
+  scale_y_discrete(labels = c(
+    "school_attended_redAng Seri" = "Ang Seri",
+    "school_attended_redAnouvotta" = "Anouvotta",
+    "school_attended_redMroum Cheung" = "Mroum Cheung",
+    "school_attended_redMroum Tbaung" = "Mroum Tbaung",
+    "school_attended_redNew Town" = "New Town",
+    "school_attended_redPanha Bot" = "Panha Bot",
+    "school_attended_redRkathom" = "Rkathom",
+    "school_attended_redSantiphap" = "Santiphap",
+    "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
+    "school_attended_redother" = "other"
+  ))
+
+fit2_post_area2 <- mcmc_areas(
+  fit2,
+  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
+)
+
+fit2_post_area3 <- mcmc_areas(fit2, regex_pars = c("NFI", "NVI"))
+
+fit2_post_area4 <- mcmc_areas(fit2, regex_pars = c("visit")) +
+  scale_y_discrete(labels = c(
+    "visitVISIT 2  DENGUE INDEX" = "visit 2",
+    "visitVISIT 3 DENGUE INDEX" = "visit 3",
+    "visitVISIT 4 INDEX" = "visit 4"
+  ))
+
+grid.arrange(
+  fit2_post_area1, fit2_post_area2, fit2_post_area3, fit2_post_area4, 
+  nrow = 2
+)
+```
+
+\newpage
+
+Fit 3 (EVI500) Results
+```{r fit3-results, fig.width=10, fig.height=7.5}
+fit3_post_area1 <- mcmc_areas(fit3, regex_pars = "school") +
+  scale_y_discrete(labels = c(
+    "school_attended_redAng Seri" = "Ang Seri",
+    "school_attended_redAnouvotta" = "Anouvotta",
+    "school_attended_redMroum Cheung" = "Mroum Cheung",
+    "school_attended_redMroum Tbaung" = "Mroum Tbaung",
+    "school_attended_redNew Town" = "New Town",
+    "school_attended_redPanha Bot" = "Panha Bot",
+    "school_attended_redRkathom" = "Rkathom",
+    "school_attended_redSantiphap" = "Santiphap",
+    "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
+    "school_attended_redother" = "other"
+  ))
+
+fit3_post_area2 <- mcmc_areas(
+  fit3,
+  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
+)
+
+fit3_post_area3 <- mcmc_areas(fit3, regex_pars = c("NFI", "EVI"))
+
+fit3_post_area4 <- mcmc_areas(fit3, regex_pars = c("visit")) +
+  scale_y_discrete(labels = c(
+    "visitVISIT 2  DENGUE INDEX" = "visit 2",
+    "visitVISIT 3 DENGUE INDEX" = "visit 3",
+    "visitVISIT 4 INDEX" = "visit 4"
+  ))
+
+grid.arrange(
+  fit3_post_area1, fit3_post_area2, fit3_post_area3, fit3_post_area4, 
+  nrow = 2
+)
+```
+
+
+\newpage
+
+Fit 4 (EVI250) Results
+```{r fit4-results, fig.width=10, fig.height=7.5}
+fit4_post_area1 <- mcmc_areas(fit4, regex_pars = "school") +
+  ggtitle("Posterior for school preds") +
+  scale_y_discrete(labels = c(
+    "school_attended_redAng Seri" = "Ang Seri",
+    "school_attended_redAnouvotta" = "Anouvotta",
+    "school_attended_redMroum Cheung" = "Mroum Cheung",
+    "school_attended_redMroum Tbaung" = "Mroum Tbaung",
+    "school_attended_redNew Town" = "New Town",
+    "school_attended_redPanha Bot" = "Panha Bot",
+    "school_attended_redRkathom" = "Rkathom",
+    "school_attended_redSantiphap" = "Santiphap",
+    "school_attended_redSin Si Sa Muth" = "Sin Si Sa Muth",
+    "school_attended_redother" = "other"
+  ))
+
+fit4_post_area2 <- mcmc_areas(
+  fit4,
+  regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
+)
+
+fit4_post_area3 <- mcmc_areas(fit4, regex_pars = c("NFI", "EVI"))
+
+fit4_post_area4 <- mcmc_areas(fit4, regex_pars = c("visit")) +
+  scale_y_discrete(labels = c(
+    "visitVISIT 2  DENGUE INDEX" = "visit 2",
+    "visitVISIT 3 DENGUE INDEX" = "visit 3",
+    "visitVISIT 4 INDEX" = "visit 4"
+  ))
+
+grid.arrange(
+  fit4_post_area1, fit4_post_area2, fit4_post_area3, fit4_post_area4, 
+  nrow = 2
+)
+```
+
 \endlandscape
+
+
+```{r, eval = FALSE}
+mcmc_trace(fit1, regex_pars = "school")
+mcmc_trace(fit2, regex_pars = "school")
+mcmc_trace(fit3, regex_pars = "school")
+mcmc_trace(fit4, regex_pars = "school")
+
+mcmc_trace(fit1, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
+mcmc_trace(fit2, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
+mcmc_trace(fit3, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
+mcmc_trace(fit4, regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide"))
+
+mcmc_trace(fit1, , regex_pars = c("NFI", "NVI"))
+mcmc_trace(fit2, , regex_pars = c("NFI", "NVI"))
+mcmc_trace(fit3, , regex_pars = c("NFI", "EVI"))
+mcmc_trace(fit4, , regex_pars = c("NFI", "EVI"))
+
+mcmc_trace(fit1, regex_pars = c("visit"))
+mcmc_trace(fit2, regex_pars = c("visit"))
+mcmc_trace(fit3, regex_pars = c("visit"))
+mcmc_trace(fit4, regex_pars = c("visit"))
+```
 
