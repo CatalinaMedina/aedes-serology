@@ -189,7 +189,8 @@ if (params$rerun_data) {
     df_og = read_csv(here("data", "MODIS_500m.csv")), 
     sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
     sat_var_col_start = 7
-  )
+  ) %>% 
+    arrange(Study.ID, var_type, date)
   
   
   sat_df <- sat_data
@@ -204,9 +205,8 @@ if (params$rerun_data) {
   num_vars <- 3
   var_types <- levels(factor(sat_df$var_type))
   
-  max_date_diff <- 30
-  
-  
+  max_date_diff <- 40
+  date_lag <- 16
   
   
   for(i in 1:nrow(df_og)) {
@@ -218,12 +218,14 @@ if (params$rerun_data) {
         filter(var_type == var_types[j])
       
       if (sum(!is.na(df_id_var$sat_var_value)) > 0) {
-        curr <- df_id_var[which.min(abs(df_id_var$date - df_og$visit_date[i])), ]
+        date_diff <- (df_og$visit_date[i] - days(date_lag)) - df_id_var$date
+        curr <- df_id_var[which.min(ifelse(date_diff < 0, 1000, date_diff)), ]
         
         if (abs(curr$date - df_og$visit_date[i]) > max_date_diff) {
           print(paste0(
             "Warning: Study ID ", df_og[i, "study_id"], " does not have ", 
-            var_types[j], " value within ", max_date_diff, " days!"
+            var_types[j], " value available within ", max_date_diff, 
+            " days [max_date_diff] of ", date_lag, " days [date_lag] prior to visit date!"
           ))
         } else {
           df_new[i, var_types[j]] <- curr$sat_var_value
@@ -521,7 +523,9 @@ aedes_red_ind %>%
   mutate(num_domestic_water_containers_in_home = factor(num_domestic_water_containers_in_home)) %>% 
   ggplot(mapping = aes(x = num_domestic_water_containers_in_home, y = saliva_elisa_value)) +
     geom_boxplot() +
-  theme_bw()
+  theme_bw() +
+  xlab("Number of domestic water containers in home") +
+  ylab("Saliva ELISA value")
 ```
 
 
@@ -543,7 +547,9 @@ aedes_red_ind %>%
   mutate(num_toilets_in_home = factor(num_toilets_in_home)) %>% 
   ggplot(mapping = aes(x = num_toilets_in_home, y = saliva_elisa_value)) +
     geom_boxplot() +
-  theme_bw()
+  theme_bw() +
+  xlab("Number of toilets in home") +
+  ylab("Saliva ELISA value")
 ```
 
 
@@ -585,7 +591,9 @@ aedes_red_ind %>%
 aedes_red_ind %>% 
   ggplot(mapping = aes(x = insecticide_spray, y = saliva_elisa_value)) +
     geom_boxplot() +
-  theme_bw()
+  theme_bw() +
+  xlab("Insecticide") +
+  ylab("Saliva ELISA value")
 ```
 
 
@@ -605,7 +613,9 @@ aedes_red_ind %>%
 aedes_red_ind %>% 
   ggplot(mapping = aes(x = larvicide_applied_to_water, y = saliva_elisa_value)) +
     geom_boxplot() +
-  theme_bw()
+  theme_bw() +
+  xlab("Larvicide") +
+  ylab("Saliva ELISA value")
 ```
 
 
@@ -841,18 +851,6 @@ dev.off()
 
 
 
-```{r, eval = FALSE}
-ggplot(aedes_red_ind, aes(x = saliva_elisa_value)) +
-  geom_histogram()
-
-
-ggplot(aedes_red_ind, aes(x = log(saliva_elisa_value + 0.015))) +
-  geom_histogram()
-
-
-ggplot(aedes_red, aes(x = log(saliva_elisa_value + 0.015))) +
-  geom_histogram()
-```
 
 
 
@@ -860,15 +858,26 @@ ggplot(aedes_red, aes(x = log(saliva_elisa_value + 0.015))) +
 
 \newpage
 
-## Model  
+## Model 
+
+```{r, eval = FALSE}
+ggplot(aedes_red_ind, aes(x = saliva_elisa_value)) +
+  geom_histogram()
+
+
+ggplot(aedes_red, aes(x = log(saliva_elisa_value + 0.015))) +
+  geom_histogram() +
+  theme_bw()
+```
+
 Initial model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,4$).
 \begin{equation*}
-  \begin{split}
-    \log(\text{Saliva ELISA value})_{ij} &= b_{0_{i}} + \beta_{0} + \beta_{1}\text{Male}_i + \beta_{2-11}\text{School}_{i} \\
-    &+ \beta_{12}(\text{Age} - 6)_{i} + \beta_{13}\text{Toilets}_{i} + \beta_{14}\text{Insecticide}_{i} + \beta_{15}\text{Larvicide}_{i} \\
-    &+ \beta_{16}\text{NFI}_{ij} + \beta_{17}\text{NVI}_{ij} \\
-    &+ \beta_{18}\text{Visit2}_{ij} + \beta_{19}\text{Visit3}_{ij} + \beta_{20}\text{Visit4}_{ij},
-  \end{split}
+	\begin{split}
+		\log(\text{Saliva ELISA value})_{ij} &= b_{0_{i}} + \beta_{0} + \beta_{1}\text{Male}_i + \beta_{2-10}\text{School}_{i} \\
+		&+ \beta_{11}(\text{Age} - 6)_{i} + \beta_{12}\text{Toilets}_{i} + \beta{13}\text{Water Containers}_i + \beta_{14}\text{Insecticide}_{i} + \beta_{15}\text{Larvicide}_{i} \\
+		&+ \beta_{16}\text{NFI}_{ij} + \beta_{17}\text{NVI}_{ij} \\
+		&+ \beta_{18}\text{Visit2}_{ij} + \beta_{19}\text{Visit3}_{ij} + \beta_{20}\text{Visit4}_{ij},
+	\end{split}
 \end{equation*}
 with "subject not in school" as reference group for school covariate.
 
@@ -876,7 +885,8 @@ with "subject not in school" as reference group for school covariate.
 if(params$rerun_fit1_bayes) {
   fit1_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
-      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      age_cented + num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water +
       NFI500 + NVI500 + visit,
     data = aedes_red,
     seed = seed_val
@@ -894,7 +904,8 @@ if(params$rerun_fit1_bayes) {
 if(params$rerun_fit2_bayes) {
   fit2_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
-      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      age_cented + num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water +
       NFI250 + NVI250 + visit,
     data = aedes_red,
     seed = seed_val
@@ -912,7 +923,8 @@ if(params$rerun_fit2_bayes) {
 if(params$rerun_fit3_bayes) {
   fit3_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
-      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      age_cented + num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water +
       NFI500 + EVI500 + visit,
     data = aedes_red,
     seed = seed_val
@@ -930,7 +942,8 @@ if(params$rerun_fit3_bayes) {
 if(params$rerun_fit4_bayes) {
   fit4_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
-      age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
+      age_cented + num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water +
       NFI250 + EVI250 + visit,
     data = aedes_red,
     seed = seed_val
@@ -963,7 +976,7 @@ gen_post_plots <- function(fit){
   
   fit_post_area2 <- mcmc_areas(
     fit,
-    regex_pars = c("gender", "age", "toilets", "insecticide", "larvicide")
+    regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide")
   )
   
   fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI", "NVI", "EVI"))
