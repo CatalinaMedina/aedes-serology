@@ -168,7 +168,7 @@ if (params$rerun_data) {
       )
     )) %>% 
     mutate(visit_date_abr = factor(as.yearmon(visit_date))) %>% 
-    mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift))
+    mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift)) 
   
   aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
   
