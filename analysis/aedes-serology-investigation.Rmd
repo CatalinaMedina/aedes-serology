@@ -231,22 +231,22 @@ if (params$rerun_data) {
     mutate(how_often_use_bed_net = ifelse(
       visit != "visit1", 
       yes = NA, 
-      no = how_often_use_bed_net
+      no = as.character(how_often_use_bed_net)
     )) %>% 
     mutate(insecticide_spray = ifelse(
       visit != "visit1", 
       yes = NA, 
-      no = insecticide_spray
+      no = as.character(insecticide_spray)
     )) %>%
     mutate(larvicide_applied_to_water = ifelse(
       visit != "visit1", 
       yes = NA, 
-      no = larvicide_applied_to_water
+      no = as.character(larvicide_applied_to_water)
     )) %>%
     mutate(how_often_mosquito_coils_burned = ifelse(
       visit != "visit1", 
       yes = NA, 
-      no = how_often_mosquito_coils_burned
+      no = as.character(how_often_mosquito_coils_burned)
     ))
 
   
@@ -265,7 +265,7 @@ if (params$rerun_data) {
     mutate(visit = gsub(" ", "", str_to_lower(visit), fixed = TRUE)) %>% 
     mutate(num_domestic_water_containers_in_home = as.numeric(num_domestic_water_containers_in_home)) %>% 
     mutate(num_toilets_in_home = as.numeric(num_toilets_in_home)) %>% 
-    mutate(how_often_use_bed_net = factor(
+    mutate(how_often_use_bed_net = as.character(factor(
       how_often_use_bed_net,
       levels = c(
         "Never", 
@@ -279,10 +279,8 @@ if (params$rerun_data) {
         "Most of the time", 
         "All of the time"
       )
-    )) %>% 
-    mutate(insecticide_spray = factor(insecticide_spray)) %>% 
-    mutate(larvicide_applied_to_water = factor(larvicide_applied_to_water)) %>% 
-    mutate(how_often_mosquito_coils_burned = factor(
+    ))) %>% 
+    mutate(how_often_mosquito_coils_burned = as.character(factor(
       how_often_mosquito_coils_burned,
       levels = c(
         "Never", 
@@ -298,7 +296,7 @@ if (params$rerun_data) {
         "~ 3x/week",
         "Daily"
       )
-    ))
+    )))
   
   time_varying_vars <- c("num_domestic_water_containers_in_home", "num_toilets_in_home", "how_often_use_bed_net", "insecticide_spray", "larvicide_applied_to_water", "how_often_mosquito_coils_burned")
   
@@ -310,7 +308,28 @@ if (params$rerun_data) {
     select(colnames(aedes_red)) %>% 
     bind_rows(aedes_red %>% filter(visit == "visit1")) %>% 
     mutate(visit = factor(visit)) %>% 
-    filter(!is.na(num_domestic_water_containers_in_home))
+    filter(!is.na(num_domestic_water_containers_in_home)) %>% 
+    mutate(how_often_use_bed_net = factor(
+      how_often_use_bed_net,
+      levels = c(
+        "Never", 
+        "Rarely", 
+        "Most of the time", 
+        "All of the time"
+      )
+    )) %>% 
+    mutate(insecticide_spray = factor(insecticide_spray)) %>% 
+    mutate(larvicide_applied_to_water = factor(larvicide_applied_to_water)) %>% 
+    mutate(how_often_mosquito_coils_burned = factor(
+      how_often_mosquito_coils_burned,
+      levels = c(
+        "Never", 
+        "~ 1x/month", 
+        "~ 1x/week",
+        "~ 3x/week",
+        "Daily"
+      )
+    ))
 
     
   
