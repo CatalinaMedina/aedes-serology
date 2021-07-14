@@ -9,7 +9,7 @@ header-includes:
 - \newcommand{\blandscape}{\begin{landscape}}
 - \newcommand{\elandscape}{\end{landscape}}
 params:
-  rerun_data: TRUE
+  rerun_data: FALSE
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -360,7 +360,10 @@ if (params$rerun_data) {
   }
   
   aedes_red <- df_new %>% 
-    rename(EVI250_sch = EVI, NVI250_sch = NVI, NFI250_sch = NFI)
+    rename(EVI250_sch = EVI, NVI250_sch = NVI, NFI250_sch = NFI) %>% 
+    mutate(EVI250_sch = ifelse(is.na(EVI250_sch), yes = EVI250_home, no = EVI250_sch)) %>% 
+    mutate(NVI250_sch = ifelse(is.na(NVI250_sch), yes = NVI250_home, no = NVI250_sch)) %>% 
+    mutate(NFI250_sch = ifelse(is.na(NFI250_sch), yes = NFI250_home, no = NFI250_sch))                 
   
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
