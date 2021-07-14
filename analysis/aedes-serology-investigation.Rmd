@@ -18,6 +18,7 @@ params:
   rerun_fit2_freq: FALSE
   rerun_fit3_freq: FALSE
   rerun_fit4_freq: FALSE
+  rerun_fit5_bayes: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -261,7 +262,7 @@ if (params$rerun_data) {
       larvicide_applied_to_water = "5. Is larvicide applied to water containers at the subject's home?",
       how_often_mosquito_coils_burned = "6. How often are mosquito coils burned in the subject's house?",
     ) %>% 
-    filter(study_id != "100-0468" & visit != "Visit 4") %>% # Missing data 
+    filter(!(study_id == "100-0468" & visit == "Visit 4")) %>% # Missing data 
     mutate(visit = gsub(" ", "", str_to_lower(visit), fixed = TRUE)) %>% 
     mutate(num_domestic_water_containers_in_home = as.numeric(num_domestic_water_containers_in_home)) %>% 
     mutate(num_toilets_in_home = as.numeric(num_toilets_in_home)) %>% 
@@ -1380,7 +1381,7 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 \begin{equation*}
 	\begin{split}
 		\log(\text{Saliva ELISA value})_{ij} &= b_{0_{i}} + \beta_{0} + \beta_{1}\text{Male}_i \\
-		&+ \beta_{2}(\text{Age} - 6)_{i} + \beta_{3}\text{Toilets}_{i} + \beta{4}\text{Water Containers}_i + \beta_{5}\text{Insecticide}_{i} + \beta_{6}\text{Larvicide}_{i} \\
+		&+ \beta_{2}(\text{Age} - 6)_{i} + \beta_{3}\text{Toilets}_{ij} + \beta{4}\text{Water Containers}_{ij} + \beta_{5}\text{Insecticide}_{ij} + \beta_{6}\text{Larvicide}_{ij} \\
 		&+ \beta_{7}\text{NFI250_home}_{ij} + \beta_{8}\text{EVI250_home}_{ij} \\
 		&+ \beta_{9}\text{NFI250_sch}_{ij} + \beta_{10}\text{EVI250_sch}_{ij} \\
 		&+ \beta_{11}\text{Visit2}_{ij} + \beta_{12}\text{Visit3}_{ij} + \beta_{13}\text{Visit4}_{ij} + \beta_{14}\text{Visit5}_{ij},
