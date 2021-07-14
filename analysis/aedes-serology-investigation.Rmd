@@ -102,12 +102,23 @@ if (params$rerun_data) {
       yes = specify_if_other,
       no = school_attended
     )) %>% 
+    mutate(school_attended_all = factor(
+      case_when(
+        school_attended_all == "New Town" ~ "Kindergarten New Town",
+        school_attended_all %in% c("Sin Si Sa Muth", "Sinsisamuth") ~ "Kindergarten Sin Si Sa Muth",
+        school_attended_all == "Panha Bot" ~ "Panha Bot School",
+        school_attended_all == "No Name" ~ "NA",
+        TRUE ~ school_attended_all
+      ))) %>% 
+    mutate(school_attended_all = as.character(school_attended_all)) %>%
+    mutate(in_school = factor(ifelse(
+      school_attended_all != "Subject Not In School",
+      yes = "yes",
+      no = "no"
+    ))) %>% 
     mutate(school_attended_red = factor(
       case_when(
         school_attended_all %in% low_count_schools ~ "other",
-        school_attended_all %in% c("Kindergarten New Town", "New Town") ~ "New Town",
-        school_attended_all == "Kindergarten Sin Si Sa Muth" ~ "Sin Si Sa Muth",
-        school_attended_all == "Panha Bot School" ~ "Panha Bot",
         TRUE ~ school_attended_all
       ),
       levels = c(
@@ -119,7 +130,7 @@ if (params$rerun_data) {
         "New Town",
         "Rkathom",
         "Santiphap",
-        "Sin Si Sa Muth",
+        "Kindergarten Sin Si Sa Muth",
         "other"
       )
     )) %>% 
@@ -181,8 +192,9 @@ if (params$rerun_data) {
   
   aedes_red <- aedes_full %>% 
     filter(!is.na(saliva_elisa_value)) %>% 
-    filter(!is.na(visit_date))
+    filter(!is.na(visit_date)) 
   
+  aedes_red1 <- aedes_red[!(aedes_red$school_attended_all == "NA"), ]
   
   #### Incorporate satellite data
   sat_data500 <- process_modis_data(
@@ -235,7 +247,7 @@ if (params$rerun_data) {
   }
   
   aedes_red <- df_new %>% 
-    rename(EVI500 = EVI, NVI500 = NVI, NFI500 = NFI)
+    rename(EVI500_home = EVI, NVI500_home = NVI, NFI500_home = NFI)
   
   
   #### Incorporate satellite data 
@@ -288,7 +300,10 @@ if (params$rerun_data) {
   }
   
   aedes_red <- df_new %>% 
-    rename(EVI250 = EVI, NVI250 = NVI, NFI250 = NFI)
+    rename(EVI250_home = EVI, NVI250_home = NVI, NFI250_home = NFI)
+  
+  
+  school_modis <- read_cvs(here("data", "SchoolsMODIS_250m.csv"))
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
   
@@ -890,7 +905,7 @@ if(params$rerun_fit1_bayes) {
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water +
-      NFI500 + NVI500 + visit,
+      NFI500_home + NVI500_home + visit,
     data = aedes_red,
     seed = seed_val
   )
@@ -909,7 +924,7 @@ if(params$rerun_fit2_bayes) {
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water +
-      NFI250 + NVI250 + visit,
+      NFI250_home + NVI250_home + visit,
     data = aedes_red,
     seed = seed_val
   )
@@ -928,7 +943,7 @@ if(params$rerun_fit3_bayes) {
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + num_domestic_water_containers_in_home +
       insecticide_spray + larvicide_applied_to_water +
-      NFI500 + EVI500 + visit,
+      NFI500_home + EVI500_home + visit,
     data = aedes_red,
     seed = seed_val
   )
@@ -947,7 +962,7 @@ if(params$rerun_fit4_bayes) {
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + num_domestic_water_containers_in_home +
       insecticide_spray + larvicide_applied_to_water +
-      NFI250 + EVI250 + visit,
+      NFI250_home + EVI250_home + visit,
     data = aedes_red,
     seed = seed_val
   )
@@ -1060,7 +1075,7 @@ if(params$rerun_fit1_freq) {
   fit1_freq <- lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
-      NFI500 + NVI500 + visit,
+      NFI500_home + NVI500_home + visit,
     data = aedes_red
   )
   
@@ -1077,7 +1092,7 @@ if(params$rerun_fit2_freq) {
   fit2_freq <- lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
-      NFI250 + NVI250 + visit,
+      NFI250_home + NVI250_home + visit,
     data = aedes_red
   )
   
@@ -1094,7 +1109,7 @@ if(params$rerun_fit3_freq) {
   fit3_freq <- lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
-      NFI500 + EVI500 + visit,
+      NFI500_home + EVI500_home + visit,
     data = aedes_red
   )
   
@@ -1111,7 +1126,7 @@ if(params$rerun_fit1_freq) {
   fit4_freq <- lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + school_attended_red + 
       age_cented + num_toilets_in_home + insecticide_spray + larvicide_applied_to_water +
-      NFI250 + EVI250 + visit,
+      NFI250_home + EVI250_home + visit,
     data = aedes_red
   )
   
