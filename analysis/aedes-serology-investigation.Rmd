@@ -9,7 +9,7 @@ header-includes:
 - \newcommand{\blandscape}{\begin{landscape}}
 - \newcommand{\elandscape}{\end{landscape}}
 params:
-  rerun_data: FALSE
+  rerun_data: TRUE
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -194,7 +194,7 @@ if (params$rerun_data) {
     filter(!is.na(saliva_elisa_value)) %>% 
     filter(!is.na(visit_date)) 
   
-  aedes_red1 <- aedes_red[!(aedes_red$school_attended_all == "NA"), ]
+  aedes_red <- aedes_red[!(aedes_red$school_attended_all == "NA"), ]
   
   #### Incorporate satellite data
   sat_data500 <- process_modis_data(
@@ -303,7 +303,65 @@ if (params$rerun_data) {
     rename(EVI250_home = EVI, NVI250_home = NVI, NFI250_home = NFI)
   
   
-  school_modis <- read_cvs(here("data", "SchoolsMODIS_250m.csv"))
+  #### Incorporate school satellite data 
+  sat_data250 <- process_modis_data(
+    df_og = read_csv(here("data", "SchoolsMODIS_250m.csv")), 
+    sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
+    sat_var_col_start = 6
+  ) %>% 
+    mutate(names = ifelse(
+      names == "Kindergarten<U+200B> Salon", 
+      yes = "Kindergarten​ Salon", 
+      no = names
+    ))
+  
+  
+  sat_df <- sat_data250
+  df_og <- aedes_red
+  df_new <- cbind(
+    df_og, 
+    "EVI" = rep(NA, nrow(df_og)),
+    "NFI" = rep(NA, nrow(df_og)),
+    "NVI" = rep(NA, nrow(df_og))
+  )
+  
+  num_vars <- 3
+  var_types <- levels(factor(sat_df$var_type))
+  
+  max_date_diff <- 40
+  date_lag <- 16
+  
+  
+  for(i in 1:nrow(df_og)) {
+    if(df_og[i, "school_attended_all"] != "Subject Not In School") {
+      df_id <- sat_df %>% 
+        filter(names == as.character(df_og[i, "school_attended_all"]))
+      
+      for(j in 1:num_vars) {
+        df_id_var <- df_id %>% 
+          filter(var_type == var_types[j])
+        
+        if (sum(!is.na(df_id_var$sat_var_value)) > 0) {
+          date_diff <- (df_og$visit_date[i] - days(date_lag)) - df_id_var$date
+          curr <- df_id_var[which.min(ifelse(date_diff < 0, 1000, date_diff)), ]
+          
+          if (abs(curr$date - df_og$visit_date[i]) > max_date_diff) {
+            print(paste0(
+              "Warning: Study ID ", df_og[i, "study_id"], " does not have ", 
+              var_types[j], " value available within ", max_date_diff, 
+              " days [max_date_diff] of ", date_lag, " days [date_lag] prior to visit date!"
+            ))
+          } else {
+            df_new[i, var_types[j]] <- curr$sat_var_value
+          }
+        }
+      }
+    }
+  }
+  
+  aedes_red <- df_new %>% 
+    rename(EVI250_sch = EVI, NVI250_sch = NVI, NFI250_sch = NFI)
+  
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
   
