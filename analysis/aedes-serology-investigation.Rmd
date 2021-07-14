@@ -9,7 +9,7 @@ header-includes:
 - \newcommand{\blandscape}{\begin{landscape}}
 - \newcommand{\elandscape}{\end{landscape}}
 params:
-  rerun_data: FALSE
+  rerun_data: TRUE
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -1238,5 +1238,66 @@ gen_res_plot(fit3_freq)
 
 ```{r fit3-freq-EVI250-results}
 gen_res_plot(fit4_freq)
+```
+
+
+## Updated model with school modis  
+
+Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,4$).
+\begin{equation*}
+	\begin{split}
+		\log(\text{Saliva ELISA value})_{ij} &= b_{0_{i}} + \beta_{0} + \beta_{1}\text{Male}_i \\
+		&+ \beta_{2}(\text{Age} - 6)_{i} + \beta_{3}\text{Toilets}_{i} + \beta{4}\text{Water Containers}_i + \beta_{5}\text{Insecticide}_{i} + \beta_{6}\text{Larvicide}_{i} \\
+		&+ \beta_{7}\text{NFI250_home}_{ij} + \beta_{8}\text{EVI250_home}_{ij} \\
+		&+ \beta_{9}\text{NFI250_sch}_{ij} + \beta_{10}\text{EVI250_sch}_{ij} \\
+		&+ \beta_{11}\text{Visit2}_{ij} + \beta_{12}\text{Visit3}_{ij} + \beta_{13}\text{Visit4}_{ij},
+	\end{split}
+\end{equation*}
+
+
+```{r fit5-bayes-EVI250}
+if(params$rerun_fit5_bayes) {
+  fit5_bayes <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented + num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water +
+      NFI250_home + EVI250_home + NFI250_sch + EVI250_sch + visit,
+    data = aedes_red,
+    seed = seed_val
+  )
+  
+  saveRDS(fit5_bayes, file = here("output", "fit5-bayes.rds"))
+  
+} else { 
+  fit5_bayes <- readRDS(file = here("output", "fit5-bayes.rds")) 
+}
+```
+
+
+```{r}
+gen_post_plots <- function(fit){
+  fit_post_area1 <- mcmc_areas(
+    fit,
+    regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide")
+  )
+  
+  fit_post_area2 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "NVI250_home", "EVI250_home")) 
+  
+  fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI250_sch", "NVI250_sch", "EVI250_sch"))
+  
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit")) +
+    scale_y_discrete(labels = c(
+      "visitVISIT 2  DENGUE INDEX" = "visit 2",
+      "visitVISIT 3 DENGUE INDEX" = "visit 3",
+      "visitVISIT 4 INDEX" = "visit 4"
+    ))
+  
+  grid.arrange(
+    fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
+    nrow = 2
+  )
+}
+
+gen_post_plots(fit5_bayes)
 ```
 
