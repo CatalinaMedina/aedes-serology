@@ -388,6 +388,7 @@ if (params$rerun_data) {
     mutate(NVI250_sch = ifelse(is.na(NVI250_sch), yes = NVI250_home, no = NVI250_sch)) %>% 
     mutate(NFI250_sch = ifelse(is.na(NFI250_sch), yes = NFI250_home, no = NFI250_sch))                 
   
+  aedes_red <- aedes_red[!is.na(aedes_red$NVI250_home), ]
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
   
