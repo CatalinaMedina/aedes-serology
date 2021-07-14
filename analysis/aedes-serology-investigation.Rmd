@@ -204,20 +204,115 @@ if (params$rerun_data) {
   
   aedes_full <- full_join(aedes_survey_cleaned_v1_v5, aedes_coord_cleaned) %>% 
     filter(sched_visit == "yes") %>% 
-    mutate(visit = factor(case_when(
+    mutate(visit = case_when(
       visit == "VISIT 1 DENGUE INDEX" ~ "visit1",
       visit == "VISIT 2  DENGUE INDEX" ~ "visit2",
       visit == "VISIT 3 DENGUE INDEX" ~ "visit3",
       visit == "VISIT 4 INDEX" ~ "visit4",
       visit == "Visit 5" ~ "visit5",
       TRUE ~ "NA"
-    )))
+    ))
+  
   
   aedes_red <- aedes_full %>% 
     filter(!is.na(saliva_elisa_value)) %>% 
-    filter(!is.na(visit_date)) 
+    filter(!is.na(visit_date)) %>% 
+    filter(school_attended_all != "NA") %>% 
+    mutate(num_domestic_water_containers_in_home = ifelse(
+      visit != "visit1", 
+      yes = NA, 
+      no = num_domestic_water_containers_in_home
+    )) %>% 
+    mutate(num_toilets_in_home = ifelse(
+      visit != "visit1", 
+      yes = NA, 
+      no = num_toilets_in_home
+    )) %>% 
+    mutate(how_often_use_bed_net = ifelse(
+      visit != "visit1", 
+      yes = NA, 
+      no = how_often_use_bed_net
+    )) %>% 
+    mutate(insecticide_spray = ifelse(
+      visit != "visit1", 
+      yes = NA, 
+      no = insecticide_spray
+    )) %>%
+    mutate(larvicide_applied_to_water = ifelse(
+      visit != "visit1", 
+      yes = NA, 
+      no = larvicide_applied_to_water
+    )) %>%
+    mutate(how_often_mosquito_coils_burned = ifelse(
+      visit != "visit1", 
+      yes = NA, 
+      no = how_often_mosquito_coils_burned
+    ))
+
   
-  aedes_red <- aedes_red[!(aedes_red$school_attended_all == "NA"), ]
+  time_varying <- read_xlsx(here("data", "AllVisitDataWithScheDengueRiskFactors.xlsx")) %>% 
+    select(
+      study_id = "Study ID", 
+      visit = "Event Name",
+      num_domestic_water_containers_in_home = "1. How many domestic water containers are in the subject's home?",
+      num_toilets_in_home = "2. How many toilets are in the subject's home?",
+      how_often_use_bed_net = "3. How often does the subject use a bed net?",
+      insecticide_spray = "4. Is the subject's home sprayed with insecticide?",
+      larvicide_applied_to_water = "5. Is larvicide applied to water containers at the subject's home?",
+      how_often_mosquito_coils_burned = "6. How often are mosquito coils burned in the subject's house?",
+    ) %>% 
+    filter(study_id != "100-0468" & visit != "Visit 4") %>% # Missing data 
+    mutate(visit = gsub(" ", "", str_to_lower(visit), fixed = TRUE)) %>% 
+    mutate(num_domestic_water_containers_in_home = as.numeric(num_domestic_water_containers_in_home)) %>% 
+    mutate(num_toilets_in_home = as.numeric(num_toilets_in_home)) %>% 
+    mutate(how_often_use_bed_net = factor(
+      how_often_use_bed_net,
+      levels = c(
+        "Never", 
+        "Rarely", 
+        "Regularly/ Most of the time", 
+        "All the time"
+      ),
+      labels = c(
+        "Never", 
+        "Rarely", 
+        "Most of the time", 
+        "All of the time"
+      )
+    )) %>% 
+    mutate(insecticide_spray = factor(insecticide_spray)) %>% 
+    mutate(larvicide_applied_to_water = factor(larvicide_applied_to_water)) %>% 
+    mutate(how_often_mosquito_coils_burned = factor(
+      how_often_mosquito_coils_burned,
+      levels = c(
+        "Never", 
+        "Rarely (about 1x/month)", 
+        "Sometimes (about 1x/week)",
+        "Often (about 3x/week)",
+        "Daily"
+      ),
+      labels = c(
+        "Never", 
+        "~ 1x/month", 
+        "~ 1x/week",
+        "~ 3x/week",
+        "Daily"
+      )
+    ))
+  
+  time_varying_vars <- c("num_domestic_water_containers_in_home", "num_toilets_in_home", "how_often_use_bed_net", "insecticide_spray", "larvicide_applied_to_water", "how_often_mosquito_coils_burned")
+  
+  
+  aedes_red <- aedes_red %>% 
+    filter(visit != "visit1") %>% 
+    select(-time_varying_vars) %>% 
+    left_join(time_varying) %>% 
+    select(colnames(aedes_red)) %>% 
+    bind_rows(aedes_red %>% filter(visit == "visit1")) %>% 
+    mutate(visit = factor(visit)) %>% 
+    filter(!is.na(num_domestic_water_containers_in_home))
+
+    
   
   #### Incorporate satellite data
   sat_data500 <- process_modis_data(
@@ -1260,16 +1355,16 @@ gen_res_plot(fit4_freq)
 ```
 
 
-## Updated model with school modis  
+## Updated model with school modis and 5 visits
 
-Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,4$).
+Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$).
 \begin{equation*}
 	\begin{split}
 		\log(\text{Saliva ELISA value})_{ij} &= b_{0_{i}} + \beta_{0} + \beta_{1}\text{Male}_i \\
 		&+ \beta_{2}(\text{Age} - 6)_{i} + \beta_{3}\text{Toilets}_{i} + \beta{4}\text{Water Containers}_i + \beta_{5}\text{Insecticide}_{i} + \beta_{6}\text{Larvicide}_{i} \\
 		&+ \beta_{7}\text{NFI250_home}_{ij} + \beta_{8}\text{EVI250_home}_{ij} \\
 		&+ \beta_{9}\text{NFI250_sch}_{ij} + \beta_{10}\text{EVI250_sch}_{ij} \\
-		&+ \beta_{11}\text{Visit2}_{ij} + \beta_{12}\text{Visit3}_{ij} + \beta_{13}\text{Visit4}_{ij},
+		&+ \beta_{11}\text{Visit2}_{ij} + \beta_{12}\text{Visit3}_{ij} + \beta_{13}\text{Visit4}_{ij} + \beta_{14}\text{Visit5}_{ij},
 	\end{split}
 \end{equation*}
 
