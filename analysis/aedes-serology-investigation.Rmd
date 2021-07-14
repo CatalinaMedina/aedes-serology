@@ -91,7 +91,6 @@ if (params$rerun_data) {
   
   aedes_survey_cleaned <- aedes_survey_og %>% 
     clean_names() %>% 
-    mutate(visit = factor(visit)) %>% 
     mutate(age = as.numeric(age)) %>% 
     mutate(age_cented = age - 6) %>% 
     mutate(gender = factor(gender)) %>% 
@@ -181,14 +180,38 @@ if (params$rerun_data) {
     mutate(visit_date_abr = factor(as.yearmon(visit_date))) %>% 
     mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift)) 
   
+  
+  aedes_visit5 <- read_csv(here("data", "Saliva ELISA V1-6 INDEX.csv")) %>% 
+    select(study_id = ID, saliva_elisa_value = "Visit 5") %>% 
+    mutate(saliva_elisa_value = as.numeric(ifelse(saliva_elisa_value == ".", yes = NA, no = saliva_elisa_value))) %>% 
+    mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift))
+
+  aedes_survey_cleaned_v1_v5 <- aedes_survey_cleaned[!duplicated(aedes_survey_cleaned$study_id), ] %>% 
+      mutate(visit = "Visit 5") %>% 
+      mutate(visit_date = as.Date("2020-07-01")) %>% 
+      mutate(visit_date_abr = NA) %>% 
+      select(-c(saliva_elisa_value, log_saliva_elisa)) %>% 
+      full_join(aedes_visit5) %>% 
+      select(colnames(aedes_survey_cleaned)) %>% 
+      bind_rows(aedes_survey_cleaned) %>% 
+      arrange(study_id, visit_date)
+      
+  
   aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
   
   aedes_coord_cleaned <- aedes_coord_og %>%
     clean_names()
   
-  aedes_full <- full_join(aedes_survey_cleaned, aedes_coord_cleaned) %>% 
+  aedes_full <- full_join(aedes_survey_cleaned_v1_v5, aedes_coord_cleaned) %>% 
     filter(sched_visit == "yes") %>% 
-    mutate(visit = droplevels(visit))
+    mutate(visit = factor(case_when(
+      visit == "VISIT 1 DENGUE INDEX" ~ "visit1",
+      visit == "VISIT 2  DENGUE INDEX" ~ "visit2",
+      visit == "VISIT 3 DENGUE INDEX" ~ "visit3",
+      visit == "VISIT 4 INDEX" ~ "visit4",
+      visit == "Visit 5" ~ "visit5",
+      TRUE ~ "NA"
+    )))
   
   aedes_red <- aedes_full %>% 
     filter(!is.na(saliva_elisa_value)) %>% 
@@ -373,7 +396,7 @@ if (params$rerun_data) {
 }
   
 aedes_red_ind <- aedes_red %>%
-  filter(visit == "VISIT 1 DENGUE INDEX") %>% 
+  filter(visit == "visit1") %>% 
   mutate(visit = droplevels(visit)) 
 ```
 
@@ -742,7 +765,7 @@ aedes_red %>%
 
 ```{r EVI-visit1-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 1 DENGUE INDEX") %>% 
+  filter(visit == "visit1") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -755,7 +778,7 @@ aedes_red %>%
 
 ```{r EVI-visit2-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 2  DENGUE INDEX") %>% 
+  filter(visit == "visit2") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -768,7 +791,7 @@ aedes_red %>%
 
 ```{r EVI-visit3-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 3 DENGUE INDEX") %>% 
+  filter(visit == "visit3") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -781,7 +804,7 @@ aedes_red %>%
 
 ```{r EVI-visit4-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 4 INDEX") %>% 
+  filter(visit == "visit4") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -803,7 +826,7 @@ aedes_red %>%
 
 ```{r NFI-visit1-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 1 DENGUE INDEX") %>% 
+  filter(visit == "visit1") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -816,7 +839,7 @@ aedes_red %>%
 
 ```{r NFI-visit2-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 2  DENGUE INDEX") %>% 
+  filter(visit == "visit2") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -829,7 +852,7 @@ aedes_red %>%
 
 ```{r NFI-visit3-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 3 DENGUE INDEX") %>% 
+  filter(visit == "visit3") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -842,7 +865,7 @@ aedes_red %>%
 
 ```{r NFI-visit4-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 4 INDEX") %>% 
+  filter(visit == "visit4") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -865,7 +888,7 @@ aedes_red %>%
 
 ```{r NVI-visit1-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 1 DENGUE INDEX") %>% 
+  filter(visit == "visit1") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -878,7 +901,7 @@ aedes_red %>%
 
 ```{r NVI-visit2-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 2  DENGUE INDEX") %>% 
+  filter(visit == "visit2") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -891,7 +914,7 @@ aedes_red %>%
 
 ```{r NVI-visit3-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 3 DENGUE INDEX") %>% 
+  filter(visit == "visit3") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -904,7 +927,7 @@ aedes_red %>%
 
 ```{r NVI-visit4-mapped, fig.asp=0.9, eval = FALSE}
 aedes_red %>% 
-  filter(visit == "VISIT 4 INDEX") %>% 
+  filter(visit == "visit4") %>% 
   ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
   geom_point(alpha = 0.75) +
   scale_color_viridis(direction = -1) +
@@ -1060,12 +1083,7 @@ gen_post_plots <- function(fit){
   
   fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI", "NVI", "EVI"))
   
-  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit")) +
-    scale_y_discrete(labels = c(
-      "visitVISIT 2  DENGUE INDEX" = "visit 2",
-      "visitVISIT 3 DENGUE INDEX" = "visit 3",
-      "visitVISIT 4 INDEX" = "visit 4"
-    ))
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit")) 
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
@@ -1285,12 +1303,7 @@ gen_post_plots <- function(fit){
   
   fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI250_sch", "NVI250_sch", "EVI250_sch"))
   
-  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit")) +
-    scale_y_discrete(labels = c(
-      "visitVISIT 2  DENGUE INDEX" = "visit 2",
-      "visitVISIT 3 DENGUE INDEX" = "visit 3",
-      "visitVISIT 4 INDEX" = "visit 4"
-    ))
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit")) 
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
