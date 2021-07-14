@@ -18,7 +18,9 @@ params:
   rerun_fit2_freq: FALSE
   rerun_fit3_freq: FALSE
   rerun_fit4_freq: FALSE
-  rerun_fit5_bayes: FALSE
+  rerun_fit5_bayes: TRUE
+  rerun_fit6_bayes: TRUE
+  rerun_fit7_bayes: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -500,9 +502,9 @@ if (params$rerun_data) {
   
   aedes_red <- df_new %>% 
     rename(EVI250_sch = EVI, NVI250_sch = NVI, NFI250_sch = NFI) %>% 
-    mutate(EVI250_sch = ifelse(is.na(EVI250_sch), yes = EVI250_home, no = EVI250_sch)) %>% 
-    mutate(NVI250_sch = ifelse(is.na(NVI250_sch), yes = NVI250_home, no = NVI250_sch)) %>% 
-    mutate(NFI250_sch = ifelse(is.na(NFI250_sch), yes = NFI250_home, no = NFI250_sch))                 
+    mutate(EVI250_sch = ifelse(is.na(EVI250_sch), yes = 0, no = EVI250_sch)) %>% 
+    mutate(NVI250_sch = ifelse(is.na(NVI250_sch), yes = 0, no = NVI250_sch)) %>% 
+    mutate(NFI250_sch = ifelse(is.na(NFI250_sch), yes = 0, no = NFI250_sch))                 
   
   aedes_red <- aedes_red[!is.na(aedes_red$NVI250_home), ]
   
@@ -1179,7 +1181,8 @@ if(params$rerun_fit4_bayes) {
 
 ```{r gen_post_plots-function}
 gen_post_plots <- function(fit){
-  fit_post_area1 <- mcmc_areas(fit, regex_pars = "school") +
+  fit_post_area1 <- mcmc_areas(fit, regex_pars = "school",
+    prob = 0.95) +
     scale_y_discrete(labels = c(
       "school_attended_redAng Seri" = "Ang Seri",
       "school_attended_redAnouvotta" = "Anouvotta",
@@ -1195,12 +1198,15 @@ gen_post_plots <- function(fit){
   
   fit_post_area2 <- mcmc_areas(
     fit,
-    regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide")
+    regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide"),
+    prob = 0.95
   )
   
-  fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI", "NVI", "EVI"))
+  fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI", "NVI", "EVI"),
+    prob = 0.95)
   
-  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit")) 
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"),
+    prob = 0.95) 
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
@@ -1399,7 +1405,7 @@ if(params$rerun_fit5_bayes) {
   fit5_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
       age_cented + num_toilets_in_home + num_domestic_water_containers_in_home + 
-      insecticide_spray + larvicide_applied_to_water +
+      insecticide_spray + larvicide_applied_to_water + in_school +
       NFI250_home + EVI250_home + NFI250_sch + EVI250_sch + visit,
     data = aedes_red,
     seed = seed_val
@@ -1412,20 +1418,24 @@ if(params$rerun_fit5_bayes) {
 }
 ```
 
+\blandscape
 
-```{r}
+```{r, fig.width=10, fig.height=7.5}
 gen_post_plots <- function(fit){
-  fit_post_area1 <- mcmc_areas(
+  fit_post_area2 <- mcmc_areas(
     fit,
-    regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide")
-  ) +
-  scale_y_discrete(labels = c("gender", "age", "toilets", "water", "insecticide", "larvicide"))
+    regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide", "in_school"),
+    prob = 0.95
+  )
   
-  fit_post_area2 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "NVI250_home", "EVI250_home")) 
+  fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "NVI250_home", "EVI250_home"),
+    prob = 0.95) 
   
-  fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI250_sch", "NVI250_sch", "EVI250_sch"))
+  fit_post_area1 <- mcmc_areas(fit, regex_pars = c("NFI250_sch", "NVI250_sch", "EVI250_sch"),
+    prob = 0.95)
   
-  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit")) 
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"),
+    prob = 0.95) 
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
@@ -1433,6 +1443,63 @@ gen_post_plots <- function(fit){
   )
 }
 
-gen_post_plots(fit5_bayes)
+gen_post_plots(fit6_bayes)
+```
+
+\elandscape
+
+```{r, eval = FALSE}
+mcmc_trace(fit5_bayes, regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide"))
+
+mcmc_trace(fit5_bayes, regex_pars = c("NFI", "EVI"))
+
+mcmc_trace(fit5_bayes, regex_pars = c("visit"))
+```
+
+
+
+
+```{r fit6-bayes-EVI250}
+aedes_red_sch <- aedes_red[aedes_red$in_school == "yes",]
+
+if(params$rerun_fit6_bayes) {
+  fit6_bayes <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented + num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water + #in_school +
+      NFI250_home + EVI250_home + NFI250_sch + EVI250_sch + visit,
+    data = aedes_red_sch,
+    seed = seed_val
+  )
+  
+  saveRDS(fit6_bayes, file = here("output", "fit6-bayes.rds"))
+  
+} else { 
+  fit6_bayes <- readRDS(file = here("output", "fit6-bayes.rds")) 
+}
+
+
+aedes_red_sch_no <- aedes_red[aedes_red$in_school == "no",]
+
+if(params$rerun_fit7_bayes) {
+  fit7_bayes <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented + num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water + #in_school +
+      NFI250_home + EVI250_home + visit,
+    data = aedes_red_sch_no,
+    seed = seed_val
+  )
+  
+  saveRDS(fit7_bayes, file = here("output", "fit7-bayes.rds"))
+  
+} else { 
+  fit7_bayes <- readRDS(file = here("output", "fit7-bayes.rds")) 
+}
+```
+
+
+```{r}
+2-2
 ```
 
