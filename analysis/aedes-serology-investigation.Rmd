@@ -1,7 +1,5 @@
 ---
 title: "Aedes serology investigation"
-author: "Catalina Medina"
-date: "4/5/2021"
 geometry: margin=0.5cm
 output: pdf_document
 header-includes:
@@ -18,9 +16,9 @@ params:
   rerun_fit2_freq: FALSE
   rerun_fit3_freq: FALSE
   rerun_fit4_freq: FALSE
-  rerun_fit5_bayes: TRUE
-  rerun_fit6_bayes: TRUE
-  rerun_fit7_bayes: TRUE
+  rerun_fit5_bayes: FALSE
+  rerun_fit6_bayes: FALSE
+  rerun_fit7_bayes: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -48,6 +46,7 @@ library(lubridate)
 library(rstanarm)
 library(bayesplot)
 library(gridExtra)
+library(grid)
 library(lme4)
 
 
@@ -1419,14 +1418,23 @@ if(params$rerun_fit5_bayes) {
 ```
 
 \blandscape
-
+Fit 5
 ```{r, fig.width=10, fig.height=7.5}
 gen_post_plots <- function(fit){
   fit_post_area2 <- mcmc_areas(
     fit,
     regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide", "in_school"),
     prob = 0.95
-  )
+  ) +
+    scale_y_discrete(labels = c(
+      "genderMale" = "Sex(male)",
+      "age_centered" = "Age",
+      "num_toilets_in_home" = "Toilets",
+      "num_domestic_water_containers_in_home" = "Water containers",
+      "larvicide_applied_to_waterYes" = "Larviced(yes)",
+      "insecticide_sprayYes" = "Insecticide(yes)",
+      "in_schoolyes" = "In school"
+    ))
   
   fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "NVI250_home", "EVI250_home"),
     prob = 0.95) 
@@ -1434,8 +1442,13 @@ gen_post_plots <- function(fit){
   fit_post_area1 <- mcmc_areas(fit, regex_pars = c("NFI250_sch", "NVI250_sch", "EVI250_sch"),
     prob = 0.95)
   
-  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"),
-    prob = 0.95) 
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"), prob = 0.95) +
+    scale_y_discrete(labels = c(
+      "visitvisit2" = "visit2",
+      "visitvisit3" = "visit3",
+      "visitvisit4" = "visit4",
+      "visitvisit5" = "visit5"
+    ))
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
@@ -1443,7 +1456,7 @@ gen_post_plots <- function(fit){
   )
 }
 
-gen_post_plots(fit6_bayes)
+gen_post_plots(fit5_bayes)
 ```
 
 \elandscape
@@ -1498,8 +1511,52 @@ if(params$rerun_fit7_bayes) {
 }
 ```
 
+\blandscape
 
-```{r}
-2-2
+Fit 6: only children in school
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots(fit6_bayes)
 ```
 
+\newpage
+Fit 7: only children not in school
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots <- function(fit){
+  fit_post_area2 <- mcmc_areas(
+    fit,
+    regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide"),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "genderMale" = "Sex(male)",
+      "age_centered" = "Age",
+      "num_toilets_in_home" = "Toilets",
+      "num_domestic_water_containers_in_home" = "Water containers",
+      "larvicide_applied_to_waterYes" = "Larviced(yes)",
+      "insecticide_sprayYes" = "Insecticide(yes)"
+    ))
+  
+  fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "NVI250_home", "EVI250_home"),
+    prob = 0.95) 
+  
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"),
+    prob = 0.95) +
+    scale_y_discrete(labels = c(
+      "visitvisit2" = "visit2",
+      "visitvisit3" = "visit3",
+      "visitvisit4" = "visit4",
+      "visitvisit5" = "visit5"
+    ))
+  
+  grid.arrange(
+    textGrob(" "), fit_post_area2, fit_post_area3, fit_post_area4, 
+    nrow = 2
+  )
+}
+
+
+gen_post_plots(fit7_bayes)
+```
+
+
+\elandscape
