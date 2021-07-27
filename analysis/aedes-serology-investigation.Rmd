@@ -7,7 +7,8 @@ header-includes:
 - \newcommand{\blandscape}{\begin{landscape}}
 - \newcommand{\elandscape}{\end{landscape}}
 params:
-  rerun_data: TRUE
+  rerun_data: FALSE
+  near_river_cut_off: 300
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -216,7 +217,7 @@ if (params$rerun_data) {
       select(colnames(aedes_survey_cleaned)) %>% 
       bind_rows(aedes_survey_cleaned) %>% 
       arrange(study_id, visit_date)
-      
+  
   
   aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
   
@@ -234,9 +235,17 @@ if (params$rerun_data) {
       TRUE ~ "NA"
     ))
     
+
+  aedes_survey_with_river <- read_csv(here("data", "DistPHHtoRiver.csv")) %>% 
+    select(study_id = Study.ID, distance_to_river = distance) %>%
+    mutate(close_to_river = factor(
+      ifelse(distance_to_river <= near_river_cut_off, "yes", "no"), 
+      levels = c("no", "yes")
+    )) %>% 
+    right_join(aedes_full)
   
   
-  aedes_red <- aedes_full %>% 
+  aedes_red <- aedes_survey_with_river %>% 
     filter(!is.na(saliva_elisa_value)) %>% 
     filter(!is.na(visit_date)) %>% 
     filter(school_attended_all != "NA") %>% 
@@ -1624,7 +1633,7 @@ if(params$rerun_fit_young1_bayes) {
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       NFI250_home + EVI250_home + 
-      wet_season + year,
+      wet_season + visit_year,
     data = aedes_red_young,
     seed = seed_val
   )
@@ -1661,7 +1670,7 @@ if(params$rerun_fit_young1_bayes_no_visit5) {
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       NFI250_home + EVI250_home + 
-      wet_season + year,
+      wet_season + visit_year,
     data = aedes_red_young5,
     seed = seed_val
   )
@@ -1701,7 +1710,7 @@ if(params$rerun_fit_young2_bayes) {
       insecticide_spray + larvicide_applied_to_water + 
       insecticide_spray:wet_season + larvicide_applied_to_water:wet_season + 
       NFI250_home + EVI250_home + 
-      wet_season + year,
+      wet_season + visit_year,
     data = aedes_red_young,
     seed = seed_val
   )
