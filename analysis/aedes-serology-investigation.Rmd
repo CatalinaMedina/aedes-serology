@@ -19,6 +19,8 @@ params:
   rerun_fit5_bayes: FALSE
   rerun_fit6_bayes: FALSE
   rerun_fit7_bayes: FALSE
+  rerun_fit8_bayes: TRUE
+  rerun_fit9_bayes: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -1560,3 +1562,45 @@ gen_post_plots(fit7_bayes)
 
 
 \elandscape
+
+
+# Current Models  
+2nd Cambodia meeting notes:  
+
+*	Replace visit indicators with one predictor for wet season and then a predictor for year.  
+*	Add predictor for living within “” meters of the river.  
+*	Add larval count matching closets larval count.  
+
+*	We should have two models:  
+    + Model aedes levels for children 2-4. This model will have an indicator for school attendance. We are unsure how to account for the fact that children can begin school at different ages and we do not have repeat data collection for school so we do not know if a child began school after the first visit.  
+    + Model aedes levels for children in school (ages 5-9). This model will have environmental variables for school and home.
+
+*	There was a change in the person processing the aedes ELISA data for visit 5 (and a change in location mosquitoes used in process were from [US vs Cambodia]).  
+*	Negative effect for home environment in school children model may be because of extra preventative measures  
+* Try interactions between wet season and toilets, water containers, larvicide, and insecticide
+
+\newpage
+Fit 8:  
+Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian children ages 2-4.
+\begin{equation*}
+	\begin{split}
+		\log(\text{Saliva ELISA value})_{ij} &= b_{0i} + \beta_{0} + \beta_{\text{Male}}\text{Male}_i \\
+		&+ \beta_{\text{Age}}(\text{Age} - 3)_{i} + \beta_{\text{School}}\text{Attends school}_{i} + \beta_{\text{River}}\text{Lives near river}_{i}\\
+		&+\beta_{\text{Toilets}}\text{Toilets}_{ij} + \beta_{\text{Water}}\text{Water containers}_{ij} + \beta_{\text{Insecticide}}\text{Insecticide}_{ij} + \beta_{\text{Larvicide}}\text{Larvicide}_{ij} \\
+		&+ \beta_{\text{NFI250 home}}\text{Home flooding}_{ij} + \beta_{\text{EVI250 home}}\text{Home vegetation}_{ij} \\
+		&+ \beta_{\text{Wet season}}\text{Wet season}_{ij} + \beta_{\text{Year}}\text{Year}_{ij},
+	\end{split}
+\end{equation*}
+
+Fit 9:  
+Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian school children ages 5-9.
+\begin{equation*}
+	\begin{split}
+		\log(\text{Saliva ELISA value})_{ij} &= b_{0i} + \beta_{0} + \beta_{\text{Male}}\text{Male}_i \\
+		&+ \beta_{\text{Age}}(\text{Age} - 7)_{i} + \beta_{\text{River}}\text{Lives near river}_{i}\\
+		&+\beta_{\text{Toilets}}\text{Toilets}_{ij} + \beta_{\text{Water}}\text{Water containers}_{ij} + \beta_{\text{Insecticide}}\text{Insecticide}_{ij} + \beta_{\text{Larvicide}}\text{Larvicide}_{ij} \\
+		&+ \beta_{\text{NFI250 home}}\text{Home flooding}_{ij} + \beta_{\text{EVI250 home}}\text{Home vegetation}_{ij} \\
+		&+ \beta_{\text{NFI250 school}}\text{School school}_{ij} + \beta_{\text{EVI250 school}}\text{School vegetation}_{ij} \\
+		&+ \beta_{\text{Wet season}}\text{Wet season}_{ij} + \beta_{\text{Year}}\text{Year}_{ij},
+	\end{split}
+\end{equation*}
