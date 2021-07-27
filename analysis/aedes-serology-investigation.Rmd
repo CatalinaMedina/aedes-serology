@@ -7,7 +7,7 @@ header-includes:
 - \newcommand{\blandscape}{\begin{landscape}}
 - \newcommand{\elandscape}{\end{landscape}}
 params:
-  rerun_data: FALSE
+  rerun_data: TRUE
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -19,8 +19,9 @@ params:
   rerun_fit5_bayes: FALSE
   rerun_fit6_bayes: FALSE
   rerun_fit7_bayes: FALSE
-  rerun_fit8_bayes: TRUE
-  rerun_fit9_bayes: TRUE
+  rerun_fit_young1_bayes: TRUE
+  rerun_fit_young1_bayes_no_visit5: TRUE
+  rerun_fit_young2_bayes: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -95,8 +96,21 @@ if (params$rerun_data) {
   
   aedes_survey_cleaned <- aedes_survey_og %>% 
     clean_names() %>% 
+    mutate(wet_season = ifelse(
+      visit %in% c("VISIT 1 DENGUE INDEX", "VISIT 3 DENGUE INDEX"),
+      yes = "yes",
+      no = "no"
+    )) %>% 
+    mutate(visit_year = case_when(
+      visit == "VISIT 1 DENGUE INDEX" ~ 0,
+      visit %in% c("VISIT 2  DENGUE INDEX", "VISIT 3 DENGUE INDEX") ~ 1,
+      visit == "VISIT 4 INDEX" ~ 2,
+      TRUE ~ -99
+    )) %>% 
     mutate(age = as.numeric(age)) %>% 
-    mutate(age_cented = age - 6) %>% 
+    mutate(age_cented3 = age - 3) %>%
+    mutate(age_cented7 = age - 7) %>%
+    mutate(age_cented = age - 6) %>%
     mutate(gender = factor(gender)) %>% 
     mutate(school_attended = str_to_title(school_attended)) %>% 
     mutate(specify_if_other = str_to_title(specify_if_other)) %>% 
@@ -188,12 +202,15 @@ if (params$rerun_data) {
   aedes_visit5 <- read_csv(here("data", "Saliva ELISA V1-6 INDEX.csv")) %>% 
     select(study_id = ID, saliva_elisa_value = "Visit 5") %>% 
     mutate(saliva_elisa_value = as.numeric(ifelse(saliva_elisa_value == ".", yes = NA, no = saliva_elisa_value))) %>% 
-    mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift))
+    mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift)) 
+    
 
   aedes_survey_cleaned_v1_v5 <- aedes_survey_cleaned[!duplicated(aedes_survey_cleaned$study_id), ] %>% 
       mutate(visit = "Visit 5") %>% 
       mutate(visit_date = as.Date("2020-07-01")) %>% 
       mutate(visit_date_abr = NA) %>% 
+      mutate(wet_season = "yes") %>% 
+      mutate(visit_year = 2) %>% 
       select(-c(saliva_elisa_value, log_saliva_elisa)) %>% 
       full_join(aedes_visit5) %>% 
       select(colnames(aedes_survey_cleaned)) %>% 
@@ -216,6 +233,7 @@ if (params$rerun_data) {
       visit == "Visit 5" ~ "visit5",
       TRUE ~ "NA"
     ))
+    
   
   
   aedes_red <- aedes_full %>% 
@@ -313,6 +331,7 @@ if (params$rerun_data) {
     select(colnames(aedes_red)) %>% 
     bind_rows(aedes_red %>% filter(visit == "visit1")) %>% 
     mutate(visit = factor(visit)) %>% 
+    mutate(wet_season = factor(wet_season, levels = c("no", "yes"))) %>% 
     filter(!is.na(num_domestic_water_containers_in_home)) %>% 
     mutate(how_often_use_bed_net = factor(
       how_often_use_bed_net,
@@ -1580,7 +1599,8 @@ gen_post_plots(fit7_bayes)
 * Try interactions between wet season and toilets, water containers, larvicide, and insecticide
 
 \newpage
-Fit 8:  
+
+Model fit: Young children without interactions  
 Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian children ages 2-4.
 \begin{equation*}
 	\begin{split}
@@ -1592,7 +1612,109 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 	\end{split}
 \end{equation*}
 
-Fit 9:  
+\newpage
+
+```{r fit-young1-bayes}
+aedes_red_young <- aedes_red[aedes_red$age <= 4,]
+
+if(params$rerun_fit_young1_bayes) {
+  fit_young1_bayes <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented3 + in_school + #near_river +
+      num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water + 
+      NFI250_home + EVI250_home + 
+      wet_season + year,
+    data = aedes_red_young,
+    seed = seed_val
+  )
+  
+  saveRDS(fit_young1_bayes, file = here("output", "fit-young1-bayes.rds"))
+  
+} else { 
+  fit_young1_bayes <- readRDS(file = here("output", "fit-young1-bayes.rds")) 
+}
+```
+
+
+Model fit: Young children without interactions  
+Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian children ages 2-4.
+\begin{equation*}
+	\begin{split}
+		\log(\text{Saliva ELISA value})_{ij} &= b_{0i} + \beta_{0} + \beta_{\text{Male}}\text{Male}_i \\
+		&+ \beta_{\text{Age}}(\text{Age} - 3)_{i} + \beta_{\text{School}}\text{Attends school}_{i} + \beta_{\text{River}}\text{Lives near river}_{i}\\
+		&+\beta_{\text{Toilets}}\text{Toilets}_{ij} + \beta_{\text{Water}}\text{Water containers}_{ij} + \beta_{\text{Insecticide}}\text{Insecticide}_{ij} + \beta_{\text{Larvicide}}\text{Larvicide}_{ij} \\
+		&+ \beta_{\text{NFI250 home}}\text{Home flooding}_{ij} + \beta_{\text{EVI250 home}}\text{Home vegetation}_{ij} \\
+		&+ \beta_{\text{Wet season}}\text{Wet season}_{ij} + \beta_{\text{Year}}\text{Year}_{ij},
+	\end{split}
+\end{equation*}
+
+\newpage
+
+```{r fit-young1-bayes-no-visit5}
+aedes_red_young5 <- aedes_red[(aedes_red$age <= 4) & (aedes_red$visit != "visit5"),]
+
+if(params$rerun_fit_young1_bayes_no_visit5) {
+  fit_young1_bayes_no_visit5 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented3 + in_school + #near_river +
+      num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water + 
+      NFI250_home + EVI250_home + 
+      wet_season + year,
+    data = aedes_red_young5,
+    seed = seed_val
+  )
+  
+  saveRDS(fit_young1_bayes_no_visit5, file = here("output", "fit-young1-bayes-no-visit5.rds"))
+  
+} else { 
+  fit_young1_bayes_no_visit5 <- readRDS(file = here("output", "fit-young1-bayes-no-visit5.rds")) 
+}
+```
+
+
+Model fit: Young children with interactions  
+Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian children ages 2-4.
+\begin{equation*}
+	\begin{split}
+		\log(\text{Saliva ELISA value})_{ij} &= b_{0i} + \beta_{0} + \beta_{\text{Male}}\text{Male}_i \\
+		&+ \beta_{\text{Age}}(\text{Age} - 3)_{i} + \beta_{\text{School}}\text{Attends school}_{i} + \beta_{\text{River}}\text{Lives near river}_{i}\\
+		&+\beta_{\text{Toilets}}\text{Toilets}_{ij} + \beta_{\text{Water}}\text{Water containers}_{ij} + \beta_{\text{Insecticide}}\text{Insecticide}_{ij} + \beta_{\text{Larvicide}}\text{Larvicide}_{ij} \\
+		&+ \beta_{\text{NFI250 home}}\text{Home flooding}_{ij} + \beta_{\text{EVI250 home}}\text{Home vegetation}_{ij} \\
+		&+ \beta_{\text{Wet season}}\text{Wet season}_{ij} + \beta_{\text{Year}}\text{Year}_{ij}\\
+		&+\beta_{\text{Toilets Int.}}\text{Toilets}_{ij}\times\text{Wet season}_{ij} + \beta_{\text{Water Int.}}\text{Water containers}_{ij}\times\text{Wet season}_{ij} + \beta_{\text{Insecticide Int.}}\text{Insecticide}_{ij}\times\text{Wet season}_{ij} + \beta_{\text{Larvicide Int.}}\text{Larvicide}_{ij}\times\text{Wet season}_{ij} \\
+	\end{split}
+\end{equation*}
+
+\newpage
+
+```{r fit-young2}
+aedes_red_young <- aedes_red[aedes_red$age <= 4,]
+
+if(params$rerun_fit_young2_bayes) {
+  fit_young2_bayes <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented3 + in_school + #near_river +
+      num_toilets_in_home + num_domestic_water_containers_in_home + 
+      num_toilets_in_home:wet_season + num_domestic_water_containers_in_home:wet_season + 
+      insecticide_spray + larvicide_applied_to_water + 
+      insecticide_spray:wet_season + larvicide_applied_to_water:wet_season + 
+      NFI250_home + EVI250_home + 
+      wet_season + year,
+    data = aedes_red_young,
+    seed = seed_val
+  )
+  
+  saveRDS(fit_young2_bayes, file = here("output", "fit-young2-bayes.rds"))
+  
+} else { 
+  fit_young2_bayes <- readRDS(file = here("output", "fit-young2-bayes.rds")) 
+}
+```
+
+
+Fit :  
 Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian school children ages 5-9.
 \begin{equation*}
 	\begin{split}
@@ -1604,3 +1726,8 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 		&+ \beta_{\text{Wet season}}\text{Wet season}_{ij} + \beta_{\text{Year}}\text{Year}_{ij},
 	\end{split}
 \end{equation*}
+
+```{r}
+
+```
+
