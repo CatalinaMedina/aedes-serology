@@ -7,7 +7,7 @@ header-includes:
 - \newcommand{\blandscape}{\begin{landscape}}
 - \newcommand{\elandscape}{\end{landscape}}
 params:
-  rerun_data: FALSE
+  rerun_data: TRUE
   near_river_cut_off: 300
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
@@ -234,7 +234,6 @@ if (params$rerun_data) {
       visit == "Visit 5" ~ "visit5",
       TRUE ~ "NA"
     ))
-    
 
   aedes_survey_with_river <- read_csv(here("data", "DistPHHtoRiver.csv")) %>% 
     select(study_id = Study.ID, distance_to_river = distance) %>%
@@ -1621,15 +1620,13 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 	\end{split}
 \end{equation*}
 
-\newpage
-
 ```{r fit-young1-bayes}
 aedes_red_young <- aedes_red[aedes_red$age <= 4,]
 
 if(params$rerun_fit_young1_bayes) {
   fit_young1_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented3 + in_school + #near_river +
+      age_cented3 + in_school + close_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       NFI250_home + EVI250_home + 
@@ -1666,7 +1663,7 @@ aedes_red_young5 <- aedes_red[(aedes_red$age <= 4) & (aedes_red$visit != "visit5
 if(params$rerun_fit_young1_bayes_no_visit5) {
   fit_young1_bayes_no_visit5 <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented3 + in_school + #near_river +
+      age_cented3 + in_school + close_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       NFI250_home + EVI250_home + 
@@ -1704,7 +1701,7 @@ aedes_red_young <- aedes_red[aedes_red$age <= 4,]
 if(params$rerun_fit_young2_bayes) {
   fit_young2_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented3 + in_school + #near_river +
+      age_cented3 + in_school + close_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       num_toilets_in_home:wet_season + num_domestic_water_containers_in_home:wet_season + 
       insecticide_spray + larvicide_applied_to_water + 
