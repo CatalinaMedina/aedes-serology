@@ -7,7 +7,7 @@ header-includes:
 - \newcommand{\blandscape}{\begin{landscape}}
 - \newcommand{\elandscape}{\end{landscape}}
 params:
-  rerun_data: TRUE
+  rerun_data: FALSE
   near_river_cut_off: 300
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
@@ -238,7 +238,7 @@ if (params$rerun_data) {
   aedes_survey_with_river <- read_csv(here("data", "DistPHHtoRiver.csv")) %>% 
     select(study_id = Study.ID, distance_to_river = distance) %>%
     mutate(close_to_river = factor(
-      ifelse(distance_to_river <= near_river_cut_off, "yes", "no"), 
+      ifelse(distance_to_river <= params$near_river_cut_off, "yes", "no"), 
       levels = c("no", "yes")
     )) %>% 
     right_join(aedes_full)
@@ -1606,6 +1606,46 @@ gen_post_plots(fit7_bayes)
 *	Negative effect for home environment in school children model may be because of extra preventative measures  
 * Try interactions between wet season and toilets, water containers, larvicide, and insecticide
 
+
+```{r}
+gen_post_plots <- function(fit){
+  fit_post_area1 <- mcmc_areas(
+    fit,
+    regex_pars = c("toilets", "water", "larvicide", "insecticide" , "season"),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "num_toilets_in_home" = "Toilets",
+      "num_domestic_water_containers_in_home" = "Water containers",
+      "larvicide_applied_to_waterYes" = "Larvicide(yes)",
+      "insecticide_sprayYes" = "Insecticide(yes)",
+      "wet_seasonyes" = "Wet Season(yes)"
+    ))
+
+  fit_post_area2 <- mcmc_areas(
+    fit,
+    regex_pars = c("gender", "age", "school", "river"),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "genderMale" = "Sex(male)",
+      "age_centered3" = "Age",
+      "in_schoolyes" = "In School(yes)",
+      "close_to_riveryes" = "River close(yes)"
+    ))
+  
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "EVI250_home", "year"),
+    prob = 0.95)
+  
+  
+  grid.arrange(
+    fit_post_area1, fit_post_area2, textGrob(" "), fit_post_area4, 
+    nrow = 2
+  )
+}
+```
+
+
 \newpage
 
 Model fit: Young children without interactions  
@@ -1642,6 +1682,11 @@ if(params$rerun_fit_young1_bayes) {
 }
 ```
 
+\blandscape
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots(fit_young1_bayes )
+```
+\elandscape
 
 Model fit: Young children without interactions  
 Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian children ages 2-4.
@@ -1656,6 +1701,7 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 \end{equation*}
 
 \newpage
+
 
 ```{r fit-young1-bayes-no-visit5}
 aedes_red_young5 <- aedes_red[(aedes_red$age <= 4) & (aedes_red$visit != "visit5"),]
@@ -1679,6 +1725,11 @@ if(params$rerun_fit_young1_bayes_no_visit5) {
 }
 ```
 
+\blandscape
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots(fit_young1_bayes_no_visit5)
+```
+\elandscape
 
 Model fit: Young children with interactions  
 Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian children ages 2-4.
@@ -1694,6 +1745,66 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 \end{equation*}
 
 \newpage
+
+```{r}
+gen_post_plots <- function(fit){
+  fit_post_area1 <- mcmc_areas(
+    fit, 
+    pars = c(
+      "num_toilets_in_home",
+      "num_domestic_water_containers_in_home",
+      "larvicide_applied_to_waterYes",
+      "insecticide_sprayYes",
+      "wet_seasonyes"
+    ),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "num_toilets_in_home" = "Toilets",
+      "num_domestic_water_containers_in_home" = "Water containers",
+      "larvicide_applied_to_waterYes" = "Larvicide(yes)",
+      "insecticide_sprayYes" = "Insecticide(yes)",
+      "wet_seasonyes" = "Wet Season(yes)"
+    ))
+
+  fit_post_area2 <- mcmc_areas(
+    fit,
+    regex_pars = c("gender", "age", "school", "river"),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "genderMale" = "Sex(male)",
+      "age_centered3" = "Age",
+      "in_schoolyes" = "In School(yes)",
+      "close_to_riveryes" = "River close(yes)"
+    ))
+  
+  fit_post_area3 <- mcmc_areas(
+    fit, 
+    regex_pars = c(
+      "num_toilets_in_home:wet_seasonyes", 
+      "num_domestic_water_containers_in_home:wet_season",
+      "wet_seasonyes:larvicide_applied_to_waterYes",
+      "wet_seasonyes:insecticide_sprayYes"
+    ),
+    prob = 0.95) +
+    scale_y_discrete(labels = c(
+      "num_toilets_in_home:wet_seasonyes" = "Toilets-int", 
+      "num_domestic_water_containers_in_home:wet_seasonyes" = "Water-int",
+      "wet_seasonyes:larvicide_applied_to_waterYes" = "Larvicide-int",
+      "wet_seasonyes:insecticide_sprayYes" = "Insecticide-int"
+    ))
+  
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "EVI250_home", "year"),
+    prob = 0.95)
+  
+  grid.arrange(
+    fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
+    nrow = 2
+  )
+}
+```
+
 
 ```{r fit-young2}
 aedes_red_young <- aedes_red[aedes_red$age <= 4,]
@@ -1719,6 +1830,12 @@ if(params$rerun_fit_young2_bayes) {
 }
 ```
 
+
+\blandscape
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots(fit_young2_bayes)
+```
+\elandscape
 
 Fit :  
 Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian school children ages 5-9.
