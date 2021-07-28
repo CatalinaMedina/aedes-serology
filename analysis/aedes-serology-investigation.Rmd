@@ -20,9 +20,12 @@ params:
   rerun_fit5_bayes: FALSE
   rerun_fit6_bayes: FALSE
   rerun_fit7_bayes: FALSE
-  rerun_fit_young1_bayes: TRUE
-  rerun_fit_young1_bayes_no_visit5: TRUE
-  rerun_fit_young2_bayes: TRUE
+  rerun_fit_young1_bayes: FALSE
+  rerun_fit_young1_bayes_no_visit5: FALSE
+  rerun_fit_young2_bayes: FALSE
+  rerun_fit_school1: FALSE
+  rerun_fit_school1_no5: FALSE
+  rerun_fit_school2: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -1683,8 +1686,9 @@ if(params$rerun_fit_young1_bayes) {
 ```
 
 \blandscape
+Young model without interactions (with visit 5)
 ```{r, fig.width=10, fig.height=7.5}
-gen_post_plots(fit_young1_bayes )
+gen_post_plots(fit_young1_bayes)
 ```
 \elandscape
 
@@ -1726,6 +1730,7 @@ if(params$rerun_fit_young1_bayes_no_visit5) {
 ```
 
 \blandscape
+Young model without interactions (without visit 5)
 ```{r, fig.width=10, fig.height=7.5}
 gen_post_plots(fit_young1_bayes_no_visit5)
 ```
@@ -1851,6 +1856,200 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 \end{equation*}
 
 ```{r}
+gen_post_plots <- function(fit){
+  fit_post_area1 <- mcmc_areas(
+    fit, 
+    pars = c(
+      "num_toilets_in_home",
+      "num_domestic_water_containers_in_home",
+      "larvicide_applied_to_waterYes",
+      "insecticide_sprayYes",
+      "wet_seasonyes"
+    ),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "num_toilets_in_home" = "Toilets",
+      "num_domestic_water_containers_in_home" = "Water containers",
+      "larvicide_applied_to_waterYes" = "Larvicide(yes)",
+      "insecticide_sprayYes" = "Insecticide(yes)",
+      "wet_seasonyes" = "Wet Season(yes)"
+    ))
 
+  fit_post_area2 <- mcmc_areas(
+    fit,
+    regex_pars = c("gender", "age", "river"),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "genderMale" = "Sex(male)",
+      "age_centered3" = "Age",
+      "close_to_riveryes" = "River close(yes)"
+    ))
+  
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250", "EVI250", "year"),
+    prob = 0.95)
+  
+  grid.arrange(
+    fit_post_area1, fit_post_area2, textGrob(""), fit_post_area4, 
+    nrow = 2
+  )
+}
 ```
 
+
+```{r fit-school1}
+aedes_red_school <- aedes_red[aedes_red$in_school == "yes" & aedes_red$age >= 5,]
+
+if(params$rerun_fit_school1) {
+  fit_school1 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented7  + close_to_river +
+      num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water + 
+      NFI250_sch + EVI250_sch +
+      NFI250_home + EVI250_home + 
+      wet_season + visit_year,
+    data = aedes_red_school,
+    seed = seed_val
+  )
+  
+  saveRDS(fit_school1, file = here("output", "fit-school1.rds"))
+  
+} else { 
+  fit_school1 <- readRDS(file = here("output", "fit-school1.rds")) 
+}
+```
+
+\blandscape
+School model without interactions (with visit 5)
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots(fit_school1)
+```
+\elandscape
+
+```{r fit-school1-no-visit5}
+aedes_red_school_no5 <- aedes_red[(aedes_red$in_school == "yes") & 
+                              (aedes_red$age >= 5) &
+                              (aedes_red$visit != "visit5"), ]
+
+if(params$rerun_fit_school1_no5) {
+  fit_school1_no_visit5 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented7  + close_to_river +
+      num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water + 
+      NFI250_sch + EVI250_sch +
+      NFI250_home + EVI250_home + 
+      wet_season + visit_year,
+    data = aedes_red_school_no5,
+    seed = seed_val
+  )
+  
+  saveRDS(fit_school1_no_visit5, file = here("output", "fit-school1-no-visit5.rds"))
+  
+} else { 
+  fit_school1_no_visit5 <- readRDS(file = here("output", "fit-school1-no-visit5.rds")) 
+}
+```
+
+
+\blandscape
+School model without interactions (without visit 5)
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots(fit_school1_no_visit5)
+```
+\elandscape
+
+```{r}
+gen_post_plots <- function(fit){
+  fit_post_area1 <- mcmc_areas(
+    fit, 
+    pars = c(
+      "num_toilets_in_home",
+      "num_domestic_water_containers_in_home",
+      "larvicide_applied_to_waterYes",
+      "insecticide_sprayYes",
+      "wet_seasonyes"
+    ),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "num_toilets_in_home" = "Toilets",
+      "num_domestic_water_containers_in_home" = "Water containers",
+      "larvicide_applied_to_waterYes" = "Larvicide(yes)",
+      "insecticide_sprayYes" = "Insecticide(yes)",
+      "wet_seasonyes" = "Wet Season(yes)"
+    ))
+
+  fit_post_area2 <- mcmc_areas(
+    fit,
+    regex_pars = c("gender", "age", "river"),
+    prob = 0.95
+  ) +
+    scale_y_discrete(labels = c(
+      "genderMale" = "Sex(male)",
+      "age_centered3" = "Age",
+      "close_to_riveryes" = "River close(yes)"
+    ))
+  
+  fit_post_area3 <- mcmc_areas(
+    fit, 
+    regex_pars = c(
+      "num_toilets_in_home:wet_seasonyes", 
+      "num_domestic_water_containers_in_home:wet_season",
+      "insecticide_sprayYes:wet_seasonyes",
+      "larvicide_applied_to_waterYes:wet_seasonyes"
+    ),
+    prob = 0.95) +
+    scale_y_discrete(labels = c(
+      "num_toilets_in_home:wet_seasonyes" = "Toilets-int", 
+      "num_domestic_water_containers_in_home:wet_seasonyes" = "Water-int",
+      "insecticide_sprayYes:wet_seasonyes" = "Insecticide-int",
+      "larvicide_applied_to_waterYes:wet_seasonyes" = "Larvicide-int"
+    ))
+  
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250", "EVI250", "year"),
+    prob = 0.95)
+  
+  grid.arrange(
+    fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
+    nrow = 2
+  )
+}
+```
+
+Young model with interactions (with visit 5)
+```{r fit-school2}
+aedes_red_school <- aedes_red[(aedes_red$in_school == "yes") & 
+                              (aedes_red$age >= 5), ]
+
+if(params$rerun_fit_school2) {
+  fit_school2 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented7  + close_to_river +
+      num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water + 
+      num_toilets_in_home:wet_season + num_domestic_water_containers_in_home:wet_season + 
+      insecticide_spray:wet_season + larvicide_applied_to_water:wet_season + 
+      NFI250_sch + EVI250_sch +
+      NFI250_home + EVI250_home + 
+      wet_season + visit_year,
+    data = aedes_red_school,
+    seed = seed_val
+  )
+  
+  saveRDS(fit_school2, file = here("output", "fit-school2.rds"))
+  
+} else { 
+  fit_school2 <- readRDS(file = here("output", "fit-school2.rds")) 
+}
+```
+
+
+\blandscape
+School model with interactions (with visit 5)
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots(fit_school2)
+```
+\elandscape
