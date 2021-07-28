@@ -1213,7 +1213,7 @@ if(params$rerun_fit4_bayes) {
 ```{r gen_post_plots-function}
 gen_post_plots <- function(fit){
   fit_post_area1 <- mcmc_areas(fit, regex_pars = "school",
-    prob = 0.95) +
+    prob = 0.95, prob_outer = 0.99) +
     scale_y_discrete(labels = c(
       "school_attended_redAng Seri" = "Ang Seri",
       "school_attended_redAnouvotta" = "Anouvotta",
@@ -1230,14 +1230,14 @@ gen_post_plots <- function(fit){
   fit_post_area2 <- mcmc_areas(
     fit,
     regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide"),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   )
   
   fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI", "NVI", "EVI"),
-    prob = 0.95)
+    prob = 0.95, prob_outer = 0.99)
   
   fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"),
-    prob = 0.95) 
+    prob = 0.95, prob_outer = 0.99) 
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
@@ -1456,7 +1456,7 @@ gen_post_plots <- function(fit){
   fit_post_area2 <- mcmc_areas(
     fit,
     regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide", "in_school"),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
@@ -1469,12 +1469,12 @@ gen_post_plots <- function(fit){
     ))
   
   fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "NVI250_home", "EVI250_home"),
-    prob = 0.95) 
+    prob = 0.95, prob_outer = 0.99) 
   
   fit_post_area1 <- mcmc_areas(fit, regex_pars = c("NFI250_sch", "NVI250_sch", "EVI250_sch"),
-    prob = 0.95)
+    prob = 0.95, prob_outer = 0.99)
   
-  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"), prob = 0.95) +
+  fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"), prob = 0.95, prob_outer = 0.99) +
     scale_y_discrete(labels = c(
       "visitvisit2" = "visit2",
       "visitvisit3" = "visit3",
@@ -1557,7 +1557,7 @@ gen_post_plots <- function(fit){
   fit_post_area2 <- mcmc_areas(
     fit,
     regex_pars = c("gender", "age", "toilets", "water", "insecticide", "larvicide"),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
@@ -1569,10 +1569,10 @@ gen_post_plots <- function(fit){
     ))
   
   fit_post_area3 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "NVI250_home", "EVI250_home"),
-    prob = 0.95) 
+    prob = 0.95, prob_outer = 0.99) 
   
   fit_post_area4 <- mcmc_areas(fit, regex_pars = c("visit"),
-    prob = 0.95) +
+    prob = 0.95, prob_outer = 0.99) +
     scale_y_discrete(labels = c(
       "visitvisit2" = "visit2",
       "visitvisit3" = "visit3",
@@ -1615,7 +1615,7 @@ gen_post_plots <- function(fit){
   fit_post_area1 <- mcmc_areas(
     fit,
     regex_pars = c("toilets", "water", "larvicide", "insecticide" , "season"),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "num_toilets_in_home" = "Toilets",
@@ -1628,7 +1628,7 @@ gen_post_plots <- function(fit){
   fit_post_area2 <- mcmc_areas(
     fit,
     regex_pars = c("gender", "age", "school", "river"),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
@@ -1638,7 +1638,7 @@ gen_post_plots <- function(fit){
     ))
   
   fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "EVI250_home", "year"),
-    prob = 0.95)
+    prob = 0.95, prob_outer = 0.99)
   
   
   grid.arrange(
@@ -1762,7 +1762,7 @@ gen_post_plots <- function(fit){
       "insecticide_sprayYes",
       "wet_seasonyes"
     ),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99,
   ) +
     scale_y_discrete(labels = c(
       "num_toilets_in_home" = "Toilets",
@@ -1775,7 +1775,7 @@ gen_post_plots <- function(fit){
   fit_post_area2 <- mcmc_areas(
     fit,
     regex_pars = c("gender", "age", "school", "river"),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
@@ -1792,7 +1792,8 @@ gen_post_plots <- function(fit){
       "wet_seasonyes:larvicide_applied_to_waterYes",
       "wet_seasonyes:insecticide_sprayYes"
     ),
-    prob = 0.95) +
+    prob = 0.95, prob_outer = 0.99
+  ) +
     scale_y_discrete(labels = c(
       "num_toilets_in_home:wet_seasonyes" = "Toilets-int", 
       "num_domestic_water_containers_in_home:wet_seasonyes" = "Water-int",
@@ -1801,7 +1802,7 @@ gen_post_plots <- function(fit){
     ))
   
   fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "EVI250_home", "year"),
-    prob = 0.95)
+    prob = 0.95, prob_outer = 0.99)
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
@@ -1837,6 +1838,7 @@ if(params$rerun_fit_young2_bayes) {
 
 
 \blandscape
+Young model with interactions (with visit 5)
 ```{r, fig.width=10, fig.height=7.5}
 gen_post_plots(fit_young2_bayes)
 ```
@@ -1866,7 +1868,7 @@ gen_post_plots <- function(fit){
       "insecticide_sprayYes",
       "wet_seasonyes"
     ),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "num_toilets_in_home" = "Toilets",
@@ -1879,7 +1881,7 @@ gen_post_plots <- function(fit){
   fit_post_area2 <- mcmc_areas(
     fit,
     regex_pars = c("gender", "age", "river"),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
@@ -1888,7 +1890,7 @@ gen_post_plots <- function(fit){
     ))
   
   fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250", "EVI250", "year"),
-    prob = 0.95)
+    prob = 0.95, prob_outer = 0.99)
   
   grid.arrange(
     fit_post_area1, fit_post_area2, textGrob(""), fit_post_area4, 
@@ -1972,7 +1974,7 @@ gen_post_plots <- function(fit){
       "insecticide_sprayYes",
       "wet_seasonyes"
     ),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "num_toilets_in_home" = "Toilets",
@@ -1985,7 +1987,7 @@ gen_post_plots <- function(fit){
   fit_post_area2 <- mcmc_areas(
     fit,
     regex_pars = c("gender", "age", "river"),
-    prob = 0.95
+    prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
@@ -2001,7 +2003,7 @@ gen_post_plots <- function(fit){
       "insecticide_sprayYes:wet_seasonyes",
       "larvicide_applied_to_waterYes:wet_seasonyes"
     ),
-    prob = 0.95) +
+    prob = 0.95, prob_outer = 0.99) +
     scale_y_discrete(labels = c(
       "num_toilets_in_home:wet_seasonyes" = "Toilets-int", 
       "num_domestic_water_containers_in_home:wet_seasonyes" = "Water-int",
@@ -2010,7 +2012,7 @@ gen_post_plots <- function(fit){
     ))
   
   fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250", "EVI250", "year"),
-    prob = 0.95)
+    prob = 0.95, prob_outer = 0.99)
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
