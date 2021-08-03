@@ -50,6 +50,7 @@ library(qwraps2)
 library(knitr)
 library(kableExtra)
 library(lubridate)
+library(RANN)
 library(rstanarm)
 library(bayesplot)
 library(gridExtra)
@@ -366,8 +367,7 @@ if (params$rerun_data) {
         "Daily"
       )
     ))
-
-    
+  
   
   #### Incorporate satellite data
   sat_data500 <- process_modis_data(
@@ -539,6 +539,44 @@ if (params$rerun_data) {
     mutate(NFI250_sch = ifelse(is.na(NFI250_sch), yes = 0, no = NFI250_sch))                 
   
   aedes_red <- aedes_red[!is.na(aedes_red$NVI250_home), ]
+  
+  
+  #### Incorporate larval data
+  larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv")) %>% 
+    select(
+      X = "X...1",
+      Y = "Y...2",
+      larval_lon = "X...3",
+      larval_lat = "Y...4",
+      house_num = "name",
+      subj_id = "SUBJID"
+    ) %>% 
+    mutate(subj_id = as.character(as.numeric(subj_id))) %>% 
+    filter(!duplicated(subj_id)) #subjects 389 and 716 had repeat measurements; 1st kept
+    
+  
+  larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx")) %>% 
+    select(
+      subj_id = SUBJID,
+      larval_visit_date = VISITDAT,
+      water_containers = WATERCON,
+      water_larvae = WATERLARVAE
+    ) %>% 
+    filter(water_containers > 0) %>% 
+    mutate(subj_id = as.character(subj_id)) %>% 
+    mutate(container_index = as.numeric(water_larvae) / as.numeric(water_containers)) %>% 
+    left_join(y = larval_lat_lo) 
+  
+  larval_nn <- nn2(
+    select(.data = larval_hs, larval_lon, larval_lat),
+    query = select(.data = aedes_red, lon, lat), 
+    k = 1,
+    radius = 300
+  )
+  
+  aedes_red <- aedes_red %>% 
+    mutate(larvae_cont_ind = larval_hs$container_index[larval_nn$nn.idx])
+  
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
   
