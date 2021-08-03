@@ -20,12 +20,12 @@ params:
   rerun_fit5_bayes: FALSE
   rerun_fit6_bayes: FALSE
   rerun_fit7_bayes: FALSE
-  rerun_fit_young1_bayes: FALSE
-  rerun_fit_young1_bayes_no_visit5: FALSE
-  rerun_fit_young2_bayes: FALSE
-  rerun_fit_school1: FALSE
-  rerun_fit_school1_no5: FALSE
-  rerun_fit_school2: FALSE
+  rerun_fit_young1_bayes: TRUE
+  rerun_fit_young1_bayes_no_visit5: TRUE
+  rerun_fit_young2_bayes: TRUE
+  rerun_fit_school1: TRUE
+  rerun_fit_school1_no5: TRUE
+  rerun_fit_school2: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -1634,7 +1634,7 @@ gen_post_plots <- function(fit){
       "genderMale" = "Sex(male)",
       "age_centered3" = "Age",
       "in_schoolyes" = "In School(yes)",
-      "close_to_riveryes" = "River close(yes)"
+      "distance_to_river" = "Distance to river"
     ))
   
   fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250_home", "EVI250_home", "year"),
@@ -1669,7 +1669,7 @@ aedes_red_young <- aedes_red[aedes_red$age <= 4,]
 if(params$rerun_fit_young1_bayes) {
   fit_young1_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented3 + in_school + close_to_river +
+      age_cented3 + in_school + distance_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       NFI250_home + EVI250_home + 
@@ -1713,7 +1713,7 @@ aedes_red_young5 <- aedes_red[(aedes_red$age <= 4) & (aedes_red$visit != "visit5
 if(params$rerun_fit_young1_bayes_no_visit5) {
   fit_young1_bayes_no_visit5 <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented3 + in_school + close_to_river +
+      age_cented3 + in_school + distance_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       NFI250_home + EVI250_home + 
@@ -1781,7 +1781,7 @@ gen_post_plots <- function(fit){
       "genderMale" = "Sex(male)",
       "age_centered3" = "Age",
       "in_schoolyes" = "In School(yes)",
-      "close_to_riveryes" = "River close(yes)"
+      "distance_to_river" = "Distance from river"
     ))
   
   fit_post_area3 <- mcmc_areas(
@@ -1818,7 +1818,7 @@ aedes_red_young <- aedes_red[aedes_red$age <= 4,]
 if(params$rerun_fit_young2_bayes) {
   fit_young2_bayes <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented3 + in_school + close_to_river +
+      age_cented3 + in_school + distance_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       num_toilets_in_home:wet_season + num_domestic_water_containers_in_home:wet_season + 
       insecticide_spray + larvicide_applied_to_water + 
@@ -1845,7 +1845,7 @@ gen_post_plots(fit_young2_bayes)
 \elandscape
 
 Fit :  
-Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian school children ages 5-9.
+Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian school children (all ages).
 \begin{equation*}
 	\begin{split}
 		\log(\text{Saliva ELISA value})_{ij} &= b_{0i} + \beta_{0} + \beta_{\text{Male}}\text{Male}_i \\
@@ -1886,7 +1886,7 @@ gen_post_plots <- function(fit){
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
       "age_centered3" = "Age",
-      "close_to_riveryes" = "River close(yes)"
+      "distance_to_river" = "Distance to river"
     ))
   
   fit_post_area4 <- mcmc_areas(fit, regex_pars = c("NFI250", "EVI250", "year"),
@@ -1901,12 +1901,12 @@ gen_post_plots <- function(fit){
 
 
 ```{r fit-school1}
-aedes_red_school <- aedes_red[aedes_red$in_school == "yes" & aedes_red$age >= 5,]
+aedes_red_school <- aedes_red[aedes_red$in_school == "yes",]
 
 if(params$rerun_fit_school1) {
   fit_school1 <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented7  + close_to_river +
+      age_cented7  + distance_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       NFI250_sch + EVI250_sch +
@@ -1932,13 +1932,12 @@ gen_post_plots(fit_school1)
 
 ```{r fit-school1-no-visit5}
 aedes_red_school_no5 <- aedes_red[(aedes_red$in_school == "yes") & 
-                              (aedes_red$age >= 5) &
-                              (aedes_red$visit != "visit5"), ]
+                                  (aedes_red$visit != "visit5"), ]
 
 if(params$rerun_fit_school1_no5) {
   fit_school1_no_visit5 <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented7  + close_to_river +
+      age_cented7  + distance_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       NFI250_sch + EVI250_sch +
@@ -1992,7 +1991,7 @@ gen_post_plots <- function(fit){
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
       "age_centered3" = "Age",
-      "close_to_riveryes" = "River close(yes)"
+      "distance_to_river" = "Distance to river"
     ))
   
   fit_post_area3 <- mcmc_areas(
@@ -2023,13 +2022,12 @@ gen_post_plots <- function(fit){
 
 Young model with interactions (with visit 5)
 ```{r fit-school2}
-aedes_red_school <- aedes_red[(aedes_red$in_school == "yes") & 
-                              (aedes_red$age >= 5), ]
+aedes_red_school <- aedes_red[aedes_red$in_school == "yes", ]
 
 if(params$rerun_fit_school2) {
   fit_school2 <- stan_lmer(
     formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented7  + close_to_river +
+      age_cented7  + distance_to_river +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + 
       num_toilets_in_home:wet_season + num_domestic_water_containers_in_home:wet_season + 
