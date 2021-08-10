@@ -28,6 +28,7 @@ params:
   rerun_fit_school2: FALSE
   rerun_fit_young3: FALSE
   rerun_fit_school3: FALSE
+  fit_main1: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -2096,7 +2097,7 @@ gen_post_plots(fit_school2)
 \elandscape
 
 
-## Current models with larval count  
+## Models with larval count  
 
 ```{r}
 gen_post_plots <- function(fit){
@@ -2288,5 +2289,99 @@ if(params$rerun_fit_school3) {
 \blandscape
 ```{r, fig.width=10, fig.height=7.5}
 gen_post_plots(fit_school3)
+```
+\elandscape
+
+
+## Model without school predictors
+
+Model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$).
+\begin{equation*}
+	\begin{split}
+		\log(\text{Saliva ELISA value})_{ij} &= b_{0i} + \beta_{0} + \beta_{\text{Male}}\text{Male}_i \\
+		&+ \beta_{\text{Age}}(\text{Age} - 7)_{i} + \beta_{\text{River}}\text{Distance to river}_{i}\\
+		&+\beta_{\text{Toilets}}\text{Toilets}_{ij} + \beta_{\text{Water}}\text{Water containers}_{ij} + \beta_{\text{Insecticide}}\text{Insecticide}_{ij} + \beta_{\text{Larvicide}}\text{Larvicide}_{ij} \\
+		&+ \beta_{\text{NFI250 home}}\text{Home flooding}_{ij} + \beta_{\text{EVI250 home}}\text{Home vegetation}_{ij} \\
+		&+ \beta_{\text{Wet season}}\text{Wet season}_{ij} + \beta_{\text{Year}}\text{Year}_{ij} + \beta_{\text{Larvae \%}}\text{Larvae \%}_{i},
+	\end{split}
+\end{equation*}
+
+```{r}
+gen_post_plots <- function(fit){
+  fit_post_area1 <- mcmc_areas(
+    fit, 
+    pars = c(
+      "num_toilets_in_home",
+      "num_domestic_water_containers_in_home",
+      "larvicide_applied_to_waterYes",
+      "insecticide_sprayYes",
+      "wet_seasonyes"
+    ),
+    prob = 0.95, prob_outer = 0.99
+  ) +
+    scale_y_discrete(labels = c(
+      "num_toilets_in_home" = "Toilets",
+      "num_domestic_water_containers_in_home" = "Water containers",
+      "larvicide_applied_to_waterYes" = "Larvicide(yes)",
+      "insecticide_sprayYes" = "Insecticide(yes)",
+      "wet_seasonyes" = "Wet Season(yes)"
+    ))
+
+  fit_post_area2 <- mcmc_areas(
+    fit,
+    regex_pars = c("gender", "age", "river", "year"),
+    prob = 0.95, prob_outer = 0.99
+  ) +
+    scale_y_discrete(labels = c(
+      "genderMale" = "Sex(male)",
+      "age_centered3" = "Age",
+      "distance_to_river_scaled" = "Distance to river",
+      "visit_year" = "Visit year"
+    ))
+  
+  fit_post_area3 <- mcmc_areas(
+    fit, regex_pars = c("larvae"),
+    prob = 0.95, prob_outer = 0.99
+  ) +
+    scale_y_discrete(labels = c(
+      "larvae_cont_ind" = "Larvae containter"
+    ))
+  
+  fit_post_area4 <- mcmc_areas(
+    fit, regex_pars = c("NFI250", "EVI250"),
+    prob = 0.95, prob_outer = 0.99
+  )
+  
+  grid.arrange(
+    fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
+    nrow = 2
+  )
+}
+```
+
+
+```{r fit-main1}
+if(params$fit_main1) {
+  fit_main1 <- stan_lmer(
+    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+      age_cented7  + distance_to_river_scaled +
+      num_toilets_in_home + num_domestic_water_containers_in_home + 
+      insecticide_spray + larvicide_applied_to_water + larvae_cont_ind + 
+      NFI250_home + EVI250_home + 
+      wet_season + visit_year,
+    data = aedes_red_school,
+    seed = seed_val
+  )
+  
+  saveRDS(fit_main1, file = here("output", "fit-main1.rds"))
+  
+} else { 
+  fit_main1 <- readRDS(file = here("output", "fit-main1.rds")) 
+}
+```
+
+\blandscape
+```{r, fig.width=10, fig.height=7.5}
+gen_post_plots(fit_main1)
 ```
 \elandscape
