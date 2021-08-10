@@ -207,7 +207,7 @@ if (params$rerun_data) {
     mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift)) 
   
   
-  aedes_visit5 <- read_csv(here("data", "Saliva ELISA V1-6 INDEX.csv")) %>% 
+  aedes_visit5 <- read_csv(here("data", "Saliva ELISA V1-6 INDEX.csv"), show_col_types = FALSE) %>% 
     select(study_id = ID, saliva_elisa_value = "Visit 5") %>% 
     mutate(saliva_elisa_value = as.numeric(ifelse(saliva_elisa_value == ".", yes = NA, no = saliva_elisa_value))) %>% 
     mutate(log_saliva_elisa = log(saliva_elisa_value + saliva_ELISA_log_shift)) 
@@ -226,7 +226,7 @@ if (params$rerun_data) {
       arrange(study_id, visit_date)
   
   
-  aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"))
+  aedes_coord_og <- read_csv(here("data", "PAGODAS_Coordinates.csv"), show_col_types = FALSE)
   
   aedes_coord_cleaned <- aedes_coord_og %>%
     clean_names()
@@ -242,7 +242,7 @@ if (params$rerun_data) {
       TRUE ~ "NA"
     ))
 
-  aedes_survey_with_river <- read_csv(here("data", "DistPHHtoRiver.csv")) %>% 
+  aedes_survey_with_river <- read_csv(here("data", "DistPHHtoRiver.csv"), show_col_types = FALSE) %>% 
     select(study_id = Study.ID, distance_to_river = distance) %>%
     mutate(distance_to_river_scaled = (distance_to_river - mean(distance_to_river)) / sd(distance_to_river)) %>% 
     mutate(close_to_river = factor(
@@ -347,6 +347,7 @@ if (params$rerun_data) {
     select(colnames(aedes_red)) %>% 
     bind_rows(aedes_red %>% filter(visit == "visit1")) %>% 
     mutate(visit = factor(visit)) %>% 
+    mutate(visit5 = ifelse(visit != 5, "no", "yes")) %>% 
     mutate(wet_season = factor(wet_season, levels = c("no", "yes"))) %>% 
     filter(!is.na(num_domestic_water_containers_in_home)) %>% 
     mutate(how_often_use_bed_net = factor(
@@ -374,7 +375,7 @@ if (params$rerun_data) {
   
   #### Incorporate satellite data
   sat_data500 <- process_modis_data(
-    df_og = read_csv(here("data", "MODIS_500m.csv")), 
+    df_og = read_csv(here("data", "MODIS_500m.csv"), show_col_types = FALSE), 
     sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
     sat_var_col_start = 7
   ) %>% 
@@ -428,7 +429,7 @@ if (params$rerun_data) {
   
   #### Incorporate satellite data 
   sat_data250 <- process_modis_data(
-    df_og = read_csv(here("data", "MODIS_250m.csv")), 
+    df_og = read_csv(here("data", "MODIS_250m.csv"), show_col_types = FALSE), 
     sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
     sat_var_col_start = 7
   )
@@ -481,7 +482,7 @@ if (params$rerun_data) {
   
   #### Incorporate school satellite data 
   sat_data250 <- process_modis_data(
-    df_og = read_csv(here("data", "SchoolsMODIS_250m.csv")), 
+    df_og = read_csv(here("data", "SchoolsMODIS_250m.csv"), show_col_types = FALSE), 
     sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
     sat_var_col_start = 6
   ) %>% 
@@ -545,7 +546,7 @@ if (params$rerun_data) {
   
   
   #### Incorporate larval data
-  larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv")) %>% 
+  larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv"), show_col_types = FALSE) %>% 
     select(
       X = "X...1",
       Y = "Y...2",
@@ -2363,7 +2364,7 @@ gen_post_plots <- function(fit){
 ```{r fit-main1}
 if(params$fit_main1) {
   fit_main1 <- stan_lmer(
-    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+    formula = log_saliva_elisa ~ (1 | study_id) + (1 | visit5) + 1 + gender + 
       age_cented7  + distance_to_river_scaled +
       num_toilets_in_home + num_domestic_water_containers_in_home + 
       insecticide_spray + larvicide_applied_to_water + larvae_cont_ind + 
