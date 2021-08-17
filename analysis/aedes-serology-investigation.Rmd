@@ -347,7 +347,7 @@ if (params$rerun_data) {
     select(colnames(aedes_red)) %>% 
     bind_rows(aedes_red %>% filter(visit == "visit1")) %>% 
     mutate(visit = factor(visit)) %>% 
-    mutate(visit5 = ifelse(visit != 5, "no", "yes")) %>% 
+    mutate(visit5 = factor(ifelse(visit != "visit5", "no", "yes"))) %>% 
     mutate(wet_season = factor(wet_season, levels = c("no", "yes"))) %>% 
     filter(!is.na(num_domestic_water_containers_in_home)) %>% 
     mutate(how_often_use_bed_net = factor(
@@ -2362,24 +2362,32 @@ gen_post_plots <- function(fit){
 
 
 ```{r fit-main1}
+aedes_red1 <- aedes_red %>% 
+  mutate(lat_s = (lat - mean(lat)) / sd(lat)) %>% 
+  mutate(lon_s = (lon - mean(lon)) / sd(lon))
+
+
 if(params$fit_main1) {
-  fit_main1 <- stan_lmer(
-    formula = log_saliva_elisa ~ (1 | study_id) + (1 | visit5) + 1 + gender + 
+  fit_main1_te <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
-      num_toilets_in_home + num_domestic_water_containers_in_home + 
-      insecticide_spray + larvicide_applied_to_water + larvae_cont_ind + 
-      NFI250_home + EVI250_home + 
-      wet_season + visit_year,
-    data = aedes_red_school,
-    seed = seed_val
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water + larvae_cont_ind +
+      NFI250_home + EVI250_home +
+      wet_season + visit_year +
+      visit5 + t2(lat_s, lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red1,
+    seed = seed_val, iter = 4000
   )
   
-  saveRDS(fit_main1, file = here("output", "fit-main1.rds"))
+  saveRDS(fit_main1_te, file = here("output", "fit-main1_te.rds"))
   
 } else { 
-  fit_main1 <- readRDS(file = here("output", "fit-main1.rds")) 
+  fit_main1_te <- readRDS(file = here("output", "fit-main1_te.rds")) 
 }
 ```
+
 
 \blandscape
 ```{r, fig.width=10, fig.height=7.5}
