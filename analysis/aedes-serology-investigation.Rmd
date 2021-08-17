@@ -2315,8 +2315,7 @@ gen_post_plots <- function(fit){
       "num_toilets_in_home",
       "num_domestic_water_containers_in_home",
       "larvicide_applied_to_waterYes",
-      "insecticide_sprayYes",
-      "wet_seasonyes"
+      "insecticide_sprayYes"
     ),
     prob = 0.95, prob_outer = 0.99
   ) +
@@ -2324,20 +2323,20 @@ gen_post_plots <- function(fit){
       "num_toilets_in_home" = "Toilets",
       "num_domestic_water_containers_in_home" = "Water containers",
       "larvicide_applied_to_waterYes" = "Larvicide(yes)",
-      "insecticide_sprayYes" = "Insecticide(yes)",
-      "wet_seasonyes" = "Wet Season(yes)"
+      "insecticide_sprayYes" = "Insecticide(yes)"
     ))
 
   fit_post_area2 <- mcmc_areas(
     fit,
-    regex_pars = c("gender", "age", "river", "year"),
+    regex_pars = c("gender", "age", "season", "visit"),
     prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
       "age_centered3" = "Age",
-      "distance_to_river_scaled" = "Distance to river",
-      "visit_year" = "Visit year"
+      "wet_seasonyes" = "Wet Season(yes)",
+      "visit_year" = "Visit year",
+      "visit5" = "Visit5"
     ))
   
   fit_post_area3 <- mcmc_areas(
@@ -2349,9 +2348,12 @@ gen_post_plots <- function(fit){
     ))
   
   fit_post_area4 <- mcmc_areas(
-    fit, regex_pars = c("NFI250", "EVI250"),
+    fit, regex_pars = c("NFI250", "EVI250", "river"),
     prob = 0.95, prob_outer = 0.99
-  )
+  ) +
+    scale_y_discrete(labels = c(
+      "distance_to_river_scaled" = "Distance to river"
+    ))
   
   grid.arrange(
     fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
@@ -2378,8 +2380,17 @@ if(params$fit_main1) {
       visit5 + t2(lat_s, lon_s, bs = "tp"),
     random = ~ (1 | study_id),
     data = aedes_red1,
-    seed = seed_val, iter = 4000
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 12), 0.1),
+      scale = c(rep(2.5, 12), 0.05)
+    )
   )
+  
+# There were 41 divergent transitions after warmup. See
+# http://mc-stan.org/misc/warnings.html#divergent-transitions-after-warmup
+# to find out why this is a problem and how to eliminate them.Examine the pairs() plot to diagnose sampling problems
   
   saveRDS(fit_main1_te, file = here("output", "fit-main1_te.rds"))
   
@@ -2389,8 +2400,18 @@ if(params$fit_main1) {
 ```
 
 
+```{r trace-plots, eval = FALSE}
+mcmc_trace(fit_main1_te, regex_pars = c("gender", "age", "river", "toilets"))
+
+mcmc_trace(fit_main1_te, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
+
+mcmc_trace(fit_main1_te, regex_pars = c("NFI", "NVI"))
+
+mcmc_trace(fit_main1_te, regex_pars = c("season", "visit"))
+```
+
 \blandscape
 ```{r, fig.width=10, fig.height=7.5}
-gen_post_plots(fit_main1)
+gen_post_plots(fit_main1_te)
 ```
 \elandscape
