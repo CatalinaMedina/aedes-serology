@@ -28,7 +28,7 @@ params:
   rerun_fit_school2: FALSE
   rerun_fit_young3: FALSE
   rerun_fit_school3: FALSE
-  fit_main1: TRUE
+  fit_main1: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -2370,7 +2370,7 @@ aedes_red1 <- aedes_red %>%
 
 
 if(params$fit_main1) {
-  fit_main1_te <- stan_gamm4(
+  fit_main1_te2 <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
       num_toilets_in_home + num_domestic_water_containers_in_home +
@@ -2388,14 +2388,12 @@ if(params$fit_main1) {
     )
   )
   
-# There were 41 divergent transitions after warmup. See
-# http://mc-stan.org/misc/warnings.html#divergent-transitions-after-warmup
-# to find out why this is a problem and how to eliminate them.Examine the pairs() plot to diagnose sampling problems
+  saveRDS(fit_main1_te2, file = here("output", "fit-main1_te2.rds"))
   
-  saveRDS(fit_main1_te, file = here("output", "fit-main1_te.rds"))
+  fit_main1_te <- fit_main1_te2
   
 } else { 
-  fit_main1_te <- readRDS(file = here("output", "fit-main1_te.rds")) 
+  fit_main1_te <- readRDS(file = here("output", "fit-main1_te2.rds")) 
 }
 ```
 
