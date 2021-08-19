@@ -2364,20 +2364,20 @@ gen_post_plots <- function(fit){
 
 
 ```{r fit-main1}
-aedes_red1 <- aedes_red %>% 
-  mutate(lat_s = (lat - mean(lat)) / sd(lat)) %>% 
-  mutate(lon_s = (lon - mean(lon)) / sd(lon))
+aedes_red <- aedes_red %>% 
+  mutate(lav_v_lon = lat * lon) %>% 
+  mutate(lav_v_lon_s = (lav_v_lon - mean(lav_v_lon)) / sd(lav_v_lon))
 
 
 if(params$fit_main1) {
-  fit_main1_te2 <- stan_gamm4(
+  fit_main1_te <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
       num_toilets_in_home + num_domestic_water_containers_in_home +
       insecticide_spray + larvicide_applied_to_water + larvae_cont_ind +
       NFI250_home + EVI250_home +
       wet_season + visit_year +
-      visit5 + t2(lat_s, lon_s, bs = "tp"),
+      visit5 + s(lav_v_lon_s, bs = "tp"),
     random = ~ (1 | study_id),
     data = aedes_red1,
     seed = seed_val, 
@@ -2388,12 +2388,10 @@ if(params$fit_main1) {
     )
   )
   
-  saveRDS(fit_main1_te2, file = here("output", "fit-main1_te2.rds"))
-  
-  fit_main1_te <- fit_main1_te2
+  saveRDS(fit_main1_te, file = here("output", "fit-main1_te.rds"))
   
 } else { 
-  fit_main1_te <- readRDS(file = here("output", "fit-main1_te2.rds")) 
+  fit_main1_te <- readRDS(file = here("output", "fit-main1_te.rds")) 
 }
 ```
 
