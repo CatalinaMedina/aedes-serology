@@ -2365,8 +2365,8 @@ gen_post_plots <- function(fit){
 
 ```{r fit-main1}
 aedes_red <- aedes_red %>% 
-  mutate(lav_v_lon = lat * lon) %>% 
-  mutate(lav_v_lon_s = (lav_v_lon - mean(lav_v_lon)) / sd(lav_v_lon))
+  mutate(lat_v_lon = lat * lon) %>% 
+  mutate(lat_v_lon_s = (lat_v_lon - mean(lat_v_lon)) / sd(lat_v_lon))
 
 
 if(params$fit_main1) {
@@ -2377,9 +2377,9 @@ if(params$fit_main1) {
       insecticide_spray + larvicide_applied_to_water + larvae_cont_ind +
       NFI250_home + EVI250_home +
       wet_season + visit_year +
-      visit5 + s(lav_v_lon_s, bs = "tp"),
+      visit5 + s(lat_v_lon_s, bs = "tp"),
     random = ~ (1 | study_id),
-    data = aedes_red1,
+    data = aedes_red,
     seed = seed_val, 
     iter = 4000, 
     prior = normal(
