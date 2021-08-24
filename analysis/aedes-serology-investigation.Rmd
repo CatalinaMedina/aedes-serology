@@ -9,7 +9,7 @@ header-includes:
 params:
   rerun_data: FALSE
   near_river_cut_off: 300
-  modis_lag: 40
+  modis_lag: 16
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -2366,7 +2366,7 @@ aedes_red <- aedes_red %>%
 
 
 if(params$fit_main1) {
-  fit_main1_te <- stan_gamm4(
+  fit_main1 <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
       num_toilets_in_home + num_domestic_water_containers_in_home +
@@ -2384,10 +2384,10 @@ if(params$fit_main1) {
     )
   )
   
-  saveRDS(fit_main1_te, file = here("output", "fit-main1_te.rds"))
+  saveRDS(fit_main1, file = here("output", "fit-main1.rds"))
   
 } else { 
-  fit_main1_te <- readRDS(file = here("output", "fit-main1_te.rds")) 
+  fit_main1 <- readRDS(file = here("output", "fit-main1.rds")) 
 }
 ```
 
@@ -2417,36 +2417,3 @@ plot_nonlinear(fit_main1_te, prob = 0.95) +
 \elandscape
 
 
-
-```{r fit-main1}
-aedes_red_y <- aedes_red %>% 
-  mutate(lat_v_lon = lat * lon) %>% 
-  mutate(lat_v_lon_s = (lat_v_lon - mean(lat_v_lon)) / sd(lat_v_lon)) %>% 
-  filter(age >= 5)
-
-
-if(params$fit_main1) {
-  fit_main1_te_y <- stan_gamm4(
-    formula = log_saliva_elisa ~ gender + 
-      age_cented7  + distance_to_river_scaled +
-      num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water + larvae_cont_ind +
-      NFI250_home + EVI250_home +
-      wet_season + visit_year +
-      visit5 + s(lat_v_lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red_y,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 12), 0.1),
-      scale = c(rep(2.5, 12), 0.05)
-    )
-  )
-  
-  saveRDS(fit_main1_te_y, file = here("output", "fit_main1_te_y.rds"))
-  
-} else { 
-  fit_main1_te_y <- readRDS(file = here("output", "fit_main1_te_y.rds")) 
-}
-```
