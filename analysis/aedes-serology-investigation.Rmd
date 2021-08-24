@@ -30,6 +30,7 @@ params:
   rerun_fit_young3: FALSE
   rerun_fit_school3: FALSE
   fit_main1: FALSE
+  fit_simple: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -2393,27 +2394,48 @@ if(params$fit_main1) {
 
 
 ```{r, eval = FALSE}
-mcmc_trace(fit_main1_te, regex_pars = c("gender", "age", "river", "toilets"))
+mcmc_trace(fit_main1, regex_pars = c("gender", "age", "river", "toilets"))
 
-mcmc_trace(fit_main1_te, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
+mcmc_trace(fit_main1, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
 
-mcmc_trace(fit_main1_te, regex_pars = c("NFI", "NVI"))
+mcmc_trace(fit_main1, regex_pars = c("NFI", "EVI"))
 
-mcmc_trace(fit_main1_te, regex_pars = c("season", "visit"))
+mcmc_trace(fit_main1, regex_pars = c("season", "visit"))
 ```
 
 \blandscape
 ```{r, fig.width=10, fig.height=7.5}
-gen_post_plots(fit_main1_te)
+gen_post_plots(fit_main1)
 ```
 
 ```{r}
-plot_nonlinear(fit_main1_te, prob = 0.95) +
+plot_nonlinear(fit_main1, prob = 0.95) +
   geom_hline(yintercept = 0, linetype = "dashed")
 ```
 
-
-
 \elandscape
 
+\newpage
+## Simple spatiotemporal model
+```{r}
+if(params$fit_simple) {
+  fit_simple <- stan_gamm4(
+    formula = log_saliva_elisa ~ wet_season +
+      visit5 + s(lat_v_lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red,
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 2), 0.1),
+      scale = c(rep(2.5, 2), 0.05)
+    )
+  )
+  
+  saveRDS(fit_simple, file = here("output", "fit_simple.rds"))
+  
+} else { 
+  fit_simple <- readRDS(file = here("output", "fit_simple.rds")) 
+}
+```
 
