@@ -9,6 +9,7 @@ header-includes:
 params:
   rerun_data: FALSE
   near_river_cut_off: 300
+  modis_lag: 40
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -374,6 +375,10 @@ if (params$rerun_data) {
   
   
   #### Incorporate satellite data
+  max_date_diff <- 80
+  date_lag <- params$modis_lag
+  
+  
   sat_data500 <- process_modis_data(
     df_og = read_csv(here("data", "MODIS_500m.csv"), show_col_types = FALSE), 
     sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
@@ -393,9 +398,6 @@ if (params$rerun_data) {
   
   num_vars <- 3
   var_types <- levels(factor(sat_df$var_type))
-  
-  max_date_diff <- 40
-  date_lag <- 16
   
   
   for(i in 1:nrow(df_og)) {
@@ -446,9 +448,6 @@ if (params$rerun_data) {
   
   num_vars <- 3
   var_types <- levels(factor(sat_df$var_type))
-  
-  max_date_diff <- 40
-  date_lag <- 16
   
   
   for(i in 1:nrow(df_og)) {
@@ -504,9 +503,6 @@ if (params$rerun_data) {
   
   num_vars <- 3
   var_types <- levels(factor(sat_df$var_type))
-  
-  max_date_diff <- 40
-  date_lag <- 16
   
   
   for(i in 1:nrow(df_og)) {
@@ -2396,7 +2392,7 @@ if(params$fit_main1) {
 ```
 
 
-```{r trace-plots, eval = FALSE}
+```{r, eval = FALSE}
 mcmc_trace(fit_main1_te, regex_pars = c("gender", "age", "river", "toilets"))
 
 mcmc_trace(fit_main1_te, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
@@ -2410,4 +2406,47 @@ mcmc_trace(fit_main1_te, regex_pars = c("season", "visit"))
 ```{r, fig.width=10, fig.height=7.5}
 gen_post_plots(fit_main1_te)
 ```
+
+```{r}
+plot_nonlinear(fit_main1_te, prob = 0.95) +
+  geom_hline(yintercept = 0, linetype = "dashed")
+```
+
+
+
 \elandscape
+
+
+
+```{r fit-main1}
+aedes_red_y <- aedes_red %>% 
+  mutate(lat_v_lon = lat * lon) %>% 
+  mutate(lat_v_lon_s = (lat_v_lon - mean(lat_v_lon)) / sd(lat_v_lon)) %>% 
+  filter(age >= 5)
+
+
+if(params$fit_main1) {
+  fit_main1_te_y <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
+      age_cented7  + distance_to_river_scaled +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water + larvae_cont_ind +
+      NFI250_home + EVI250_home +
+      wet_season + visit_year +
+      visit5 + s(lat_v_lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red_y,
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 12), 0.1),
+      scale = c(rep(2.5, 12), 0.05)
+    )
+  )
+  
+  saveRDS(fit_main1_te_y, file = here("output", "fit_main1_te_y.rds"))
+  
+} else { 
+  fit_main1_te_y <- readRDS(file = here("output", "fit_main1_te_y.rds")) 
+}
+```
