@@ -30,7 +30,7 @@ params:
   rerun_fit_young3: FALSE
   rerun_fit_school3: FALSE
   fit_main1: FALSE
-  fit_simple: TRUE
+  fit_simple: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -2330,15 +2330,14 @@ gen_post_plots <- function(fit){
 
   fit_post_area2 <- mcmc_areas(
     fit,
-    regex_pars = c("gender", "age", "season", "visit"),
+    regex_pars = c("gender", "age", "season", "visit_year"),
     prob = 0.95, prob_outer = 0.99
   ) +
     scale_y_discrete(labels = c(
       "genderMale" = "Sex(male)",
       "age_centered3" = "Age",
       "wet_seasonyes" = "Wet Season(yes)",
-      "visit_year" = "Visit year",
-      "visit5" = "Visit5"
+      "visit_year" = "Visit year"
     ))
   
   fit_post_area3 <- mcmc_areas(
