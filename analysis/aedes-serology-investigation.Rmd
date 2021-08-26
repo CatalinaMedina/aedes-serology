@@ -2415,45 +2415,5 @@ plot_nonlinear(fit_main1, prob = 0.95) +
 
 \elandscape
 
-\newpage
-## Simple spatiotemporal model
-```{r}
-if(params$fit_simple) {
-  fit_simple <- stan_gamm4(
-    formula = log_saliva_elisa ~ wet_season + visit5 + s(lat_v_lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 1), 0.1),
-      scale = c(rep(2.5, 1), 0.05)
-    )
-  )
-  
-  saveRDS(fit_simple, file = here("output", "fit_simple.rds"))
-  
-} else { 
-  fit_simple <- readRDS(file = here("output", "fit_simple.rds")) 
-}
-```
-
-
-
-\blandscape
-```{r}
-mcmc_areas(
-  fit_simple, 
-  regex_pars = c("wet_season", "visit5"),
-  prob = 0.95,
-  prob_outer = 0.99
-)
-```
-
-```{r}
-plot_nonlinear(fit_simple, prob = 0.95) +
-  geom_hline(yintercept = 0, linetype = "dashed")
-```
-
 
 \elandscape
