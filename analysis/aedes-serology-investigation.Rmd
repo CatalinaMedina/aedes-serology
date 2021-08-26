@@ -375,8 +375,18 @@ if (params$rerun_data) {
     ))
   
   
+  aedes_red <- read_csv(here("data", "PAGODAS_Landtype.csv")) %>% 
+    select(-c(X, Y, lon, lat, elevation)) %>% 
+    clean_names() %>% 
+    mutate(modal_land_type = factor(
+      str_to_lower(modal_land_type), 
+      levels = c("urban", "rice paddy", "cropland")
+    )) %>% 
+    right_join(aedes_red, by = "study_id")
+  
+  
   #### Incorporate satellite data
-  max_date_diff <- 80
+  max_date_diff <- 60
   date_lag <- params$modis_lag
   
   
