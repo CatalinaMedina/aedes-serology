@@ -1640,20 +1640,6 @@ gen_post_plots(fit7_bayes)
 
 
 ## Split Models (young and school)  
-2nd Cambodia meeting notes:  
-
-*	Replace visit indicators with one predictor for wet season and then a predictor for year.  
-*	Add predictor for living within “” meters of the river.  
-*	Add larval count matching closets larval count.  
-
-*	We should have two models:  
-    + Model aedes levels for children 2-4. This model will have an indicator for school attendance. We are unsure how to account for the fact that children can begin school at different ages and we do not have repeat data collection for school so we do not know if a child began school after the first visit.  
-    + Model aedes levels for children in school (ages 5-9). This model will have environmental variables for school and home.
-
-*	There was a change in the person processing the aedes ELISA data for visit 5 (and a change in location mosquitoes used in process were from [US vs Cambodia]).  
-*	Negative effect for home environment in school children model may be because of extra preventative measures  
-* Try interactions between wet season and toilets, water containers, larvicide, and insecticide
-
 
 ```{r}
 gen_post_plots <- function(fit){
@@ -1838,7 +1824,7 @@ gen_post_plots(fit_school1)
 \elandscape
 
 
-## Model without school predictors
+## Main model without school predictors
 
 Model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$).
 \begin{equation*}
