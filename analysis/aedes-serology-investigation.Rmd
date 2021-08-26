@@ -21,16 +21,9 @@ params:
   rerun_fit5_bayes: FALSE
   rerun_fit6_bayes: FALSE
   rerun_fit7_bayes: FALSE
-  rerun_fit_young1_bayes: FALSE
-  rerun_fit_young1_bayes_no_visit5: FALSE
-  rerun_fit_young2_bayes: FALSE
-  rerun_fit_school1: FALSE
-  rerun_fit_school1_no5: FALSE
-  rerun_fit_school2: FALSE
-  rerun_fit_young3: FALSE
-  rerun_fit_school3: FALSE
-  fit_main1: FALSE
-  fit_simple: FALSE
+  rerun_fit_young: FALSE
+  rerun_fit_school: FALSE
+  fit_main: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -1707,10 +1700,11 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 ```{r fit-young1-bayes}
 aedes_red_young <- aedes_red[aedes_red$age <= 4,]
 
-if(params$rerun_fit_young1_bayes) {
+if(params$rerun_fit_young) {
   fit_young1_bayes <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented3 + in_school  + distance_to_river_scaled +
+      modal_land_type +
       num_toilets_in_home + num_domestic_water_containers_in_home +
       insecticide_spray + larvicide_applied_to_water +
       NFI250_home + EVI250_home +
@@ -1721,8 +1715,8 @@ if(params$rerun_fit_young1_bayes) {
     seed = seed_val, 
     iter = 4000, 
     prior = normal(
-      location = c(rep(0, 12), 0.1),
-      scale = c(rep(2.5, 12), 0.05)
+      location = c(rep(0, 13), 0.1),
+      scale = c(rep(2.5, 13), 0.05)
     )
   )
   
@@ -1813,10 +1807,11 @@ gen_post_plots <- function(fit){
 ```{r fit-school}
 aedes_red_school <- aedes_red[aedes_red$in_school == "yes",]
 
-if(params$rerun_fit_school1) {
+if(params$rerun_fit_school) {
   fit_school <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
+      modal_land_type +
       num_toilets_in_home + num_domestic_water_containers_in_home +
       insecticide_spray + larvicide_applied_to_water +
       NFI250_home + EVI250_home +
@@ -1828,8 +1823,8 @@ if(params$rerun_fit_school1) {
     seed = seed_val, 
     iter = 4000, 
     prior = normal(
-      location = c(rep(0, 13), 0.1),
-      scale = c(rep(2.5, 13), 0.05)
+      location = c(rep(0, 14), 0.1),
+      scale = c(rep(2.5, 14), 0.05)
     )
   )
   
@@ -1917,10 +1912,11 @@ gen_post_plots <- function(fit){
 
 
 ```{r fit-main1}
-if(params$fit_main1) {
-  fit_main1 <- stan_gamm4(
+if(params$fit_main) {
+  fit_main <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
+      modal_land_type +
       num_toilets_in_home + num_domestic_water_containers_in_home +
       insecticide_spray + larvicide_applied_to_water  +
       NFI250_home + EVI250_home +
@@ -1931,36 +1927,36 @@ if(params$fit_main1) {
     seed = seed_val, 
     iter = 4000, 
     prior = normal(
-      location = c(rep(0, 11), 0.1),
-      scale = c(rep(2.5, 11), 0.05)
+      location = c(rep(0, 12), 0.1),
+      scale = c(rep(2.5, 12), 0.05)
     )
   )
   
-  saveRDS(fit_main1, file = here("output", "fit-main1.rds"))
+  saveRDS(fit_main, file = here("output", "fit-main.rds"))
   
 } else { 
-  fit_main1 <- readRDS(file = here("output", "fit-main1.rds")) 
+  fit_main <- readRDS(file = here("output", "fit-main.rds")) 
 }
 ```
 
 
 ```{r main-model-trace-plots, eval = FALSE}
-mcmc_trace(fit_main1, regex_pars = c("gender", "age", "river", "toilets"))
+mcmc_trace(fit_main, regex_pars = c("gender", "age", "river", "toilets"))
 
-mcmc_trace(fit_main1, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
+mcmc_trace(fit_main, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
 
-mcmc_trace(fit_main1, regex_pars = c("NFI", "EVI"))
+mcmc_trace(fit_main, regex_pars = c("NFI", "EVI"))
 
-mcmc_trace(fit_main1, regex_pars = c("season", "visit"))
+mcmc_trace(fit_main, regex_pars = c("season", "visit"))
 ```
 
 \blandscape
 ```{r main-model-results, fig.width=10, fig.height=7.5}
-gen_post_plots(fit_main1)
+gen_post_plots(fit_main)
 ```
 
 ```{r main-model-interaction-results}
-plot_nonlinear(fit_main1, prob = 0.95) +
+plot_nonlinear(fit_main, prob = 0.95) +
   geom_hline(yintercept = 0, linetype = "dashed")
 ```
 
