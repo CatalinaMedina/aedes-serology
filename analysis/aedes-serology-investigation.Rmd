@@ -9,7 +9,7 @@ header-includes:
 params:
   rerun_data: FALSE
   near_river_cut_off: 300
-  modis_lag: 16
+  modis_lag: 30
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -2411,6 +2411,7 @@ gen_post_plots(fit_main1)
 plot_nonlinear(fit_main1, prob = 0.95) +
   geom_hline(yintercept = 0, linetype = "dashed")
 ```
+
 
 \elandscape
 
