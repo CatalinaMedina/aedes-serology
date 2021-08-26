@@ -1698,15 +1698,22 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 aedes_red_young <- aedes_red[aedes_red$age <= 4,]
 
 if(params$rerun_fit_young1_bayes) {
-  fit_young1_bayes <- stan_lmer(
-    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
-      age_cented3 + in_school + distance_to_river_scaled +
-      num_toilets_in_home + num_domestic_water_containers_in_home + 
-      insecticide_spray + larvicide_applied_to_water + 
-      NFI250_home + EVI250_home + 
-      wet_season + visit_year,
+  fit_young1_bayes <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
+      age_cented3 + in_school  + distance_to_river_scaled +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water +
+      NFI250_home + EVI250_home +
+      wet_season + visit_year +
+      visit5 + s(lat_v_lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
     data = aedes_red_young,
-    seed = seed_val
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 12), 0.1),
+      scale = c(rep(2.5, 12), 0.05)
+    )
   )
   
   saveRDS(fit_young1_bayes, file = here("output", "fit-young1-bayes.rds"))
@@ -1793,26 +1800,33 @@ gen_post_plots <- function(fit){
 ```
 
 
-```{r fit-school1}
+```{r fit-school}
 aedes_red_school <- aedes_red[aedes_red$in_school == "yes",]
 
 if(params$rerun_fit_school1) {
-  fit_school1 <- stan_lmer(
-    formula = log_saliva_elisa ~ (1 | study_id) + 1 + gender + 
+  fit_school <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
-      num_toilets_in_home + num_domestic_water_containers_in_home + 
-      insecticide_spray + larvicide_applied_to_water + 
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water +
+      NFI250_home + EVI250_home +
       NFI250_sch + EVI250_sch +
-      NFI250_home + EVI250_home + 
-      wet_season + visit_year,
+      wet_season + visit_year +
+      visit5 + s(lat_v_lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
     data = aedes_red_school,
-    seed = seed_val
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 13), 0.1),
+      scale = c(rep(2.5, 13), 0.05)
+    )
   )
   
-  saveRDS(fit_school1, file = here("output", "fit-school1.rds"))
+  saveRDS(fit_school, file = here("output", "fit-school.rds"))
   
 } else { 
-  fit_school1 <- readRDS(file = here("output", "fit-school1.rds")) 
+  fit_school <- readRDS(file = here("output", "fit-school.rds")) 
 }
 ```
 
@@ -1837,7 +1851,7 @@ Model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,
 	\end{split}
 \end{equation*}
 
-```{r}
+```{r gen-post-plots-for-main-model}
 gen_post_plots <- function(fit){
   fit_post_area1 <- mcmc_areas(
     fit, 
@@ -1898,7 +1912,7 @@ if(params$fit_main1) {
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
       num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water + larvae_cont_ind +
+      insecticide_spray + larvicide_applied_to_water  +
       NFI250_home + EVI250_home +
       wet_season + visit_year +
       visit5 + s(lat_v_lon_s, bs = "tp"),
@@ -1907,8 +1921,8 @@ if(params$fit_main1) {
     seed = seed_val, 
     iter = 4000, 
     prior = normal(
-      location = c(rep(0, 12), 0.1),
-      scale = c(rep(2.5, 12), 0.05)
+      location = c(rep(0, 11), 0.1),
+      scale = c(rep(2.5, 11), 0.05)
     )
   )
   
@@ -1920,7 +1934,7 @@ if(params$fit_main1) {
 ```
 
 
-```{r, eval = FALSE}
+```{r main-model-trace-plots, eval = FALSE}
 mcmc_trace(fit_main1, regex_pars = c("gender", "age", "river", "toilets"))
 
 mcmc_trace(fit_main1, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
@@ -1931,11 +1945,11 @@ mcmc_trace(fit_main1, regex_pars = c("season", "visit"))
 ```
 
 \blandscape
-```{r, fig.width=10, fig.height=7.5}
+```{r main-model-results, fig.width=10, fig.height=7.5}
 gen_post_plots(fit_main1)
 ```
 
-```{r}
+```{r main-model-interaction-results}
 plot_nonlinear(fit_main1, prob = 0.95) +
   geom_hline(yintercept = 0, linetype = "dashed")
 ```
