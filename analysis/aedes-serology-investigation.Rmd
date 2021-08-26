@@ -21,9 +21,9 @@ params:
   rerun_fit5_bayes: FALSE
   rerun_fit6_bayes: FALSE
   rerun_fit7_bayes: FALSE
-  rerun_fit_young: FALSE
-  rerun_fit_school: FALSE
-  fit_main: FALSE
+  rerun_fit_young: TRUE
+  rerun_fit_school: TRUE
+  fit_main: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -1715,8 +1715,8 @@ if(params$rerun_fit_young) {
     seed = seed_val, 
     iter = 4000, 
     prior = normal(
-      location = c(rep(0, 13), 0.1),
-      scale = c(rep(2.5, 13), 0.05)
+      location = c(rep(0, 14), 0.1),
+      scale = c(rep(2.5, 14), 0.05)
     )
   )
   
@@ -1823,8 +1823,8 @@ if(params$rerun_fit_school) {
     seed = seed_val, 
     iter = 4000, 
     prior = normal(
-      location = c(rep(0, 14), 0.1),
-      scale = c(rep(2.5, 14), 0.05)
+      location = c(rep(0, 15), 0.1),
+      scale = c(rep(2.5, 15), 0.05)
     )
   )
   
@@ -1927,8 +1927,8 @@ if(params$fit_main) {
     seed = seed_val, 
     iter = 4000, 
     prior = normal(
-      location = c(rep(0, 12), 0.1),
-      scale = c(rep(2.5, 12), 0.05)
+      location = c(rep(0, 13), 0.1),
+      scale = c(rep(2.5, 13), 0.05)
     )
   )
   
