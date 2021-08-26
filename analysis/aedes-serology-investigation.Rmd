@@ -587,8 +587,8 @@ if (params$rerun_data) {
   
 
 aedes_red <- aedes_red %>% 
-  mutate(lat_v_lon = lat * lon) %>% 
-  mutate(lat_v_lon_s = (lat_v_lon - mean(lat_v_lon)) / sd(lat_v_lon))
+  mutate(lat_s = (lat - mean(lat)) / sd(lat)) %>% 
+  mutate(lon_s = (lon - mean(lon)) / sd(lon))
 
 aedes_red_ind <- aedes_red %>%
   filter(visit == "visit1") %>% 
@@ -1705,7 +1705,7 @@ if(params$rerun_fit_young1_bayes) {
       insecticide_spray + larvicide_applied_to_water +
       NFI250_home + EVI250_home +
       wet_season + visit_year +
-      visit5 + s(lat_v_lon_s, bs = "tp"),
+      visit5 + s(lat_s, lon_s, bs = "tp"),
     random = ~ (1 | study_id),
     data = aedes_red_young,
     seed = seed_val, 
@@ -1812,7 +1812,7 @@ if(params$rerun_fit_school1) {
       NFI250_home + EVI250_home +
       NFI250_sch + EVI250_sch +
       wet_season + visit_year +
-      visit5 + s(lat_v_lon_s, bs = "tp"),
+      visit5 + s(lat_s, lon_s, bs = "tp"),
     random = ~ (1 | study_id),
     data = aedes_red_school,
     seed = seed_val, 
@@ -1915,7 +1915,7 @@ if(params$fit_main1) {
       insecticide_spray + larvicide_applied_to_water  +
       NFI250_home + EVI250_home +
       wet_season + visit_year +
-      visit5 + s(lat_v_lon_s, bs = "tp"),
+      visit5 + s(lat_s, lon_s, bs = "tp"),
     random = ~ (1 | study_id),
     data = aedes_red,
     seed = seed_val, 
