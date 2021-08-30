@@ -21,9 +21,9 @@ params:
   rerun_fit5_bayes: FALSE
   rerun_fit6_bayes: FALSE
   rerun_fit7_bayes: FALSE
-  rerun_fit_young: TRUE
-  rerun_fit_school: TRUE
-  fit_main: TRUE
+  rerun_fit_young: FALSE
+  rerun_fit_school: FALSE
+  fit_main: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -54,6 +54,7 @@ library(bayesplot)
 library(gridExtra)
 library(grid)
 library(lme4)
+library(geostatsp)
 
 
 source(here("analysis", "process-modis-data-function.R"))
@@ -1701,7 +1702,7 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 aedes_red_young <- aedes_red[aedes_red$age <= 4,]
 
 if(params$rerun_fit_young) {
-  fit_young1_bayes <- stan_gamm4(
+  fit_young <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented3 + in_school  + distance_to_river_scaled +
       modal_land_type +
@@ -1720,10 +1721,10 @@ if(params$rerun_fit_young) {
     )
   )
   
-  saveRDS(fit_young1_bayes, file = here("output", "fit-young1-bayes.rds"))
+  saveRDS(fit_young, file = here("output", "fit-young.rds"))
   
 } else { 
-  fit_young1_bayes <- readRDS(file = here("output", "fit-young1-bayes.rds")) 
+  fit_young <- readRDS(file = here("output", "fit-young.rds")) 
 }
 ```
 
@@ -1838,7 +1839,7 @@ if(params$rerun_fit_school) {
 \blandscape
 School model without interactions (with visit 5)
 ```{r, fig.width=10, fig.height=7.5}
-gen_post_plots(fit_school1)
+gen_post_plots(fit_school)
 ```
 \elandscape
 
@@ -1887,13 +1888,7 @@ gen_post_plots <- function(fit){
       "visit_year" = "Visit year"
     ))
   
-  fit_post_area3 <- mcmc_areas(
-    fit, regex_pars = c("larvae"),
-    prob = 0.95, prob_outer = 0.99
-  ) +
-    scale_y_discrete(labels = c(
-      "larvae_cont_ind" = "Larvae containter"
-    ))
+  fit_post_area3 <- 
   
   fit_post_area4 <- mcmc_areas(
     fit, regex_pars = c("NFI250", "EVI250", "river"),
@@ -1904,7 +1899,7 @@ gen_post_plots <- function(fit){
     ))
   
   grid.arrange(
-    fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
+    fit_post_area1, fit_post_area2, fit_post_area4, 
     nrow = 2
   )
 }
@@ -1965,3 +1960,10 @@ plot_nonlinear(fit_main, prob = 0.95) +
 
 
 \elandscape
+
+
+## Kriging
+```{r}
+
+```
+
