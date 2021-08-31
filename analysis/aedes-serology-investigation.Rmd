@@ -38,7 +38,6 @@ knitr::opts_chunk$set(
 
 
 ```{r libraries}
-library(tidyverse)
 library(here)
 library(readxl)
 library(janitor)
@@ -54,7 +53,9 @@ library(bayesplot)
 library(gridExtra)
 library(grid)
 library(lme4)
+library(raster)
 library(geostatsp)
+library(tidyverse)
 
 
 source(here("analysis", "process-modis-data-function.R"))
@@ -1963,6 +1964,62 @@ plot_nonlinear(fit_main, prob = 0.95) +
 
 
 ## Kriging
+```{r}
+aedes_v1 <- filter(aedes_red, wet_season == "no")
+
+
+aedes_v1_spdf <- SpatialPointsDataFrame(
+  coords = select(aedes_v1, lon, lat),
+  data = select(aedes_v1, distance_to_river_scaled)
+)
+
+# aedes_dry_rast <- aedes_dry
+# coordinates(aedes_dry_rast) <- ~ lon + lat
+# gridded(aedes_dry_rast) <- TRUE
+
+krig_fit_v1 <- lgm(
+  log_saliva_elisa ~ distance_to_river_scaled,
+  data = aedes_v1_spdf,
+  grid = 120, 
+  covariates = NULL,
+  Ntrials = 2
+)
+```
+
+
+```{r}
+data("swissRain")
+swissRain$lograin = log(swissRain$rain)
+swissAltitudeCrop = raster::mask(swissAltitude,swissBorder)
+fact <- 1
+Ncell = 25*fact
+
+swissFit = glgm("lograin", swissRain, Ncell,
+covariates=swissAltitude, family="gaussian", buffer=20000,
+priorCI=list(sd=c(0.2, 2), range=c(50000,500000), sdObs = 2),
+control.inla=list(strategy='gaussian')
+)
+if(length(swissFit$parameters))
+knitr::kable(swissFit$parameters$summary[,c(1, 3:5, 8)], digits=4)
+
+matplot(
+    swissFit$parameters$sd$posterior[,'x'],
+    swissFit$parameters$sd$posterior[,c('y','prior')],
+    lty=1, col=c('black','red'), type='l',
+    xlab='sd', ylab='dens', xlim = c(0,5))
+  
+  matplot(
+    swissFit$parameters$range$posterior[,'x'],
+    swissFit$parameters$range$posterior[,c('y','prior')],
+    lty=1, col=c('black','red'), type='l',
+    xlab='range', ylab='dens')
+  
+  
+data("loaloa")
+
+```
+
+
 ```{r}
 
 ```
