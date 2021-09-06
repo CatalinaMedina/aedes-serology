@@ -24,11 +24,11 @@ params:
   rerun_fit_young: FALSE
   rerun_fit_school: FALSE
   fit_main: FALSE
-  rerun_fit_v1_surf: FALSE
-  rerun_fit_v2_surf: FALSE
-  rerun_fit_v3_surf: FALSE
-  rerun_fit_v4_surf: FALSE
-  rerun_fit_v5_surf: FALSE
+  rerun_fit_v1_surf: TRUE
+  rerun_fit_v2_surf: TRUE
+  rerun_fit_v3_surf: TRUE
+  rerun_fit_v4_surf: TRUE
+  rerun_fit_v5_surf: TRUE
   rerun_simple_surf: FALSE
   rerun_model_surf: FALSE
 ---
@@ -1986,19 +1986,16 @@ if(params$rerun_fit_v1_surf){
     data = select(aedes_v1, log_saliva_elisa)
   )
   
-  fit_v1_surf <- lgm(
+  fit_v1_surf <- glgm(
     formula = log_saliva_elisa ~ 1,
     data = spdf,
-    grid = 75,
-    mc.cores = 9
+    grid = 75
   )
   
   saveRDS(fit_v1_surf, here("output/map-models", "fit_v1_surf.rds"))
 } else {
   fit_v1_surf <- readRDS(here("output/map-models", "fit_v1_surf.rds"))
 }
-
-plot(fit_v1_surf$predict[["predict"]], main = "Visit 1 Aedes Exposure Surface", asp=1)
 ```
 
 ```{r visit2-exposure-surface}
@@ -2010,19 +2007,16 @@ if(params$rerun_fit_v2_surf){
     data = select(aedes_v2, log_saliva_elisa)
   )
   
-  fit_v2_surf <- lgm(
+  fit_v2_surf <- glgm(
     formula = log_saliva_elisa ~ 1,
     data = spdf,
     grid = 75,
-    mc.cores = 9
   )
   
   saveRDS(fit_v2_surf, here("output/map-models", "fit_v2_surf.rds"))
 } else {
   fit_v2_surf <- readRDS(here("output/map-models", "fit_v2_surf.rds"))
 }
-
-plot(fit_v2_surf$predict[["predict"]], main = "Visit 2 Aedes Exposure Surface", asp=1)
 ```
 
 ```{r visit3-exposure-surface}
@@ -2034,19 +2028,16 @@ if(params$rerun_fit_v3_surf){
     data = select(aedes_v3, log_saliva_elisa)
   )
   
-  fit_v3_surf <- lgm(
+  fit_v3_surf <- glgm(
     formula = log_saliva_elisa ~ 1,
     data = spdf,
-    grid = 75,
-    mc.cores = 9
+    grid = 75
   )
   
   saveRDS(fit_v3_surf, here("output/map-models", "fit_v3_surf.rds"))
 } else {
   fit_v3_surf <- readRDS(here("output/map-models", "fit_v3_surf.rds"))
 }
-
-plot(fit_v3_surf$predict[["predict"]], main = "Visit 3 Aedes Exposure Surface", asp=1)
 ```
 
 ```{r visit4-exposure-surface}
@@ -2058,19 +2049,16 @@ if(params$rerun_fit_v4_surf){
     data = select(aedes_v4, log_saliva_elisa)
   )
   
-  fit_v4_surf <- lgm(
+  fit_v4_surf <- glgm(
     formula = log_saliva_elisa ~ 1,
     data = spdf,
-    grid = 75,
-    mc.cores = 9
+    grid = 75
   )
   
   saveRDS(fit_v4_surf, here("output/map-models", "fit_v4_surf.rds"))
 } else {
   fit_v4_surf <- readRDS(here("output/map-models", "fit_v4_surf.rds"))
 }
-
-plot(fit_v4_surf$predict[["predict"]], main = "Visit 4 Aedes Exposure Surface", asp=1)
 ```
 
 ```{r visit5-exposure-surface}
@@ -2082,31 +2070,60 @@ if(params$rerun_fit_v5_surf){
     data = select(aedes_v5, log_saliva_elisa)
   )
   
-  fit_v5_surf <- lgm(
+  fit_v5_surf <- glgm(
     formula = log_saliva_elisa ~ 1,
     data = spdf,
-    grid = 75,
-    mc.cores = 9
+    grid = 75
   )
   
   saveRDS(fit_v5_surf, here("output/map-models", "fit_v5_surf.rds"))
 } else {
   fit_v5_surf <- readRDS(here("output/map-models", "fit_v5_surf.rds"))
 }
-
-plot(fit_v5_surf$predict[["predict"]], main = "Visit 5 Aedes Exposure Surface",asp=1)
 ```
 
 ```{r display-visit-exposure-surface, eval = FALSE}
-par(mfrow=c(3,2))
+# fit_v1_surf_df <- as.data.frame(fit_v1_surf$raster$predict.mean, xy = TRUE) %>% 
+#   mutate(visit = "Visit 1")
+# 
+# fit_v2_surf_df <- as.data.frame(fit_v2_surf$raster$predict.mean, xy = TRUE) %>% 
+#   mutate(visit = "Visit 2")
+# 
+# fit_v3_surf_df <- as.data.frame(fit_v3_surf$raster$predict.mean, xy = TRUE) %>% 
+#   mutate(visit = "Visit 3")
+# 
+# fit_v4_surf_df <- as.data.frame(fit_v4_surf$raster$predict.mean, xy = TRUE) %>% 
+#   mutate(visit = "Visit 4")
+# 
+# fit_v5_surf_df <- as.data.frame(fit_v5_surf$raster$predict.mean, xy = TRUE) %>% 
+#   mutate(visit = "Visit 5")
 
-plot(fit_v1_surf$predict[["predict"]], main = "Visit 1",asp=1)
-plot(fit_v2_surf$predict[["predict"]], main = "Visit 2",asp=1)
-plot(fit_v3_surf$predict[["predict"]], main = "Visit 3",asp=1)
-plot(fit_v4_surf$predict[["predict"]], main = "Visit 4",asp=1)
-plot(fit_v5_surf$predict[["predict"]], main = "Visit 5",asp=1)
+fit_visit_surfs <- bind_rows(
+  as.data.frame(fit_v1_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 1"),
+  as.data.frame(fit_v2_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 2"),
+  as.data.frame(fit_v3_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 3"),
+  as.data.frame(fit_v4_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 4"),
+  as.data.frame(fit_v5_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 5")
+)
 
-par(mfrow=c(1,1))
+
+ggplot() +
+  geom_raster(
+    data = fit_visit_surfs, 
+    aes(x = x, y = y, fill = predict.mean)
+  ) +
+  coord_quickmap() +
+  scale_fill_viridis(direction = -1) +
+  labs(xlab = "Longitude", ylabs = "Latitude", title = "Visit 1 Aedes Exposure Surface") +
+  coord_equal(ratio = 1) +
+  theme_bw() +
+  theme(panel.border = element_blank(), panel.background = element_blank()) +
+  facet_wrap( ~ visit, ncol = 2)
 ```
 
 
@@ -2137,7 +2154,7 @@ if(params$rerun_simple_surf){
   simple_surf <- readRDS(here("output/map-models", "simple_surf.rds"))
 }
 
-plot(simple_surf$predict[["predict"]], main = "Simple model Aedes Exposure Surface",asp=1)
+plot(simple_surf$raster$predict.mean, main = "Simple model Aedes Exposure Surface",asp=1)
 ```
 
 
@@ -2175,7 +2192,7 @@ if(params$rerun_model_surf){
   fit_model_surf <- readRDS(here("output/map-models", "fit_model_surf.rds"))
 }
 
-plot(fit_model_surf$predict[["predict"]], main = "Model Aedes Exposure Surface",asp=1)
+plot(fit_model_surf$raster$predict.mean, main = "Model Aedes Exposure Surface",asp=1)
 ```
 
 ```{r wetseason-exposure-surface}
@@ -2199,7 +2216,7 @@ if(params$rerun_simple_surf){
   wet_season_surf <- readRDS(here("output/map-models", "wet_season_surf.rds"))
 }
 
-plot(wet_season_surf$predict[["predict"]], main = "Wet season Aedes Exposure Surface",asp=1)
+plot(wet_season_surf$raster$predict.mean, main = "Wet season Aedes Exposure Surface",asp=1)
 ```
 
 
@@ -2224,7 +2241,7 @@ if(params$rerun_simple_surf){
   dry_season_surf <- readRDS(here("output/map-models", "dry_season_surf.rds"))
 }
 
-plot(dry_season_surf$predict[["predict"]], main = "Dry season Aedes Exposure Surface",asp=1)
+plot(dry_season_surf$raster$predict.mean, main = "Dry season Aedes Exposure Surface",asp=1)
 ```
 
 
