@@ -29,8 +29,10 @@ params:
   rerun_fit_v3_surf: FALSE
   rerun_fit_v4_surf: FALSE
   rerun_fit_v5_surf: FALSE
-  rerun_simple_surf: FALSE
-  rerun_model_surf: FALSE
+  rerun_simple_surf: TRUE
+  rerun_model_surf: TRUE
+  rerun_wet_surf: TRUE
+  rerun_dry_surf: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -2127,11 +2129,10 @@ if(params$rerun_simple_surf){
     data = select(aedes_red, log_saliva_elisa, time, wet_season)
   )
   
-  simple_surf <- lgm(
+  simple_surf <- glgm(
     formula = log_saliva_elisa ~ time + wet_season,
     data = spdf,
-    grid = 75,
-    mc.cores = 9
+    grid = 75
   )
   
   saveRDS(simple_surf, here("output/map-models", "simple_surf.rds"))
@@ -2158,7 +2159,7 @@ if(params$rerun_model_surf){
       visit5
     ))
   
-  fit_model_surf <- lgm(
+  fit_model_surf <- glgm(
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
       modal_land_type +
@@ -2168,8 +2169,7 @@ if(params$rerun_model_surf){
       wet_season + visit_year +
       visit5,
     data = spdf,
-    grid = 75,
-    mc.cores = 9
+    grid = 75
   )
   
   saveRDS(fit_model_surf, here("output/map-models", "fit_model_surf.rds"))
@@ -2183,17 +2183,16 @@ plot(fit_model_surf$raster$predict.mean, main = "Model Aedes Exposure Surface",a
 ```{r wetseason-exposure-surface, eval = FALSE}
 aedes_red1 <- filter(aedes_red, wet_season == "yes") 
 
-if(params$rerun_simple_surf){
+if(params$rerun_wet_surf){
   spdf <- SpatialPointsDataFrame(
     coords = select(aedes_red1, x = lon, y = lat),
     data = select(aedes_red1, log_saliva_elisa)
   )
   
-  wet_season_surf <- lgm(
+  wet_season_surf <- glgm(
     formula = log_saliva_elisa ~ 1,
     data = spdf,
-    grid = 75,
-    mc.cores = 9
+    grid = 75
   )
   
   saveRDS(wet_season_surf, here("output/map-models", "wet_season_surf.rds"))
@@ -2208,17 +2207,16 @@ plot(wet_season_surf$raster$predict.mean, main = "Wet season Aedes Exposure Surf
 ```{r dryseason-exposure-surface, eval = FALSE}
 aedes_red2 <- filter(aedes_red, wet_season == "no") 
 
-if(params$rerun_simple_surf){
+if(params$rerun_dry_surf){
   spdf <- SpatialPointsDataFrame(
     coords = select(aedes_red2, x = lon, y = lat),
     data = select(aedes_red2, log_saliva_elisa)
   )
   
-  dry_season_surf <- lgm(
+  dry_season_surf <- glgm(
     formula = log_saliva_elisa ~ 1,
     data = spdf,
-    grid = 75,
-    mc.cores = 9
+    grid = 75
   )
   
   saveRDS(dry_season_surf, here("output/map-models", "dry_season_surf.rds"))
