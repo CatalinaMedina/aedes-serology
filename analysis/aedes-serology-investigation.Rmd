@@ -2178,9 +2178,88 @@ if(params$rerun_model_surf){
 plot(fit_model_surf$predict[["predict"]], main = "Model Aedes Exposure Surface",asp=1)
 ```
 
-\elandscape
+```{r wetseason-exposure-surface}
+aedes_red1 <- filter(aedes_red, wet_season == "yes") 
+
+if(params$rerun_simple_surf){
+  spdf <- SpatialPointsDataFrame(
+    coords = select(aedes_red1, x = lon, y = lat),
+    data = select(aedes_red1, log_saliva_elisa)
+  )
+  
+  wet_season_surf <- lgm(
+    formula = log_saliva_elisa ~ 1,
+    data = spdf,
+    grid = 75,
+    mc.cores = 9
+  )
+  
+  saveRDS(wet_season_surf, here("output/map-models", "wet_season_surf.rds"))
+} else {
+  wet_season_surf <- readRDS(here("output/map-models", "wet_season_surf.rds"))
+}
+
+plot(wet_season_surf$predict[["predict"]], main = "Wet season Aedes Exposure Surface",asp=1)
+```
+
+
+```{r dryseason-exposure-surface}
+aedes_red2 <- filter(aedes_red, wet_season == "no") 
+
+if(params$rerun_simple_surf){
+  spdf <- SpatialPointsDataFrame(
+    coords = select(aedes_red2, x = lon, y = lat),
+    data = select(aedes_red2, log_saliva_elisa)
+  )
+  
+  dry_season_surf <- lgm(
+    formula = log_saliva_elisa ~ 1,
+    data = spdf,
+    grid = 75,
+    mc.cores = 9
+  )
+  
+  saveRDS(dry_season_surf, here("output/map-models", "dry_season_surf.rds"))
+} else {
+  dry_season_surf <- readRDS(here("output/map-models", "dry_season_surf.rds"))
+}
+
+plot(dry_season_surf$predict[["predict"]], main = "Dry season Aedes Exposure Surface",asp=1)
+```
+
+
 
 ```{r}
+ aedes_red %>%
+#  filter(visit == "visit5") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  facet_wrap(~ visit) +
+  theme(legend.position="bottom")
 
+
+ aedes_red %>%
+  filter(visit == "visit5") %>% 
+  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  theme(legend.position="bottom")
+ 
+ 
+  aedes_v5 %>%
+  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
+  geom_point(alpha = 0.75) +
+  scale_color_viridis(direction = -1) +
+  theme_bw() +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
+  coord_equal(ratio = 1) +
+  theme(legend.position="bottom")
 ```
 
