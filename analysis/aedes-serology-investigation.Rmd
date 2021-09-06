@@ -24,11 +24,11 @@ params:
   rerun_fit_young: FALSE
   rerun_fit_school: FALSE
   fit_main: FALSE
-  rerun_fit_v1_surf: TRUE
-  rerun_fit_v2_surf: TRUE
-  rerun_fit_v3_surf: TRUE
-  rerun_fit_v4_surf: TRUE
-  rerun_fit_v5_surf: TRUE
+  rerun_fit_v1_surf: FALSE
+  rerun_fit_v2_surf: FALSE
+  rerun_fit_v3_surf: FALSE
+  rerun_fit_v4_surf: FALSE
+  rerun_fit_v5_surf: FALSE
   rerun_simple_surf: FALSE
   rerun_model_surf: FALSE
 ---
@@ -2082,22 +2082,7 @@ if(params$rerun_fit_v5_surf){
 }
 ```
 
-```{r display-visit-exposure-surface, eval = FALSE}
-# fit_v1_surf_df <- as.data.frame(fit_v1_surf$raster$predict.mean, xy = TRUE) %>% 
-#   mutate(visit = "Visit 1")
-# 
-# fit_v2_surf_df <- as.data.frame(fit_v2_surf$raster$predict.mean, xy = TRUE) %>% 
-#   mutate(visit = "Visit 2")
-# 
-# fit_v3_surf_df <- as.data.frame(fit_v3_surf$raster$predict.mean, xy = TRUE) %>% 
-#   mutate(visit = "Visit 3")
-# 
-# fit_v4_surf_df <- as.data.frame(fit_v4_surf$raster$predict.mean, xy = TRUE) %>% 
-#   mutate(visit = "Visit 4")
-# 
-# fit_v5_surf_df <- as.data.frame(fit_v5_surf$raster$predict.mean, xy = TRUE) %>% 
-#   mutate(visit = "Visit 5")
-
+```{r display-visit-exposure-surface}
 fit_visit_surfs <- bind_rows(
   as.data.frame(fit_v1_surf$raster$predict.mean, xy = TRUE) %>% 
   mutate(visit = "Visit 1"),
@@ -2119,7 +2104,7 @@ ggplot() +
   ) +
   coord_quickmap() +
   scale_fill_viridis(direction = -1) +
-  labs(xlab = "Longitude", ylabs = "Latitude", title = "Visit 1 Aedes Exposure Surface") +
+  labs(xlab = "Longitude", ylabs = "Latitude", title = "Aedes Exposure Surface") +
   coord_equal(ratio = 1) +
   theme_bw() +
   theme(panel.border = element_blank(), panel.background = element_blank()) +
@@ -2127,7 +2112,7 @@ ggplot() +
 ```
 
 
-```{r simple-exposure-surface}
+```{r simple-exposure-surface, eval = FALSE}
 aedes_red <- aedes_red %>% mutate(time = as.numeric(case_when(
   visit == "visit1" ~ 1,
   visit == "visit2" ~ 2,
@@ -2158,7 +2143,7 @@ plot(simple_surf$raster$predict.mean, main = "Simple model Aedes Exposure Surfac
 ```
 
 
-```{r model-exposure-surface}
+```{r model-exposure-surface, eval = FALSE}
 if(params$rerun_model_surf){
   spdf <- SpatialPointsDataFrame(
     coords = select(aedes_red, x = lon, y = lat),
@@ -2195,7 +2180,7 @@ if(params$rerun_model_surf){
 plot(fit_model_surf$raster$predict.mean, main = "Model Aedes Exposure Surface",asp=1)
 ```
 
-```{r wetseason-exposure-surface}
+```{r wetseason-exposure-surface, eval = FALSE}
 aedes_red1 <- filter(aedes_red, wet_season == "yes") 
 
 if(params$rerun_simple_surf){
@@ -2220,7 +2205,7 @@ plot(wet_season_surf$raster$predict.mean, main = "Wet season Aedes Exposure Surf
 ```
 
 
-```{r dryseason-exposure-surface}
+```{r dryseason-exposure-surface, eval = FALSE}
 aedes_red2 <- filter(aedes_red, wet_season == "no") 
 
 if(params$rerun_simple_surf){
@@ -2244,39 +2229,4 @@ if(params$rerun_simple_surf){
 plot(dry_season_surf$raster$predict.mean, main = "Dry season Aedes Exposure Surface",asp=1)
 ```
 
-
-
-```{r}
- aedes_red %>%
-#  filter(visit == "visit5") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  facet_wrap(~ visit) +
-  theme(legend.position="bottom")
-
-
- aedes_red %>%
-  filter(visit == "visit5") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  theme(legend.position="bottom")
- 
- 
-  aedes_v5 %>%
-  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  theme(legend.position="bottom")
-```
 
