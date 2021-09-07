@@ -1979,6 +1979,15 @@ plot_nonlinear(fit_main, prob = 0.95)+
 
 ## Exposure surfaces
 
+```{r, fig.width=4, fig.asp=1}
+aedes_red_ind %>% 
+  ggplot(mapping = aes(x = lat, y = lon)) +
+  geom_point() +
+  theme_bw() +
+  coord_equal(ratio = 1)
+```
+
+
 ```{r visit1-exposure-surface}
 if(params$rerun_fit_v1_surf){
   aedes_v1 <- filter(aedes_red, visit == "visit1")
@@ -2084,7 +2093,7 @@ if(params$rerun_fit_v5_surf){
 }
 ```
 
-```{r display-visit-exposure-surface}
+```{r display-visit-exposure-surface, fig.width=7.5, fig.asp=1, fig.align="center"}
 fit_visit_surfs <- bind_rows(
   as.data.frame(fit_v1_surf$raster$predict.mean, xy = TRUE) %>% 
   mutate(visit = "Visit 1"),
@@ -2106,7 +2115,9 @@ ggplot() +
   ) +
   coord_quickmap() +
   scale_fill_viridis(direction = -1) +
-  labs(xlab = "Longitude", ylabs = "Latitude", title = "Aedes Exposure Surface") +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  ggtitle("Aedes Exposure Surface") +
   coord_equal(ratio = 1) +
   theme_bw() +
   theme(panel.border = element_blank(), panel.background = element_blank()) +
