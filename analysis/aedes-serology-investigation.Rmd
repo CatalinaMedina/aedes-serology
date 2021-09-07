@@ -9,7 +9,7 @@ header-includes:
 params:
   rerun_data: FALSE
   near_river_cut_off: 300
-  modis_lag: 30
+  modis_lag: 32
   rerun_fit1_bayes: FALSE
   rerun_fit2_bayes: FALSE
   rerun_fit3_bayes: FALSE
@@ -24,6 +24,7 @@ params:
   rerun_fit_young: FALSE
   rerun_fit_school: FALSE
   fit_main: FALSE
+  fit_main2: FALSE
   rerun_fit_v1_surf: FALSE
   rerun_fit_v2_surf: FALSE
   rerun_fit_v3_surf: FALSE
@@ -495,6 +496,56 @@ if (params$rerun_data) {
     rename(EVI250_home = EVI, NVI250_home = NVI, NFI250_home = NFI)
   
   
+    #### Incorporate satellite data 16 days
+  sat_data250 <- process_modis_data(
+    df_og = read_csv(here("data", "MODIS_250m.csv"), show_col_types = FALSE), 
+    sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
+    sat_var_col_start = 7
+  )
+  
+  
+  sat_df <- sat_data250
+  df_og <- aedes_red
+  df_new <- cbind(
+    df_og, 
+    "EVI" = rep(NA, nrow(df_og)),
+    "NFI" = rep(NA, nrow(df_og)),
+    "NVI" = rep(NA, nrow(df_og))
+  )
+  
+  num_vars <- 3
+  var_types <- levels(factor(sat_df$var_type))
+  
+  
+  for(i in 1:nrow(df_og)) {
+    df_id <- sat_df %>% 
+      filter(Study.ID == as.character(df_og[i, "study_id"]))
+    
+    for(j in 1:num_vars) {
+      df_id_var <- df_id %>% 
+        filter(var_type == var_types[j])
+      
+      if (sum(!is.na(df_id_var$sat_var_value)) > 0) {
+        date_diff <- (df_og$visit_date[i] - days(16)) - df_id_var$date
+        curr <- df_id_var[which.min(ifelse(date_diff < 0, 1000, date_diff)), ]
+        
+        if (abs(curr$date - df_og$visit_date[i]) > max_date_diff) {
+          print(paste0(
+            "Warning: Study ID ", df_og[i, "study_id"], " does not have ", 
+            var_types[j], " value available within ", max_date_diff, 
+            " days [max_date_diff] of ", 16, " days [16] prior to visit date!"
+          ))
+        } else {
+          df_new[i, var_types[j]] <- curr$sat_var_value
+        }
+      }
+    }
+  }
+  
+  aedes_red <- df_new %>% 
+    rename(EVI250_home16 = EVI, NVI250_home16 = NVI, NFI250_home16 = NFI)
+  
+  
   #### Incorporate school satellite data 
   sat_data250 <- process_modis_data(
     df_og = read_csv(here("data", "SchoolsMODIS_250m.csv"), show_col_types = FALSE), 
@@ -555,6 +606,66 @@ if (params$rerun_data) {
     mutate(NFI250_sch = ifelse(is.na(NFI250_sch), yes = 0, no = NFI250_sch))                 
   
   aedes_red <- aedes_red[!is.na(aedes_red$NVI250_home), ]
+  
+  
+   #### Incorporate school satellite data 16
+  sat_data250 <- process_modis_data(
+    df_og = read_csv(here("data", "SchoolsMODIS_250m.csv"), show_col_types = FALSE), 
+    sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
+    sat_var_col_start = 6
+  ) %>% 
+    mutate(names = ifelse(
+      names == "Kindergarten<U+200B> Salon", 
+      yes = "Kindergarten​ Salon", 
+      no = names
+    ))
+  
+  
+  sat_df <- sat_data250
+  df_og <- aedes_red
+  df_new <- cbind(
+    df_og, 
+    "EVI" = rep(NA, nrow(df_og)),
+    "NFI" = rep(NA, nrow(df_og)),
+    "NVI" = rep(NA, nrow(df_og))
+  )
+  
+  num_vars <- 3
+  var_types <- levels(factor(sat_df$var_type))
+  
+  
+  for(i in 1:nrow(df_og)) {
+    if(df_og[i, "school_attended_all"] != "Subject Not In School") {
+      df_id <- sat_df %>% 
+        filter(names == as.character(df_og[i, "school_attended_all"]))
+      
+      for(j in 1:num_vars) {
+        df_id_var <- df_id %>% 
+          filter(var_type == var_types[j])
+        
+        if (sum(!is.na(df_id_var$sat_var_value)) > 0) {
+          date_diff <- (df_og$visit_date[i] - days(16)) - df_id_var$date
+          curr <- df_id_var[which.min(ifelse(date_diff < 0, 1000, date_diff)), ]
+          
+          if (abs(curr$date - df_og$visit_date[i]) > max_date_diff) {
+            print(paste0(
+              "Warning: Study ID ", df_og[i, "study_id"], " does not have ", 
+              var_types[j], " value available within ", max_date_diff, 
+              " days [max_date_diff] of ", 16, " days [16] prior to visit date!"
+            ))
+          } else {
+            df_new[i, var_types[j]] <- curr$sat_var_value
+          }
+        }
+      }
+    }
+  }
+  
+  aedes_red <- df_new %>% 
+    rename(EVI250_sch16 = EVI, NVI250_sch16 = NVI, NFI250_sch16 = NFI) %>% 
+    mutate(EVI250_sch16 = ifelse(is.na(EVI250_sch16), yes = 0, no = EVI250_sch16)) %>% 
+    mutate(NVI250_sch16 = ifelse(is.na(NVI250_sch16), yes = 0, no = NVI250_sch16)) %>% 
+    mutate(NFI250_sch16 = ifelse(is.na(NFI250_sch16), yes = 0, no = NFI250_sch16))                 
   
   
   #### Incorporate larval data
@@ -1953,6 +2064,86 @@ if(params$fit_main) {
 ```
 
 
+```{r fit-main2}
+if(params$fit_main2) {
+  fit_main2_16 <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
+      age_cented7  + distance_to_river_scaled +
+      modal_land_type +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water  +
+      NFI250_home16 + NFI250_home +
+      wet_season + visit_year +
+      visit5 + s(lat_s, lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red,
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 13), 0.1),
+      scale = c(rep(2.5, 13), 0.05)
+    )
+  )
+  
+  saveRDS(fit_main2_16and32, file = here("output", "fit_main2_16and32.rds"))
+  
+} else { 
+  fit_main2_16and32 <- readRDS(file = here("output", "fit_main2_16and32.rds")) 
+}
+```
+
+
+```{r fit-main3}
+if(params$fit_main2) {
+  fit_main2_16 <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
+      age_cented7  + distance_to_river_scaled +
+      modal_land_type +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water  +
+      NFI250_home16 +
+      wet_season + visit_year +
+      visit5 + s(lat_s, lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red,
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 12), 0.1),
+      scale = c(rep(2.5, 12), 0.05)
+    )
+  )
+  
+  saveRDS(fit_main2_16, file = here("output", "fit_main2_16.rds"))
+  
+  
+   fit_main2_32 <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
+      age_cented7  + distance_to_river_scaled +
+      modal_land_type +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water  +
+      NFI250_home +
+      wet_season + visit_year +
+      visit5 + s(lat_s, lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red,
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 12), 0.1),
+      scale = c(rep(2.5, 12), 0.05)
+    )
+  )
+  
+  saveRDS(fit_main2_32, file = here("output", "fit_main2_32.rds"))
+  
+} else { 
+  fit_main2_32 <- readRDS(file = here("output", "fit_main2_32.rds")) 
+}
+```
+
+
 ```{r main-model-trace-plots, eval = FALSE}
 mcmc_trace(fit_main, regex_pars = c("gender", "age", "river", "toilets"))
 
@@ -1966,7 +2157,16 @@ mcmc_trace(fit_main, regex_pars = c("season", "visit"))
 \blandscape
 ```{r main-model-results, fig.width=10, fig.height=7.5}
 gen_post_plots(fit_main)
+gen_post_plots(fit_main2_16)
+gen_post_plots(fit_main2_32)
+gen_post_plots(fit_main2_16and32)
 ```
+
+Main model without EVI and with 16 and 32 day lags for EFI
+```{r fit-main-with-16and32EFIlag}
+gen_post_plots(fit_main2_16and32)
+```
+
 
 ```{r main-model-interaction-results}
 plot_nonlinear(fit_main, prob = 0.95)+
