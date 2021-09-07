@@ -29,10 +29,10 @@ params:
   rerun_fit_v3_surf: FALSE
   rerun_fit_v4_surf: FALSE
   rerun_fit_v5_surf: FALSE
-  rerun_simple_surf: TRUE
-  rerun_model_surf: TRUE
-  rerun_wet_surf: TRUE
-  rerun_dry_surf: TRUE
+  rerun_simple_surf: FALSE
+  rerun_model_surf: FALSE
+  rerun_wet_surf: FALSE
+  rerun_dry_surf: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -1977,7 +1977,7 @@ plot_nonlinear(fit_main, prob = 0.95)+
 \elandscape
 
 
-## Individual exposure surfaces
+## Exposure surfaces
 
 ```{r visit1-exposure-surface}
 if(params$rerun_fit_v1_surf){
@@ -2113,8 +2113,9 @@ ggplot() +
   facet_wrap( ~ visit, ncol = 2)
 ```
 
+\newpage
 
-```{r simple-exposure-surface, eval = FALSE}
+```{r simple-exposure-surface}
 aedes_red <- aedes_red %>% mutate(time = as.numeric(case_when(
   visit == "visit1" ~ 1,
   visit == "visit2" ~ 2,
@@ -2144,7 +2145,7 @@ plot(simple_surf$raster$predict.mean, main = "Simple model Aedes Exposure Surfac
 ```
 
 
-```{r model-exposure-surface, eval = FALSE}
+```{r model-exposure-surface}
 if(params$rerun_model_surf){
   spdf <- SpatialPointsDataFrame(
     coords = select(aedes_red, x = lon, y = lat),
@@ -2180,7 +2181,8 @@ if(params$rerun_model_surf){
 plot(fit_model_surf$raster$predict.mean, main = "Model Aedes Exposure Surface",asp=1)
 ```
 
-```{r wetseason-exposure-surface, eval = FALSE}
+
+```{r wetseason-exposure-surface}
 aedes_red1 <- filter(aedes_red, wet_season == "yes") 
 
 if(params$rerun_wet_surf){
@@ -2204,7 +2206,7 @@ plot(wet_season_surf$raster$predict.mean, main = "Wet season Aedes Exposure Surf
 ```
 
 
-```{r dryseason-exposure-surface, eval = FALSE}
+```{r dryseason-exposure-surface}
 aedes_red2 <- filter(aedes_red, wet_season == "no") 
 
 if(params$rerun_dry_surf){
@@ -2226,5 +2228,4 @@ if(params$rerun_dry_surf){
 
 plot(dry_season_surf$raster$predict.mean, main = "Dry season Aedes Exposure Surface",asp=1)
 ```
-
 
