@@ -546,6 +546,56 @@ if (params$rerun_data) {
     rename(EVI250_home16 = EVI, NVI250_home16 = NVI, NFI250_home16 = NFI)
   
   
+      #### Incorporate satellite data 48 days
+  sat_data250 <- process_modis_data(
+    df_og = read_csv(here("data", "MODIS_250m.csv"), show_col_types = FALSE), 
+    sat_var_names = c("EVI", "NVI", "NFI"), # keep order that it appear in df
+    sat_var_col_start = 7
+  )
+  
+  
+  sat_df <- sat_data250
+  df_og <- aedes_red
+  df_new <- cbind(
+    df_og, 
+    "EVI" = rep(NA, nrow(df_og)),
+    "NFI" = rep(NA, nrow(df_og)),
+    "NVI" = rep(NA, nrow(df_og))
+  )
+  
+  num_vars <- 3
+  var_types <- levels(factor(sat_df$var_type))
+  
+  
+  for(i in 1:nrow(df_og)) {
+    df_id <- sat_df %>% 
+      filter(Study.ID == as.character(df_og[i, "study_id"]))
+    
+    for(j in 1:num_vars) {
+      df_id_var <- df_id %>% 
+        filter(var_type == var_types[j])
+      
+      if (sum(!is.na(df_id_var$sat_var_value)) > 0) {
+        date_diff <- (df_og$visit_date[i] - days(48)) - df_id_var$date
+        curr <- df_id_var[which.min(ifelse(date_diff < 0, 1000, date_diff)), ]
+        
+        if (abs(curr$date - df_og$visit_date[i]) > max_date_diff) {
+          print(paste0(
+            "Warning: Study ID ", df_og[i, "study_id"], " does not have ", 
+            var_types[j], " value available within ", max_date_diff, 
+            " days [max_date_diff] of ", 48, " days [48] prior to visit date!"
+          ))
+        } else {
+          df_new[i, var_types[j]] <- curr$sat_var_value
+        }
+      }
+    }
+  }
+  
+  aedes_red <- df_new %>% 
+    rename(EVI250_home48 = EVI, NVI250_home48 = NVI, NFI250_home48 = NFI)
+  
+  
   #### Incorporate school satellite data 
   sat_data250 <- process_modis_data(
     df_og = read_csv(here("data", "SchoolsMODIS_250m.csv"), show_col_types = FALSE), 
@@ -702,7 +752,9 @@ if (params$rerun_data) {
   )
   
   aedes_red <- aedes_red %>% 
-    mutate(larvae_cont_ind = larval_hs$container_index[larval_nn$nn.idx])
+    mutate(larvae_cont_ind = larval_hs$container_index[larval_nn$nn.idx]) %>% 
+    mutate(lat_s = (lat - mean(lat)) / sd(lat)) %>% 
+    mutate(lon_s = (lon - mean(lon)) / sd(lon))
   
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
@@ -711,10 +763,6 @@ if (params$rerun_data) {
   aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds")) 
 }
   
-
-aedes_red <- aedes_red %>% 
-  mutate(lat_s = (lat - mean(lat)) / sd(lat)) %>% 
-  mutate(lon_s = (lon - mean(lon)) / sd(lon))
 
 aedes_red_ind <- aedes_red %>%
   filter(visit == "visit1") %>% 
@@ -2017,7 +2065,10 @@ gen_post_plots <- function(fit){
       "visit_year" = "Visit year"
     ))
   
-  fit_post_area3 <- 
+  fit_post_area3 <- mcmc_areas(
+    fit, regex_pars = c("land"),
+    prob = 0.95, prob_outer = 0.99
+  )
   
   fit_post_area4 <- mcmc_areas(
     fit, regex_pars = c("NFI250", "EVI250", "river"),
@@ -2028,7 +2079,7 @@ gen_post_plots <- function(fit){
     ))
   
   grid.arrange(
-    fit_post_area1, fit_post_area2, fit_post_area4, 
+    fit_post_area1, fit_post_area2, fit_post_area3, fit_post_area4, 
     nrow = 2
   )
 }
@@ -2095,6 +2146,35 @@ if(params$fit_main2) {
 
 ```{r fit-main3}
 if(params$fit_main2) {
+  fit_main2_48 <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
+      age_cented7  + distance_to_river_scaled +
+      modal_land_type +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water  +
+      NFI250_home48 +
+      wet_season + visit_year +
+      visit5 + s(lat_s, lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red,
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 12), 0.1),
+      scale = c(rep(2.5, 12), 0.05)
+    )
+  )
+  
+  saveRDS(fit_main2_48, file = here("output", "fit_main2_48.rds"))
+  
+} else { 
+  fit_main2_48 <- readRDS(file = here("output", "fit_main2_48.rds")) 
+}
+```
+
+
+```{r fit-main4-and-5}
+if(params$fit_main2) {
   fit_main2_16 <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
@@ -2139,7 +2219,37 @@ if(params$fit_main2) {
   saveRDS(fit_main2_32, file = here("output", "fit_main2_32.rds"))
   
 } else { 
+  fit_main2_16 <- readRDS(file = here("output", "fit_main2_16.rds")) 
   fit_main2_32 <- readRDS(file = here("output", "fit_main2_32.rds")) 
+}
+```
+
+
+```{r fit-main6}
+if(params$fit_main2) {
+  fit_main2_32flood_16veg <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
+      age_cented7  + distance_to_river_scaled +
+      modal_land_type +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water  +
+      EVI250_home16 + NFI250_home +
+      wet_season + visit_year +
+      visit5 + s(lat_s, lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red,
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 13), 0.1),
+      scale = c(rep(2.5, 13), 0.05)
+    )
+  )
+  
+  saveRDS(fit_main2_32flood_16veg, file = here("output", "fit_main2_32flood_16veg.rds"))
+  
+} else { 
+  fit_main2_32flood_16veg <- readRDS(file = here("output", "fit_main2_32flood_16veg.rds")) 
 }
 ```
 
@@ -2159,12 +2269,9 @@ mcmc_trace(fit_main, regex_pars = c("season", "visit"))
 gen_post_plots(fit_main)
 gen_post_plots(fit_main2_16)
 gen_post_plots(fit_main2_32)
+gen_post_plots(fit_main2_48)
 gen_post_plots(fit_main2_16and32)
-```
-
-Main model without EVI and with 16 and 32 day lags for EFI
-```{r fit-main-with-16and32EFIlag}
-gen_post_plots(fit_main2_16and32)
+gen_post_plots(fit_main2_32flood_16veg)
 ```
 
 
@@ -2179,12 +2286,13 @@ plot_nonlinear(fit_main, prob = 0.95)+
 
 ## Exposure surfaces
 
-```{r, fig.width=4, fig.asp=1}
+```{r, fig.asp=1}
 aedes_red_ind %>% 
-  ggplot(mapping = aes(x = lat, y = lon)) +
+  ggplot(mapping = aes(x = lon, y = lat)) +
   geom_point() +
   theme_bw() +
-  coord_equal(ratio = 1)
+  coord_equal(ratio = 1) +
+  lims(x = c(104.50, 104.56), y = c(11.43, 11.49))
 ```
 
 
@@ -2291,6 +2399,22 @@ if(params$rerun_fit_v5_surf){
 } else {
   fit_v5_surf <- readRDS(here("output/map-models", "fit_v5_surf.rds"))
 }
+
+v5_surf_df <- as.data.frame(fit_v5_surf$raster$predict.mean, xy = TRUE)
+
+ggplot() +
+  geom_raster(
+    data = v5_surf_df, 
+    aes(x = x, y = y, fill = predict.mean)
+  ) +
+  coord_quickmap() +
+  scale_fill_viridis(direction = -1) +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  ggtitle("Aedes Exposure Surface") +
+  coord_equal(ratio = 1) +
+  theme_bw() +
+  theme(panel.border = element_blank(), panel.background = element_blank())
 ```
 
 ```{r display-visit-exposure-surface, fig.width=7.5, fig.asp=1, fig.align="center"}
@@ -2302,9 +2426,7 @@ fit_visit_surfs <- bind_rows(
   as.data.frame(fit_v3_surf$raster$predict.mean, xy = TRUE) %>% 
   mutate(visit = "Visit 3"),
   as.data.frame(fit_v4_surf$raster$predict.mean, xy = TRUE) %>% 
-  mutate(visit = "Visit 4"),
-  as.data.frame(fit_v5_surf$raster$predict.mean, xy = TRUE) %>% 
-  mutate(visit = "Visit 5")
+  mutate(visit = "Visit 4")
 )
 
 
@@ -2323,6 +2445,7 @@ ggplot() +
   theme(panel.border = element_blank(), panel.background = element_blank()) +
   facet_wrap( ~ visit, ncol = 2)
 ```
+
 
 \newpage
 
