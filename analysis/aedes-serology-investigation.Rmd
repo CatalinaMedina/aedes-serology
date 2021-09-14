@@ -754,7 +754,14 @@ if (params$rerun_data) {
   aedes_red <- aedes_red %>% 
     mutate(larvae_cont_ind = larval_hs$container_index[larval_nn$nn.idx]) %>% 
     mutate(lat_s = (lat - mean(lat)) / sd(lat)) %>% 
-    mutate(lon_s = (lon - mean(lon)) / sd(lon))
+    mutate(lon_s = (lon - mean(lon)) / sd(lon)) %>% 
+    mutate(time = as.numeric(case_when(
+      visit == "visit1" ~ 1,
+      visit == "visit2" ~ 2,
+      visit == "visit3" ~ 3,
+      visit == "visit4" ~ 4,
+      visit == "visit5" ~ 5
+    )))
   
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
@@ -1900,6 +1907,33 @@ if(params$rerun_fit_young) {
 } else { 
   fit_young <- readRDS(file = here("output", "fit-young.rds")) 
 }
+
+
+if(params$rerun_fit_young) {
+  fit_young_flood32 <- stan_gamm4(
+    formula = log_saliva_elisa ~ gender + 
+      age_cented3 + in_school  + distance_to_river_scaled +
+      modal_land_type +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water +
+      NFI250_home +
+      wet_season + visit_year +
+      visit5 + s(lat_s, lon_s, bs = "tp"),
+    random = ~ (1 | study_id),
+    data = aedes_red_young,
+    seed = seed_val, 
+    iter = 4000, 
+    prior = normal(
+      location = c(rep(0, 13), 0.1),
+      scale = c(rep(2.5, 13), 0.05)
+    )
+  )
+  
+  saveRDS(fit_young_flood32, file = here("output", "fit_young_flood32.rds"))
+  
+} else { 
+  fit_young_flood32 <- readRDS(file = here("output", "fit_young_flood32.rds")) 
+}
 ```
 
 \blandscape
@@ -2449,23 +2483,39 @@ ggplot() +
 
 \newpage
 
-```{r simple-exposure-surface}
-aedes_red <- aedes_red %>% mutate(time = as.numeric(case_when(
-  visit == "visit1" ~ 1,
-  visit == "visit2" ~ 2,
-  visit == "visit3" ~ 3,
-  visit == "visit4" ~ 4,
-  visit == "visit5" ~ 5
-)))
-
+```{r time-exposure-surface}
 if(params$rerun_simple_surf){
   spdf <- SpatialPointsDataFrame(
     coords = select(aedes_red, x = lon, y = lat),
-    data = select(aedes_red, log_saliva_elisa, time, wet_season)
+    data = select(aedes_red, log_saliva_elisa, time, visit5)
+  )
+  
+  time_surf <- glgm(
+    formula = log_saliva_elisa ~ time + visit5,
+    data = spdf,
+    grid = 75
+  )
+  
+  saveRDS(time_surf, here("output/map-models", "time_surf.rds"))
+} else {
+  time_surf <- readRDS(here("output/map-models", "time_surf.rds"))
+}
+
+plot(time_surf$raster$predict.mean, main = "Time model Aedes Exposure Surface",asp=1)
+
+time_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
+```
+
+
+```{r simple-exposure-surface}
+if(params$rerun_simple_surf){
+  spdf <- SpatialPointsDataFrame(
+    coords = select(aedes_red, x = lon, y = lat),
+    data = select(aedes_red, log_saliva_elisa, wet_season, visit5)
   )
   
   simple_surf <- glgm(
-    formula = log_saliva_elisa ~ time + wet_season,
+    formula = log_saliva_elisa ~ wet_season + visit5,
     data = spdf,
     grid = 75
   )
@@ -2476,6 +2526,8 @@ if(params$rerun_simple_surf){
 }
 
 plot(simple_surf$raster$predict.mean, main = "Simple model Aedes Exposure Surface",asp=1)
+
+simple_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
 ```
 
 
@@ -2513,6 +2565,8 @@ if(params$rerun_model_surf){
 }
 
 plot(fit_model_surf$raster$predict.mean, main = "Model Aedes Exposure Surface",asp=1)
+
+fit_model_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
 ```
 
 
@@ -2522,11 +2576,11 @@ aedes_red1 <- filter(aedes_red, wet_season == "yes")
 if(params$rerun_wet_surf){
   spdf <- SpatialPointsDataFrame(
     coords = select(aedes_red1, x = lon, y = lat),
-    data = select(aedes_red1, log_saliva_elisa)
+    data = select(aedes_red1, log_saliva_elisa, visit5)
   )
   
   wet_season_surf <- glgm(
-    formula = log_saliva_elisa ~ 1,
+    formula = log_saliva_elisa ~ visit5,
     data = spdf,
     grid = 75
   )
@@ -2537,6 +2591,8 @@ if(params$rerun_wet_surf){
 }
 
 plot(wet_season_surf$raster$predict.mean, main = "Wet season Aedes Exposure Surface",asp=1)
+
+wet_season_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
 ```
 
 
@@ -2561,5 +2617,7 @@ if(params$rerun_dry_surf){
 }
 
 plot(dry_season_surf$raster$predict.mean, main = "Dry season Aedes Exposure Surface",asp=1)
+
+dry_season_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
 ```
 
