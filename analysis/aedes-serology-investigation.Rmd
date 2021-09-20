@@ -10,17 +10,6 @@ params:
   rerun_data: FALSE
   near_river_cut_off: 300
   modis_lag: 32
-  rerun_fit1_bayes: FALSE
-  rerun_fit2_bayes: FALSE
-  rerun_fit3_bayes: FALSE
-  rerun_fit4_bayes: FALSE
-  rerun_fit1_freq: FALSE
-  rerun_fit2_freq: FALSE
-  rerun_fit3_freq: FALSE
-  rerun_fit4_freq: FALSE
-  rerun_fit5_bayes: FALSE
-  rerun_fit6_bayes: FALSE
-  rerun_fit7_bayes: FALSE
   rerun_fit_young: FALSE
   rerun_fit_school: FALSE
   fit_main: FALSE
@@ -2040,11 +2029,11 @@ ggplot() +
 if(params$rerun_simple_surf){
   spdf <- SpatialPointsDataFrame(
     coords = select(aedes_red, x = lon, y = lat),
-    data = select(aedes_red, log_saliva_elisa, time, visit5)
+    data = select(aedes_red, log_saliva_elisa, visit)
   )
   
   time_surf <- glgm(
-    formula = log_saliva_elisa ~ time + visit5,
+    formula = log_saliva_elisa ~ visit,
     data = spdf,
     grid = 75
   )
@@ -2054,10 +2043,10 @@ if(params$rerun_simple_surf){
   time_surf <- readRDS(here("output/map-models", "time_surf.rds"))
 }
 
+```
 plot(time_surf$raster$predict.mean, main = "Time model Aedes Exposure Surface",asp=1)
 
 time_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
-```
 
 
 ```{r simple-exposure-surface}
@@ -2105,7 +2094,7 @@ if(params$rerun_model_surf){
       modal_land_type +
       num_toilets_in_home + num_domestic_water_containers_in_home +
       insecticide_spray + larvicide_applied_to_water  +
-      NFI250_home + EVI250_home +
+      NFI250_home  +
       wet_season + visit_year +
       visit5,
     data = spdf,
@@ -2118,6 +2107,12 @@ if(params$rerun_model_surf){
 }
 
 plot(fit_model_surf$raster$predict.mean, main = "Model Aedes Exposure Surface",asp=1)
+
+plot(fit_model_surf$raster$predict.0.025quant, main = "Model Aedes Exposure Surface",asp=1)
+
+plot(fit_model_surf$raster$predict.0.975quant, main = "Model Aedes Exposure Surface",asp=1)
+
+plot(fit_model_surf$raster$predict.sd, main = "Model Aedes Exposure Surface",asp=1)
 
 fit_model_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
 ```
