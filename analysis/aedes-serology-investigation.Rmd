@@ -13,16 +13,15 @@ params:
   rerun_fit_young: FALSE
   rerun_fit_school: FALSE
   fit_main: FALSE
-  fit_main2: FALSE
   rerun_fit_v1_surf: FALSE
   rerun_fit_v2_surf: FALSE
   rerun_fit_v3_surf: FALSE
   rerun_fit_v4_surf: FALSE
   rerun_fit_v5_surf: FALSE
+  rerun_time_surf: FALSE
   rerun_simple_surf: FALSE
-  rerun_model_surf: FALSE
   rerun_wet_surf: FALSE
-  rerun_dry_surf: FALSE
+  rerun_model_surf: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -766,565 +765,6 @@ aedes_red_ind <- aedes_red %>%
 ```
 
 
-```{r visit_measurement_counts}
-summary(aedes_red$visit)
-```
-
-\newpage
-## EDA table
-
-```{r eda_tab, eval = FALSE}
-aedes_summary <- list(
-  "Age" = list(
-    "min" = ~ min(age),
-    "mean (sd)" = ~ mean_sd(age),
-    "max" = ~ max(age)
-  ),
-  "Gender" = list(
-    "Male" = ~ n_perc0(gender == "Female"),
-    "Female" = ~ n_perc0(gender == "Male")
-  ),
-  "School attended" = list(
-    "Ampe phnom" = ~ n_perc0(school_attended == "Ampe phnom"),
-    "Ang seri" = ~ n_perc0(school_attended == "Ang seri"),
-    "Anouvotta" = ~ n_perc0(school_attended == "Anouvotta"),
-    "Aphivodth" = ~ n_perc0(school_attended == "Aphivodth"),
-    "Mroum cheung" = ~ n_perc0(school_attended == "Mroum cheung"),
-    "Mroum tbaung" = ~ n_perc0(school_attended == "Mroum tbaung"),
-    "Phoumi thmei" = ~ n_perc0(school_attended == "Phoumi thmei"),
-    "Rkathom" = ~ n_perc0(school_attended == "Rkathom"),
-    "Santiphap" = ~ n_perc0(school_attended == "Santiphap"),
-    "Other" = ~ n_perc0(school_attended == "Other, specify:"),
-    "Not in school" = ~ n_perc0(school_attended == "Subject not in school")
-  ),
-  "Socioeconomic class" = list(
-    "Lower" = ~ n_perc0(socioeconomic_class == "Lower"),
-    "Middle" = ~ n_perc0(socioeconomic_class == "Middle"),
-    "Upper" = ~ n_perc0(socioeconomic_class == "Upper"),
-    "Very Poor" = ~ n_perc0(socioeconomic_class == "Very Poor")
-  ),
-  "Domestic water containers" = list(
-    "min" = ~ min(num_domestic_water_containers_in_home),
-    "mean (sd)" = ~ mean_sd(num_domestic_water_containers_in_home),
-    "max" = ~ max(num_domestic_water_containers_in_home)
-  ),
-  "Number toilets in home" = list(
-    "min" = ~ min(num_toilets_in_home),
-    "mean (sd)" = ~ mean_sd(num_toilets_in_home),
-    "max" = ~ max(num_toilets_in_home)
-  ),
-  "Bed net use" = list(
-    "Never" = ~ n_perc0(how_often_use_bed_net == "Never"),
-    "Rarely" = ~ n_perc0(how_often_use_bed_net == "Rarely"),
-    "Regularly/ Most of the time" = ~ n_perc0(how_often_use_bed_net == "Regularly/ Most of the time"),
-    "All of the time" = ~ n_perc0(how_often_use_bed_net == "All of the time")
-  ),
-  "Insecticide spray" = list(
-    "No" = ~ n_perc0(insecticide_spray == "No"),
-    "Yes" = ~ n_perc0(insecticide_spray == "Yes")
-  ),
-  "Larvicide applied to water" = list(
-    "No" = ~ n_perc0(larvicide_applied_to_water == "No"),
-    "Yes" = ~ n_perc0(larvicide_applied_to_water == "Yes")
-  ),
-  "Mosquito coils burned" = list(
-    "Never" = ~ n_perc0(how_often_mosquito_coils_burned == "Never"),
-    "Rarely (about 1x/month)" = ~ n_perc0(how_often_mosquito_coils_burned == "Rarely (about 1x/month)"),
-    "Sometimes (about 1x/week)" = ~ n_perc0(how_often_mosquito_coils_burned == "Sometimes (about 1x/week)"),
-    "Often (about 3x/week)" = ~ n_perc0(how_often_mosquito_coils_burned == "Often (about 3x/week)"),
-    "Daily" = ~ n_perc0(how_often_mosquito_coils_burned == "Daily")
-  )
-)
-
-aedes_summary_tab <- summary_table(aedes_red_ind, aedes_summary)
-
-kable(aedes_summary_tab) %>% 
-  kable_styling(latex_options = "HOLD_position") %>% 
-  group_rows(group_label = "Age", start_row = 1, end_row = 3) %>% 
-  group_rows(group_label = "Gender", 4, 5) %>% 
-  group_rows(group_label = "School attended", 6, 16) %>% 
-  group_rows(group_label = "Socioeconomic level", 17, 20) %>% 
-  group_rows(group_label = "Domestic water containers", 21, 23) %>% 
-  group_rows(group_label = "Number toilets in home", 24, 26) %>% 
-  group_rows(group_label = "Bed net use", 27, 30) %>% 
-  group_rows(group_label = "Insecticide spray", 31, 32) %>% 
-  group_rows(group_label = "Larvicide applied to water", 33, 34) %>% 
-  group_rows(group_label = "Mosquito coils burned", 35, 39)
-```
-
-\newpage
-
-```{r saliva-elisa-mapped, fig.dim=c(8,8.25)}
-aedes_red %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
-    geom_point(alpha = 0.75) +
-    scale_color_viridis(direction = -1) +
-    theme_bw() +
-    lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-    coord_equal(ratio = 1) +
-    facet_wrap(~ visit) +
-    theme(legend.position="bottom")
-```
-
-\newpage
-
-```{r saliva-elisa-mapped-extreme-dropped, fig.dim=c(8,8.25)}
-aedes_red %>% 
-  filter(study_id != "100-0022") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = saliva_elisa_value)) +
-    geom_point(alpha = 0.75) +
-    scale_color_viridis(direction = -1) +
-    theme_bw() +
-    lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-    coord_equal(ratio = 1) +
-    facet_wrap(~ visit) +
-    theme(legend.position="bottom")
-```
-
-\newpage
-
-```{r elisa-by-visit, fig.asp=0.7}
-aedes_red %>% 
-  ggplot(mapping = aes(x = visit, y = saliva_elisa_value)) +
-    geom_boxplot() +
-  theme_bw()
-```
-
-
-```{r elisa-by-visit_date, fig.asp=0.7}
-aedes_red %>% 
-  ggplot(mapping = aes(x = visit_date, y = saliva_elisa_value)) +
-    geom_point() +
-    theme_bw() +
-    ggtitle("Saliva ELISA value by visit data")
-```
-
-\newpage
-
-```{r elisa-by-elevation, fig.asp=0.7}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = elevation, y = saliva_elisa_value)) +
-    geom_point() +
-  theme_bw()
-```
-
-
-```{r elevation-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = elevation)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-
-\newpage
-
-## Plots of saliva ELISA value by predictors
-
-```{r elisa-by-age, fig.asp=0.6}
-aedes_red_ind %>% 
-  mutate(age = factor(age)) %>% 
-  ggplot(mapping = aes(x = age, y = saliva_elisa_value)) +
-  geom_boxplot() +
-  theme_bw()
-```
-
-
-```{r age-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  mutate(age = factor(age)) %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = age)) +
-  geom_point() +
-  scale_color_viridis(discrete = TRUE, direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-gender, fig.asp=0.7}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = gender, y = saliva_elisa_value)) +
-    geom_boxplot() +
-  theme_bw()
-```
-
-
-```{r gender-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = gender, shape = gender)) +
-  geom_point(alpha = 0.75) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-school_attended, fig.asp=0.7}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = school_attended, y = saliva_elisa_value)) +
-  geom_boxplot() +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90))
-```
-
-
-```{r school_attended-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = school_attended)) +
-  geom_point(alpha = 0.75) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-num_domestic_water_containers_in_home, fig.asp=0.7}
-aedes_red_ind %>% 
-  mutate(num_domestic_water_containers_in_home = factor(num_domestic_water_containers_in_home)) %>% 
-  ggplot(mapping = aes(x = num_domestic_water_containers_in_home, y = saliva_elisa_value)) +
-    geom_boxplot() +
-  theme_bw() +
-  xlab("Number of domestic water containers in home") +
-  ylab("Saliva ELISA value")
-```
-
-
-```{r num_domestic_water_containers_in_home-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  mutate(water_cont = num_domestic_water_containers_in_home) %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = water_cont)) +
-  geom_point(alpha = 0.75) +
-  theme_bw() +
-  scale_color_viridis(direction = -1) +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-num_toilets_in_home, fig.asp=0.7}
-aedes_red_ind %>% 
-  mutate(num_toilets_in_home = factor(num_toilets_in_home)) %>% 
-  ggplot(mapping = aes(x = num_toilets_in_home, y = saliva_elisa_value)) +
-    geom_boxplot() +
-  theme_bw() +
-  xlab("Number of toilets in home") +
-  ylab("Saliva ELISA value")
-```
-
-
-```{r num_toilets_in_home-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  mutate(toilets = num_toilets_in_home) %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = toilets)) +
-  geom_point(alpha = 0.75) +
-  theme_bw() +
-  scale_color_viridis(direction = -1) +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-how_often_use_bed_net, fig.asp=0.7}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = how_often_use_bed_net, y = saliva_elisa_value)) +
-    geom_boxplot() +
-  theme_bw()
-```
-
-
-```{r how_often_use_bed_net-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  mutate(bed_net = how_often_use_bed_net) %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = bed_net)) +
-  geom_point(alpha = 0.75) +
-  theme_bw() +
-  scale_color_viridis(direction = -1, discrete = TRUE) +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-insecticide_spray, fig.asp=0.7}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = insecticide_spray, y = saliva_elisa_value)) +
-    geom_boxplot() +
-  theme_bw() +
-  xlab("Insecticide") +
-  ylab("Saliva ELISA value")
-```
-
-
-```{r insecticide_spray-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  mutate(insecticide = insecticide_spray) %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = insecticide)) +
-  geom_point(alpha = 0.75) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-larvicide_applied_to_water, fig.asp=0.7}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = larvicide_applied_to_water, y = saliva_elisa_value)) +
-    geom_boxplot() +
-  theme_bw() +
-  xlab("Larvicide") +
-  ylab("Saliva ELISA value")
-```
-
-
-```{r larvicide_applied_to_water-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  mutate(larvicide = larvicide_applied_to_water) %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = larvicide)) +
-  geom_point(alpha = 0.75) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-how_often_mosquito_coils_burned, fig.asp=0.7}
-aedes_red_ind %>% 
-  ggplot(mapping = aes(x = how_often_mosquito_coils_burned, y = saliva_elisa_value)) +
-    geom_boxplot() +
-  theme_bw()
-```
-
-
-```{r how_often_mosquito_coils_burned-mapped, fig.asp=0.9}
-aedes_red_ind %>% 
-  mutate(coils = how_often_mosquito_coils_burned) %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = coils)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1, discrete = TRUE) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1)
-```
-
-\newpage
-
-```{r elisa-by-EVI, fig.asp=0.7, eval = FALSE}
-aedes_red %>% 
-  ggplot(mapping = aes(x = EVI, y = saliva_elisa_value)) +
-    geom_point() +
-  theme_bw() +
-  facet_wrap(~ visit)
-```
-
-
-```{r EVI-visit1-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit1") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 1")
-```
-
-
-```{r EVI-visit2-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit2") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 2")
-```
-
-
-```{r EVI-visit3-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit3") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 3")
-```
-
-
-```{r EVI-visit4-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit4") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = EVI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 4")
-```
-
-
-```{r elisa-by-NFI, fig.asp=0.7, eval = FALSE}
-aedes_red %>% 
-  ggplot(mapping = aes(x = NFI, y = saliva_elisa_value)) +
-    geom_point() +
-  theme_bw() +
-  facet_wrap(~ visit)
-```
-
-
-```{r NFI-visit1-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit1") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 1")
-```
-
-
-```{r NFI-visit2-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit2") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 2")
-```
-
-
-```{r NFI-visit3-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit3") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 3")
-```
-
-
-```{r NFI-visit4-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit4") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = NFI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 4")
-```
-
-\newpage
-
-```{r elisa-by-NVI, fig.asp=0.7, eval = FALSE}
-aedes_red %>% 
-  ggplot(mapping = aes(x = NVI, y = saliva_elisa_value)) +
-    geom_point() +
-  theme_bw() +
-  facet_wrap(~ visit)
-```
-
-
-```{r NVI-visit1-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit1") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 1")
-```
-
-
-```{r NVI-visit2-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit2") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 2")
-```
-
-
-```{r NVI-visit3-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit3") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 3")
-```
-
-
-```{r NVI-visit4-mapped, fig.asp=0.9, eval = FALSE}
-aedes_red %>% 
-  filter(visit == "visit4") %>% 
-  ggplot(mapping = aes(x = lon, y = lat, color = NVI)) +
-  geom_point(alpha = 0.75) +
-  scale_color_viridis(direction = -1) +
-  theme_bw() +
-  lims(x = c(104.50, 104.56), y = c(11.43, 11.49)) +
-  coord_equal(ratio = 1) +
-  ggtitle("Visit 4")
-```
-
-
-
-
-## Pairwise plots of predictors
-```{r pariwise-plots-of-predictors, eval = FALSE}
-library(GGally)
-
-pdf(here("analysis", "preds-pair-plot.pdf"), width = 40, height = 30)
-
-ggpairs(aedes_red_ind[, c(3:5, 8:14, 29, 36:39)])
-
-dev.off()
-```
-
-
-
-
-
-
-
-
-\newpage
-
 ## Split Models (young and school)  
 
 ```{r}
@@ -1386,35 +826,8 @@ Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($
 	\end{split}
 \end{equation*}
 
-```{r fit-young1-bayes}
+```{r fit_young}
 aedes_red_young <- aedes_red[aedes_red$age <= 4,]
-
-if(params$rerun_fit_young) {
-  fit_young <- stan_gamm4(
-    formula = log_saliva_elisa ~ gender + 
-      age_cented3 + in_school  + distance_to_river_scaled +
-      modal_land_type +
-      num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water +
-      NFI250_home + EVI250_home +
-      wet_season + visit_year +
-      visit5 + s(lat_s, lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red_young,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 14), 0.1),
-      scale = c(rep(2.5, 14), 0.05)
-    )
-  )
-  
-  saveRDS(fit_young, file = here("output", "fit-young.rds"))
-  
-} else { 
-  fit_young <- readRDS(file = here("output", "fit-young.rds")) 
-}
-
 
 if(params$rerun_fit_young) {
   fit_young_flood32 <- stan_gamm4(
@@ -1446,23 +859,9 @@ if(params$rerun_fit_young) {
 \blandscape
 Young model without interactions (with visit 5)
 ```{r, fig.width=10, fig.height=7.5}
-gen_post_plots(fit_young)
-
 gen_post_plots(fit_young_flood32)
 ```
 \elandscape
-
-Model fit: Young children without interactions  
-Updated model for log saliva ELISA value of individual $i$ at measurement $j$ ($i=1,...,726$, $j=1,...,5$), for Cambodian children ages 2-4.
-\begin{equation*}
-	\begin{split}
-		\log(\text{Saliva ELISA value})_{ij} &= b_{0i} + \beta_{0} + \beta_{\text{Male}}\text{Male}_i \\
-		&+ \beta_{\text{Age}}(\text{Age} - 3)_{i} + \beta_{\text{School}}\text{Attends school}_{i} + \beta_{\text{River}}\text{Lives near river}_{i}\\
-		&+\beta_{\text{Toilets}}\text{Toilets}_{ij} + \beta_{\text{Water}}\text{Water containers}_{ij} + \beta_{\text{Insecticide}}\text{Insecticide}_{ij} + \beta_{\text{Larvicide}}\text{Larvicide}_{ij} \\
-		&+ \beta_{\text{NFI250 home}}\text{Home flooding}_{ij} + \beta_{\text{EVI250 home}}\text{Home vegetation}_{ij} \\
-		&+ \beta_{\text{Wet season}}\text{Wet season}_{ij} + \beta_{\text{Year}}\text{Year}_{ij},
-	\end{split}
-\end{equation*}
 
 \newpage
 
@@ -1528,36 +927,8 @@ gen_post_plots <- function(fit){
 ```
 
 
-```{r fit-school}
+```{r fit_school}
 aedes_red_school <- aedes_red[aedes_red$in_school == "yes",]
-
-if(params$rerun_fit_school) {
-  fit_school <- stan_gamm4(
-    formula = log_saliva_elisa ~ gender + 
-      age_cented7  + distance_to_river_scaled +
-      modal_land_type +
-      num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water +
-      NFI250_home + EVI250_home +
-      NFI250_sch + EVI250_sch +
-      wet_season + visit_year +
-      visit5 + s(lat_s, lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red_school,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 15), 0.1),
-      scale = c(rep(2.5, 15), 0.05)
-    )
-  )
-  
-  saveRDS(fit_school, file = here("output", "fit-school.rds"))
-  
-} else { 
-  fit_school <- readRDS(file = here("output", "fit-school.rds")) 
-}
-
 
 if(params$rerun_fit_school) {
   fit_school_flood32 <- stan_gamm4(
@@ -1590,8 +961,6 @@ if(params$rerun_fit_school) {
 \blandscape
 School model without interactions (with visit 5)
 ```{r, fig.width=10, fig.height=7.5}
-gen_post_plots(fit_school)
-
 gen_post_plots(fit_school_flood32)
 ```
 \elandscape
@@ -1662,117 +1031,8 @@ gen_post_plots <- function(fit){
 ```
 
 
-```{r fit-main1}
+```{r fit_main}
 if(params$fit_main) {
-  fit_main <- stan_gamm4(
-    formula = log_saliva_elisa ~ gender + 
-      age_cented7  + distance_to_river_scaled +
-      modal_land_type +
-      num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water  +
-      NFI250_home + EVI250_home +
-      wet_season + visit_year +
-      visit5 + s(lat_s, lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 13), 0.1),
-      scale = c(rep(2.5, 13), 0.05)
-    )
-  )
-  
-  saveRDS(fit_main, file = here("output", "fit-main.rds"))
-  
-} else { 
-  fit_main <- readRDS(file = here("output", "fit-main.rds")) 
-}
-```
-
-
-```{r fit-main2}
-if(params$fit_main2) {
-  fit_main2_16 <- stan_gamm4(
-    formula = log_saliva_elisa ~ gender + 
-      age_cented7  + distance_to_river_scaled +
-      modal_land_type +
-      num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water  +
-      NFI250_home16 + NFI250_home +
-      wet_season + visit_year +
-      visit5 + s(lat_s, lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 13), 0.1),
-      scale = c(rep(2.5, 13), 0.05)
-    )
-  )
-  
-  saveRDS(fit_main2_16and32, file = here("output", "fit_main2_16and32.rds"))
-  
-} else { 
-  fit_main2_16and32 <- readRDS(file = here("output", "fit_main2_16and32.rds")) 
-}
-```
-
-
-```{r fit-main3}
-if(params$fit_main2) {
-  fit_main2_48 <- stan_gamm4(
-    formula = log_saliva_elisa ~ gender + 
-      age_cented7  + distance_to_river_scaled +
-      modal_land_type +
-      num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water  +
-      NFI250_home48 +
-      wet_season + visit_year +
-      visit5 + s(lat_s, lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 12), 0.1),
-      scale = c(rep(2.5, 12), 0.05)
-    )
-  )
-  
-  saveRDS(fit_main2_48, file = here("output", "fit_main2_48.rds"))
-  
-} else { 
-  fit_main2_48 <- readRDS(file = here("output", "fit_main2_48.rds")) 
-}
-```
-
-
-```{r fit-main4-and-5}
-if(params$fit_main2) {
-  fit_main2_16 <- stan_gamm4(
-    formula = log_saliva_elisa ~ gender + 
-      age_cented7  + distance_to_river_scaled +
-      modal_land_type +
-      num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water  +
-      NFI250_home16 +
-      wet_season + visit_year +
-      visit5 + s(lat_s, lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 12), 0.1),
-      scale = c(rep(2.5, 12), 0.05)
-    )
-  )
-  
-  saveRDS(fit_main2_16, file = here("output", "fit_main2_16.rds"))
-  
-  
    fit_main2_32 <- stan_gamm4(
     formula = log_saliva_elisa ~ gender + 
       age_cented7  + distance_to_river_scaled +
@@ -1795,64 +1055,29 @@ if(params$fit_main2) {
   saveRDS(fit_main2_32, file = here("output", "fit_main2_32.rds"))
   
 } else { 
-  fit_main2_16 <- readRDS(file = here("output", "fit_main2_16.rds")) 
   fit_main2_32 <- readRDS(file = here("output", "fit_main2_32.rds")) 
 }
 ```
 
 
-```{r fit-main6}
-if(params$fit_main2) {
-  fit_main2_32flood_16veg <- stan_gamm4(
-    formula = log_saliva_elisa ~ gender + 
-      age_cented7  + distance_to_river_scaled +
-      modal_land_type +
-      num_toilets_in_home + num_domestic_water_containers_in_home +
-      insecticide_spray + larvicide_applied_to_water  +
-      EVI250_home16 + NFI250_home +
-      wet_season + visit_year +
-      visit5 + s(lat_s, lon_s, bs = "tp"),
-    random = ~ (1 | study_id),
-    data = aedes_red,
-    seed = seed_val, 
-    iter = 4000, 
-    prior = normal(
-      location = c(rep(0, 13), 0.1),
-      scale = c(rep(2.5, 13), 0.05)
-    )
-  )
-  
-  saveRDS(fit_main2_32flood_16veg, file = here("output", "fit_main2_32flood_16veg.rds"))
-  
-} else { 
-  fit_main2_32flood_16veg <- readRDS(file = here("output", "fit_main2_32flood_16veg.rds")) 
-}
-```
-
-
 ```{r main-model-trace-plots, eval = FALSE}
-mcmc_trace(fit_main, regex_pars = c("gender", "age", "river", "toilets"))
+mcmc_trace(fit_main2_32, regex_pars = c("gender", "age", "river", "toilets"))
 
-mcmc_trace(fit_main, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
+mcmc_trace(fit_main2_32, regex_pars = c("water", "insecticide", "larvicide", "larvae"))
 
-mcmc_trace(fit_main, regex_pars = c("NFI", "EVI"))
+mcmc_trace(fit_main2_32, regex_pars = c("NFI", "EVI"))
 
-mcmc_trace(fit_main, regex_pars = c("season", "visit"))
+mcmc_trace(fit_main2_32, regex_pars = c("season", "visit"))
 ```
 
 \blandscape
 ```{r main-model-results, fig.width=10, fig.height=7.5}
-gen_post_plots(fit_main)
-gen_post_plots(fit_main2_16)
 gen_post_plots(fit_main2_32)
-gen_post_plots(fit_main2_48)
-gen_post_plots(fit_main2_16and32)
-gen_post_plots(fit_main2_32flood_16veg)
 ```
 
 
 ```{r main-model-interaction-results}
-plot_nonlinear(fit_main, prob = 0.95)+
+plot_nonlinear(fit_main2_32, prob = 0.95)+
   scale_color_viridis()
 ```
 
@@ -1956,6 +1181,35 @@ if(params$rerun_fit_v4_surf){
 }
 ```
 
+```{r display-visit-exposure-surface1-4, fig.width=7.5, fig.asp=1, fig.align="center"}
+fit_visit_surfs <- bind_rows(
+  as.data.frame(fit_v1_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 1"),
+  as.data.frame(fit_v2_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 2"),
+  as.data.frame(fit_v3_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 3"),
+  as.data.frame(fit_v4_surf$raster$predict.mean, xy = TRUE) %>% 
+  mutate(visit = "Visit 4")
+)
+
+
+ggplot() +
+  geom_raster(
+    data = fit_visit_surfs, 
+    aes(x = x, y = y, fill = predict.mean)
+  ) +
+  coord_quickmap() +
+  scale_fill_viridis(direction = -1) +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  ggtitle("Aedes Exposure Surface") +
+  coord_equal(ratio = 1) +
+  theme_bw() +
+  theme(panel.border = element_blank(), panel.background = element_blank()) +
+  facet_wrap( ~ visit, ncol = 2)
+```
+
 ```{r visit5-exposure-surface}
 if(params$rerun_fit_v5_surf){
   aedes_v5 <- filter(aedes_red, visit == "visit5")
@@ -1993,40 +1247,11 @@ ggplot() +
   theme(panel.border = element_blank(), panel.background = element_blank())
 ```
 
-```{r display-visit-exposure-surface, fig.width=7.5, fig.asp=1, fig.align="center"}
-fit_visit_surfs <- bind_rows(
-  as.data.frame(fit_v1_surf$raster$predict.mean, xy = TRUE) %>% 
-  mutate(visit = "Visit 1"),
-  as.data.frame(fit_v2_surf$raster$predict.mean, xy = TRUE) %>% 
-  mutate(visit = "Visit 2"),
-  as.data.frame(fit_v3_surf$raster$predict.mean, xy = TRUE) %>% 
-  mutate(visit = "Visit 3"),
-  as.data.frame(fit_v4_surf$raster$predict.mean, xy = TRUE) %>% 
-  mutate(visit = "Visit 4")
-)
-
-
-ggplot() +
-  geom_raster(
-    data = fit_visit_surfs, 
-    aes(x = x, y = y, fill = predict.mean)
-  ) +
-  coord_quickmap() +
-  scale_fill_viridis(direction = -1) +
-  xlab("Longitude") +
-  ylab("Latitude") +
-  ggtitle("Aedes Exposure Surface") +
-  coord_equal(ratio = 1) +
-  theme_bw() +
-  theme(panel.border = element_blank(), panel.background = element_blank()) +
-  facet_wrap( ~ visit, ncol = 2)
-```
-
 
 \newpage
 
 ```{r time-exposure-surface}
-if(params$rerun_simple_surf){
+if(params$rerun_time_surf){
   spdf <- SpatialPointsDataFrame(
     coords = select(aedes_red, x = lon, y = lat),
     data = select(aedes_red, log_saliva_elisa, visit)
@@ -2043,10 +1268,10 @@ if(params$rerun_simple_surf){
   time_surf <- readRDS(here("output/map-models", "time_surf.rds"))
 }
 
-```
 plot(time_surf$raster$predict.mean, main = "Time model Aedes Exposure Surface",asp=1)
 
 time_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
+```
 
 
 ```{r simple-exposure-surface}
@@ -2141,31 +1366,5 @@ if(params$rerun_wet_surf){
 plot(wet_season_surf$raster$predict.mean, main = "Wet season Aedes Exposure Surface",asp=1)
 
 wet_season_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
-```
-
-
-```{r dryseason-exposure-surface}
-aedes_red2 <- filter(aedes_red, wet_season == "no") 
-
-if(params$rerun_dry_surf){
-  spdf <- SpatialPointsDataFrame(
-    coords = select(aedes_red2, x = lon, y = lat),
-    data = select(aedes_red2, log_saliva_elisa)
-  )
-  
-  dry_season_surf <- glgm(
-    formula = log_saliva_elisa ~ 1,
-    data = spdf,
-    grid = 75
-  )
-  
-  saveRDS(dry_season_surf, here("output/map-models", "dry_season_surf.rds"))
-} else {
-  dry_season_surf <- readRDS(here("output/map-models", "dry_season_surf.rds"))
-}
-
-plot(dry_season_surf$raster$predict.mean, main = "Dry season Aedes Exposure Surface",asp=1)
-
-dry_season_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
 ```
 
