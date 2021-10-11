@@ -962,7 +962,8 @@ if(params$rerun_simple_surf){
   simple_surf <- glgm(
     formula = log_saliva_elisa ~ wet_season + visit5,
     data = spdf,
-    grid = 75
+    grid = 75, 
+    control.fixed = list(mean = c(0, 0.1), prec = c(1/(2.5^2), 1/(0.05^2)))
   )
   
   saveRDS(simple_surf, here("output/map-models", "simple_surf.rds"))
@@ -974,6 +975,30 @@ plot(simple_surf$raster$predict.mean, main = "Simple model Aedes Exposure Surfac
 
 simple_surf$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
 ```
+
+```{r}
+if(params$rerun_simple_surf){
+  spdf <- SpatialPointsDataFrame(
+    coords = select(aedes_red, x = lon, y = lat),
+    data = select(aedes_red, log_saliva_elisa, wet_season, visit5)
+  )
+  
+  simple_surf_old <- glgm(
+    formula = log_saliva_elisa ~ wet_season + visit5,
+    data = spdf,
+    grid = 75
+  )
+  
+  saveRDS(simple_surf_old, here("output/map-models", "simple_surf_old.rds"))
+} else {
+  simple_surf_old <- readRDS(here("output/map-models", "simple_surf_old.rds"))
+}
+
+plot(simple_surf_old$raster$predict.mean, main = "Simple model Aedes Exposure Surface",asp=1)
+
+simple_surf_old$parameters$summary %>% select(mean, "0.025quant", "0.975quant") %>% round(3)
+```
+
 
 ```{r wetseason-exposure-surface}
 aedes_red1 <- filter(aedes_red, wet_season == "yes") 
