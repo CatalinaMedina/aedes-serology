@@ -2,7 +2,7 @@
 title: "Aedes serology geostatistical model"
 output: pdf_document
 params:
-  rerun_data: TRUE
+  rerun_data: FALSE
   near_river_cut_off: 300
   modis_lag: 32
 ---
@@ -20,7 +20,7 @@ library(zoo)
 library(RANN)
 library(tidyverse)
 
-library(inlabru)
+library(INLA)
 
 source(here("analysis", "process-modis-data-function.R"))
 ```
@@ -740,9 +740,12 @@ aedes_red_ind <- aedes_red %>%
 
 
 ```{r}
-aedes_red_sp <- aedes_red
-coordinates(aedes_red_sp) <- c("lon", "lat")
-proj4string(aedes_red_sp) <- "+proj=longlat"
+mesh <- inla.mesh.2d(
+  loc = select(aedes_red_ind, x, y),
+  max.edge = 250
+)
+
+
 
 
 coeff_priors <- list(
