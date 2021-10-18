@@ -2,7 +2,7 @@
 title: "Aedes serology geostatistical model"
 output: pdf_document
 params:
-  rerun_data: FALSE
+  rerun_data: TRUE
   near_river_cut_off: 300
   modis_lag: 32
 ---
@@ -686,12 +686,15 @@ if (params$rerun_data) {
     select(
       subj_id = SUBJID,
       larval_visit_date = VISITDAT,
-      water_containers = WATERCON,
+      water_containers_og = WATERCON,
       water_larvae = WATERLARVAE
     ) %>% 
     mutate(subj_id = as.character(subj_id)) %>% 
-    mutate(water_containers = as.numeric(water_containers)) %>% 
-    drop_na() %>% 
+    mutate(water_containers = ifelse(
+      water_containers_og == "*", 
+      99999,
+      as.numeric(water_containers_og))) %>% 
+    filter(water_containers != 9999) %>% 
     mutate(container_index = ifelse(
       water_containers != 0,
       as.numeric(water_larvae) / as.numeric(water_containers),
