@@ -929,8 +929,7 @@ stack <- inla.stack(
 )
 
 ## specify model formula, 'f()' incorporates spatial effect and replicate 
-formula <- y ~ 0 + intercept + 
-  gender + 
+formula <- y ~ gender + 
   age_cented7  + distance_to_river_scaled +
   modal_land_type +
   num_toilets_in_home + num_domestic_water_containers_in_home +
@@ -949,7 +948,7 @@ formula <- y ~ 0 + intercept +
 ## fixed effect priors
 coeff_priors <- list(
     mean.intercept = 0,
-    prec.intercept = 0.1,
+    prec.intercept = 1/(2.5^2),
     mean = list(visit5 = 0.1, default = 0),
     prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
 )
