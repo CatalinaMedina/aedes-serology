@@ -5,6 +5,7 @@ params:
   rerun_data: FALSE
   near_river_cut_off: 300
   modis_lag: 32
+  refit_fit: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -746,6 +747,7 @@ $x_i$: location
 
 $u_i$: structured spatial effect to account for the spatial dependence between relative risks (areas that are close show more similar risk than areas that are not close)  
 
+## Examples
 ```{r model_prep_ex_1obs, eval = FALSE}
 pts_coords <- as.matrix(select(aedes_red_ind, lon = x, lat = y))
 
@@ -842,7 +844,7 @@ stack <- inla.stack(
 formula <- y ~ 0 + intercept + f(spatial.field, model = spde, group = spatial.field.group, control.group = list(model = "iid"))
 ```
 
-```{r}
+```{r, eval = FALSE}
 fit2 <- inla(
   formula, 
   data = inla.stack.data(stack),
@@ -853,7 +855,6 @@ fit2 <- inla(
 )
 ```
 
-
 ```{r summary_ex_kobs, eval = FALSE}
 index <- inla.stack.index(stack = stk_full, tag = "pred")$data
 # Posterior mean and 95% CI
@@ -862,6 +863,7 @@ prev_ll <- fit2$summary.fitted.values[index, "0.025quant"]
 prev_ul <- fit2$summary.fitted.values[index, "0.975quant"]
 ```
 
+## Main model
 
 ```{r model prep}
 coords_st <- aedes_red %>% 
@@ -947,13 +949,24 @@ coeff_priors <- list(
 ```
 
 ```{r}
-fit <- inla(
-  formula, 
-  data = inla.stack.data(stack),
-  control.predictor = list(
-    A = inla.stack.A(stack)
-  ),
-  control.fixed = coeff_priors
-)
+if(refit_fit) {
+  fit <- inla(
+    formula, 
+    data = inla.stack.data(stack),
+    control.predictor = list(
+      A = inla.stack.A(stack)
+    ),
+    control.fixed = coeff_priors
+  )
+  
+  saveRDS(fit, here("output", "main-fit.rds"))
+} else {
+  fit <- readRDS(here("output", "main-fit.rds"))
+}
 ```
+
+```{r}
+summary(fit)
+```
+
 
