@@ -866,6 +866,7 @@ prev_ul <- fit2$summary.fitted.values[index, "0.975quant"]
 ## Main model
 
 ```{r model prep}
+## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_red %>% 
   arrange(study_id, time) %>% 
   select(
@@ -882,47 +883,52 @@ coords_st <- aedes_red %>%
     visit5
     )
 
+## specify df of covariate values including intercept
 covar_df <- data.frame(
   intercept = rep(1, nrow(coords_st)),
   select(coords_st, -c(time, lon, lat, log_saliva_elisa))
 )
   
-
+## extract coordinates as matrix, ignoring repeats
 coords <- select(coords_st, lon, lat) %>% 
   distinct() %>% 
   as.matrix()
 
+## create mesh, good documentation available to understand all options
 mesh <- inla.mesh.2d(
   loc = coords,
   max.edge = c(300, 600)
 )
 
+# specify spde
 spde <- inla.spde2.matern(mesh)
 
+# Need to specify index with spde and group (if there are replicates)
 s.index <- inla.spde.make.index(
   "spatial.field", 
   n.spde = spde$n.spde,
   n.group = 5
 )
 
+## A specifies something about edge length based on the mesh
 A <- inla.spde.make.A(
   mesh = mesh, 
   loc = as.matrix(select(coords_st, lon, lat)), 
   group = coords_st$time
 )
 
+## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
 stack <- inla.stack(
   data = list(y = coords_st$log_saliva_elisa),
   A = list(A, 1),
   effects = list(
     s.index,
-    list(
-      covar_df = covar_df
-    )
+    list(covar_df = covar_df)
   ),
   tag = "est"
 )
 
+## specify model formula, 'f()' incorporates spatial effect and replicate 
 formula <- y ~ 0 + intercept + 
   gender + 
   age_cented7  + distance_to_river_scaled +
@@ -939,7 +945,8 @@ formula <- y ~ 0 + intercept +
     control.group = list(model = "iid")
   )
   
-  
+
+## fixed effect priors
 coeff_priors <- list(
     mean.intercept = 0,
     prec.intercept = 0.1,
