@@ -769,7 +769,7 @@ coords_st <- aedes_red %>%
 
 ## specify df of covariate values including intercept
 covar_df <- data.frame(
-  intercept = rep(1, nrow(coords_st)),
+  # Intercept = rep(1, nrow(coords_st)),
   select(coords_st, -c(time, lon, lat, log_saliva_elisa))
 )
   
@@ -813,7 +813,8 @@ stack <- inla.stack(
 )
 
 ## specify model formula, 'f()' incorporates spatial effect and replicate 
-formula <- y ~ sgender + 
+formula <- y ~ #0 + Intercept
+  gender + 
   age_cented7  + distance_to_river_scaled +
   modal_land_type +
   num_toilets_in_home + num_domestic_water_containers_in_home +
@@ -840,7 +841,7 @@ coeff_priors <- list(
 
 ```{r}
 if(refit_fit) {
-  fit <- inla(
+  fit_no_beta0 <- inla(
     formula, 
     data = inla.stack.data(stack),
     control.predictor = list(
@@ -849,7 +850,7 @@ if(refit_fit) {
     control.fixed = coeff_priors
   )
   
-  saveRDS(fit, here("output", "main-fit.rds"))
+  saveRDS(fit_no_beta0, here("output", "main-fit.rds"))
 } else {
   fit <- readRDS(here("output", "main-fit.rds"))
 }
