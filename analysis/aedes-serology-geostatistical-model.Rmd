@@ -68,12 +68,15 @@ if (params$rerun_data) {
       yes = "yes",
       no = "no"
     )) %>% 
-    mutate(visit_year = case_when(
-      visit == "VISIT 1 DENGUE INDEX" ~ 0,
-      visit %in% c("VISIT 2  DENGUE INDEX", "VISIT 3 DENGUE INDEX") ~ 1,
-      visit == "VISIT 4 INDEX" ~ 2,
-      TRUE ~ -99
-    )) %>% 
+    mutate(visit_year = factor(
+      case_when(
+        visit == "VISIT 1 DENGUE INDEX" ~ "0",
+        visit %in% c("VISIT 2  DENGUE INDEX", "VISIT 3 DENGUE INDEX") ~ "1",
+        visit == "VISIT 4 INDEX" ~ "2",
+        TRUE ~ "-99"
+      )),
+      levels = c("0", "1", "2")
+    ) %>% 
     mutate(age = as.numeric(age)) %>% 
     mutate(age_cented3 = age - 3) %>%
     mutate(age_cented7 = age - 7) %>%
@@ -177,7 +180,7 @@ if (params$rerun_data) {
       mutate(visit_date = as.Date("2020-07-01")) %>% 
       mutate(visit_date_abr = NA) %>% 
       mutate(wet_season = "yes") %>% 
-      mutate(visit_year = 2) %>% 
+      mutate(visit_year = "2") %>% 
       select(-c(saliva_elisa_value, log_saliva_elisa)) %>% 
       full_join(aedes_visit5) %>% 
       select(colnames(aedes_survey_cleaned)) %>% 
