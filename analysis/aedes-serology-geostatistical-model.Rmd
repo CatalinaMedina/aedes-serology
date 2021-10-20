@@ -747,122 +747,6 @@ $x_i$: location
 
 $u_i$: structured spatial effect to account for the spatial dependence between relative risks (areas that are close show more similar risk than areas that are not close)  
 
-## Examples
-```{r model_prep_ex_1obs, eval = FALSE}
-pts_coords <- as.matrix(select(aedes_red_ind, lon = x, lat = y))
-
-mesh <- inla.mesh.2d(
-  loc = pts_coords,
-  max.edge = c(300, 600)
-)
-
-spde <- inla.spde2.matern(mesh)
-
-A <- inla.spde.make.A(mesh, loc = pts_coords)
-
-iset <- inla.spde.make.index("spatial.field", n.spde = spde$n.spde)
-
-#prep data
-stk <- inla.stack(
-  data = list(y = aedes_red_ind$log_saliva_elisa),
-  A = list(A, 1),
-  effects = list(
-    iset,
-    list(
-      intercept = rep(1, nrow(pts_coords)),
-      distance_to_river_scaled = aedes_red_ind$distance_to_river_scaled,
-      NFI250_home = aedes_red_ind$NFI250_home,
-      larvicide_applied_to_water = aedes_red_ind$larvicide_applied_to_water
-  )),
-  tag = 'dat'
-)
-
-
-formula <- y ~ 0 + intercept + distance_to_river_scaled + NFI250_home + larvicide_applied_to_water+ f(spatial.field, model = spde)
-```
-
-```{r fit_ex_1obs, eval = FALSE}
-fit <- inla(
-  formula,
-  family = "gaussian",
-  data = inla.stack.data(stk),
-  control.predictor = list(A = inla.stack.A(stk))
-)
-```
-
-```{r summary_ex_1obs, eval = FALSE}
-index <- inla.stack.index(stack = stk_full, tag = "pred")$data
-# Posterior mean and 95% CI
-prev_mean <- fit$summary.fitted.values[index, "mean"]
-prev_ll <- fit$summary.fitted.values[index, "0.025quant"]
-prev_ul <- fit$summary.fitted.values[index, "0.975quant"]
-```
-
-
-
-```{r model_prep_ex_k_obs, eval = FALSE}
-coords_st <- aedes_red %>% 
-  arrange(study_id, time) %>% 
-  select(time, lon = x, lat = y, log_saliva_elisa)
-  
-
-coords <- select(coords_st, lon, lat) %>% 
-  distinct() %>% 
-  as.matrix()
-
-mesh <- inla.mesh.2d(
-  loc = coords,
-  max.edge = c(300, 600)
-)
-
-spde <- inla.spde2.matern(mesh)
-
-s.index <- inla.spde.make.index(
-  "spatial.field", 
-  n.spde = spde$n.spde,
-  n.group = 5
-)
-
-A <- inla.spde.make.A(
-  mesh = mesh, 
-  loc = as.matrix(select(coords_st, lon, lat)), 
-  group = coords_st$time
-)
-
-stack <- inla.stack(
-  data = list(y = coords_st$log_saliva_elisa),
-  A = list(A, 1),
-  effects = list(
-    s.index,
-    list(
-      intercept = rep(1, nrow(coords_st))
-    )
-  ),
-  tag = "est"
-)
-
-formula <- y ~ 0 + intercept + f(spatial.field, model = spde, group = spatial.field.group, control.group = list(model = "iid"))
-```
-
-```{r, eval = FALSE}
-fit2 <- inla(
-  formula, 
-  data = inla.stack.data(stack),
-  control.predictor = list(
-    compute = TRUE,
-    A = inla.stack.A(stack)
-  )
-)
-```
-
-```{r summary_ex_kobs, eval = FALSE}
-index <- inla.stack.index(stack = stk_full, tag = "pred")$data
-# Posterior mean and 95% CI
-prev_mean <- fit2$summary.fitted.values[index, "mean"]
-prev_ll <- fit2$summary.fitted.values[index, "0.025quant"]
-prev_ul <- fit2$summary.fitted.values[index, "0.975quant"]
-```
-
 ## Main model
 
 ```{r model prep}
@@ -929,7 +813,7 @@ stack <- inla.stack(
 )
 
 ## specify model formula, 'f()' incorporates spatial effect and replicate 
-formula <- y ~ gender + 
+formula <- y ~ sgender + 
   age_cented7  + distance_to_river_scaled +
   modal_land_type +
   num_toilets_in_home + num_domestic_water_containers_in_home +
