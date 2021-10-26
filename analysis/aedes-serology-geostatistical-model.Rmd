@@ -68,15 +68,12 @@ if (params$rerun_data) {
       yes = "yes",
       no = "no"
     )) %>% 
-    mutate(visit_year = factor(
-      case_when(
-        visit == "VISIT 1 DENGUE INDEX" ~ "0",
-        visit %in% c("VISIT 2  DENGUE INDEX", "VISIT 3 DENGUE INDEX") ~ "1",
-        visit == "VISIT 4 INDEX" ~ "2",
-        TRUE ~ "-99"
-      )),
-      levels = c("0", "1", "2")
-    ) %>% 
+    mutate(visit_year = case_when(
+      visit == "VISIT 1 DENGUE INDEX" ~ 0,
+      visit %in% c("VISIT 2  DENGUE INDEX", "VISIT 3 DENGUE INDEX") ~ 1,
+      visit == "VISIT 4 INDEX" ~ 2,
+      TRUE ~ -99
+    )) %>% 
     mutate(age = as.numeric(age)) %>% 
     mutate(age_cented3 = age - 3) %>%
     mutate(age_cented7 = age - 7) %>%
@@ -180,7 +177,7 @@ if (params$rerun_data) {
       mutate(visit_date = as.Date("2020-07-01")) %>% 
       mutate(visit_date_abr = NA) %>% 
       mutate(wet_season = "yes") %>% 
-      mutate(visit_year = "2") %>% 
+      mutate(visit_year = 2) %>% 
       select(-c(saliva_elisa_value, log_saliva_elisa)) %>% 
       full_join(aedes_visit5) %>% 
       select(colnames(aedes_survey_cleaned)) %>% 
@@ -707,12 +704,12 @@ if (params$rerun_data) {
     left_join(y = larval_lat_lo) 
   
   ##############################################################################
-  # Need to use meters to do radius (what are X and Y?)
+  # Check how much this would subset the data
   ##############################################################################
   
   # larval_nn <- nn2(
   #   select(.data = larval_hs, larval_lon, larval_lat),
-  #   query = select(.data = aedes_red, lon, lat), 
+  #   query = select(.data = aedes_red, x, y), 
   #   k = 1,
   #   radius = 300
   # )
@@ -727,7 +724,8 @@ if (params$rerun_data) {
       visit == "visit3" ~ 3,
       visit == "visit4" ~ 4,
       visit == "visit5" ~ 5
-    )))
+    ))) %>% 
+    mutate(visit_year_cat = factor(as.character(visit_year), levels = c("0", "1", "2")))
   
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
@@ -766,7 +764,7 @@ coords_st <- aedes_red %>%
     num_toilets_in_home, num_domestic_water_containers_in_home,
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
-    wet_season, visit_year,
+    wet_season, visit_year_cat,
     visit5
     )
 
@@ -823,7 +821,7 @@ formula <- y ~ #0 + Intercept
   num_toilets_in_home + num_domestic_water_containers_in_home +
   insecticide_spray + larvicide_applied_to_water  +
   NFI250_home  +
-  wet_season + visit_year +
+  wet_season + visit_year_cat +
   visit5 +
   f(
     spatial.field, 
@@ -843,8 +841,8 @@ coeff_priors <- list(
 ```
 
 ```{r}
-if(refit_fit) {
-  fit_no_beta0 <- inla(
+if(params$refit_fit) {
+  main_fit <- inla(
     formula, 
     data = inla.stack.data(stack),
     control.predictor = list(
@@ -853,9 +851,16 @@ if(refit_fit) {
     control.fixed = coeff_priors
   )
   
-  saveRDS(fit_no_beta0, here("output", "main-fit.rds"))
+  # Warning in inla(formula, data = inla.stack.data(stack), control.predictor = list(A = inla.stack.A(stack)),  :
+  # The A-matrix in the predictor (see ?control.predictor) is specified
+  # but an intercept is in the formula. This will likely result
+  # in the intercept being applied multiple times in the model, and is likely
+  # not what you want. See ?inla.stack for more information.
+  # You can remove the intercept adding ``-1'' to the formula.
+  
+  saveRDS(main_fit, here("output", "main-fit.rds"))
 } else {
-  fit <- readRDS(here("output", "main-fit.rds"))
+  main_fit <- readRDS(here("output", "main-fit.rds"))
 }
 ```
 
