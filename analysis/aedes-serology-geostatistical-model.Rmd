@@ -688,7 +688,9 @@ if (params$rerun_data) {
       subj_id = SUBJID,
       larval_visit_date = VISITDAT,
       water_containers_og = WATERCON,
-      water_larvae = WATERLARVAE
+      water_larvae = WATERLARVAE,
+      year = Year,
+      month = Month
     ) %>% 
     mutate(subj_id = as.character(subj_id)) %>% 
     mutate(water_containers = ifelse(
@@ -865,7 +867,35 @@ if(params$refit_fit) {
 ```
 
 ```{r}
-summary(fit)
+summary(main_fit)
 ```
 
 
+```{r forest_plot_with_intercept}
+main_fit$summary.fixed %>% 
+  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
+  cbind(names = rownames(main_fit$summary.fixed)) %>% 
+  ggplot(aes(x = median, y = names)) +
+    geom_point() +
+    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(panel.border = element_blank()) +
+    xlab("") +
+    ylab("")
+```
+
+```{r forest_plot_without_intercept}
+main_fit$summary.fixed %>% 
+  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
+  cbind(names = rownames(main_fit$summary.fixed)) %>% 
+  filter(names != "(Intercept)") %>% 
+  ggplot(aes(x = median, y = names)) +
+    geom_point() +
+    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(panel.border = element_blank()) +
+    xlab("") +
+    ylab("")
+```
