@@ -1101,25 +1101,10 @@ if(params$refit_v5_fit) {
 ```
 
 
-## Visit 1 prediction surface  
-```{r fit_ind_visit_surfaces}
-data <- aedes_red
-visit_name <- "visit1"
-mesh_to_grid_dims <- c(101, 101)
-
-
-```
-
-
-```{r}
-
-```
-
-
-```{r plot_visit_predictions}
+```{r plot_visit1_predictions}
 ggplot() +
-  geom_raster(data = preds_df, aes(x = lon, y = lat, fill = pred)) +
-  facet_wrap(~ type, nrow = 3) +
+  geom_raster(data = v1_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
   coord_equal() +
   scale_fill_viridis() +
   theme_classic() +
@@ -1131,6 +1116,82 @@ ggplot() +
     axis.text.y=element_blank(),
     axis.ticks.y=element_blank(),
     axis.line=element_blank()
-  )
+  ) +
+  ggtitle("Visit 1")
 ```
 
+```{r plot_visit2_predictions}
+ggplot() +
+  geom_raster(data = v2_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 2")
+```
+
+```{r plot_visit3_predictions}
+ggplot() +
+  geom_raster(data = v3_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 3")
+```
+
+```{r plot_visit4_predictions}
+ggplot() +
+  geom_raster(data = v4_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 4")
+```
+
+```{r plot_visit5_predictions}
+ggplot() +
+  geom_raster(data = v5_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 5")
+```
