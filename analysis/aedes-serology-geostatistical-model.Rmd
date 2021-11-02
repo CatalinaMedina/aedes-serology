@@ -896,151 +896,6 @@ main_fit$summary.fixed %>%
 
 ## Individual visit surfaces  
 ```{r prep_and_fit_visit_surf_model_func}
-prep_and_fit_visit_surf_model <- function(visit_name, data = aedes_red){
-  ## extract relevant data (not sure if sorting is necessary)
-  coords_st <- data %>% 
-    arrange(study_id) %>% 
-    filter(visit == visit_name) %>% 
-    select(
-      lon = x, lat = y, 
-      log_saliva_elisa,
-      )
-  
-  ## specify df of covariate values including intercept
-  covar_df <- data.frame(
-    Intercept = rep(1, nrow(coords_st)),
-    select(coords_st, -c(lon, lat, log_saliva_elisa))
-  )
-    
-  ## extract coordinates as matrix, ignoring repeats
-  coords <- select(coords_st, lon, lat) %>% 
-    distinct() %>% 
-    as.matrix()
-  
-  ## create mesh, good documentation available to understand all options
-  mesh <- inla.mesh.2d(
-    loc = coords,
-    max.edge = c(300, 600)
-  )
-  
-  # specify spde
-  spde <- inla.spde2.matern(mesh)
-  
-  # Need to specify index with spde and group (if there are replicates)
-  s.index <- inla.spde.make.index(
-    "spatial.field", 
-    n.spde = spde$n.spde,
-    n.group = 1
-  )
-  
-  ## A specifies something about edge length based on the mesh
-  A <- inla.spde.make.A(
-    mesh = mesh, 
-    loc = as.matrix(select(coords_st, lon, lat))
-  )
-  
-  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-  stack <- inla.stack(
-    data = list(y = coords_st$log_saliva_elisa),
-    A = list(A, 1),
-    effects = list(
-      s.index,
-      list(covar_df = covar_df)
-    ),
-    tag = "est"
-  )
-  
-  ## specify model formula, 'f()' incorporates spatial effect and replicate 
-  formula <- y ~ 0 + Intercept +
-    f(
-      spatial.field, 
-      model = spde
-    )
-    
-  
-  ## fixed effect priors
-  coeff_priors <- list(
-      mean.intercept = 0,
-      prec.intercept = 1/(2.5^2),
-      mean = list(visit5 = 0.1, default = 0),
-      prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
-  )
-  
-  
-  ## Fit model
-  visit_fit <- inla(
-    formula, 
-    data = inla.stack.data(stack),
-    control.predictor = list(
-      A = inla.stack.A(stack)
-    ),
-    control.fixed = coeff_priors
-  )
-} 
-```
-
-
-```{r ind-visit1-surf-fit}
-if(params$refit_v1_fit) {
-  v1_fit <- prep_and_fit_visit_surf_model(visit_name = "visit1")
-  
-  saveRDS(v1_fit, here("output", "v1-fit.rds"))
-} else {
-  v1_fit <- readRDS(here("output", "v1-fit.rds"))
-}
-```
-
-
-```{r ind-visit2-surf-fit}
-if(params$refit_v2_fit) {
-  v2_fit <- prep_and_fit_visit_surf_model(visit_name = "visit2")
-  
-  saveRDS(v2_fit, here("output", "v2-fit.rds"))
-} else {
-  v2_fit <- readRDS(here("output", "v2-fit.rds"))
-}
-```
-
-
-```{r ind-visit3-surf-fit}
-if(params$refit_v3_fit) {
-  v3_fit <- prep_and_fit_visit_surf_model(visit_name = "visit3")
-  
-  saveRDS(v3_fit, here("output", "v3-fit.rds"))
-} else {
-  v3_fit <- readRDS(here("output", "v3-fit.rds"))
-}
-```
-
-
-```{r ind-visit4-surf-fit}
-if(params$refit_v4_fit) {
-  v4_fit <- prep_and_fit_visit_surf_model(visit_name = "visit4")
-  
-  saveRDS(v4_fit, here("output", "v4-fit.rds"))
-} else {
-  v4_fit <- readRDS(here("output", "v4-fit.rds"))
-}
-```
-
-
-```{r ind-visit5-surf-fit}
-if(params$refit_v5_fit) {
-  v5_fit <- prep_and_fit_visit_surf_model(visit_name = "visit5")
-  
-  saveRDS(v5_fit, here("output", "v5-fit.rds"))
-} else {
-  v5_fit <- readRDS(here("output", "v5-fit.rds"))
-}
-```
-
-
-## Visit 1 prediction surface  
-```{r fit_ind_visit_surfaces}
-data <- aedes_red
-visit_name <- "visit1"
-mesh_to_grid_dims <- c(101, 101)
-
 prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_grid_dims){
   grid_dims_prod <- mesh_to_grid_dims[1] * mesh_to_grid_dims[2]
   
@@ -1173,6 +1028,86 @@ prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_
   
   list("visit_fit" = visit_fit, "preds_df" = preds_df)
 }
+```
+
+
+```{r ind-visit1-surf-fit}
+if(params$refit_v1_fit) {
+  v1_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit1", 
+    mesh_to_grid_dims = c(101, 101)
+  )
+  
+  saveRDS(v1_fit, here("output", "v1-fit.rds"))
+} else {
+  v1_fit <- readRDS(here("output", "v1-fit.rds"))
+}
+```
+
+
+```{r ind-visit2-surf-fit}
+if(params$refit_v2_fit) {
+  v2_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit2",
+    mesh_to_grid_dims = c(101, 101)
+  )
+  
+  saveRDS(v2_fit, here("output", "v2-fit.rds"))
+} else {
+  v2_fit <- readRDS(here("output", "v2-fit.rds"))
+}
+```
+
+
+```{r ind-visit3-surf-fit}
+if(params$refit_v3_fit) {
+  v3_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit3",
+    mesh_to_grid_dims = c(101, 101)
+  )
+  
+  saveRDS(v3_fit, here("output", "v3-fit.rds"))
+} else {
+  v3_fit <- readRDS(here("output", "v3-fit.rds"))
+}
+```
+
+
+```{r ind-visit4-surf-fit}
+if(params$refit_v4_fit) {
+  v4_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit4",
+    mesh_to_grid_dims = c(101, 101)
+  )
+  
+  saveRDS(v4_fit, here("output", "v4-fit.rds"))
+} else {
+  v4_fit <- readRDS(here("output", "v4-fit.rds"))
+}
+```
+
+
+```{r ind-visit5-surf-fit}
+if(params$refit_v5_fit) {
+  v5_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit5",
+    mesh_to_grid_dims = c(101, 101)
+  )
+  
+  saveRDS(v5_fit, here("output", "v5-fit.rds"))
+} else {
+  v5_fit <- readRDS(here("output", "v5-fit.rds"))
+}
+```
+
+
+## Visit 1 prediction surface  
+```{r fit_ind_visit_surfaces}
+data <- aedes_red
+visit_name <- "visit1"
+mesh_to_grid_dims <- c(101, 101)
+
+
 ```
 
 
