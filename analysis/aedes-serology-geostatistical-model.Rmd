@@ -759,7 +759,7 @@ aedes_larval_red_og <- aedes_red %>%
     larval_nn <- nn2(
       data = larval_hs_red %>% select(larval_X, larval_Y),
       query = aedes_larval_red %>% select(x, y),
-      searchtype = "radius"
+      searchtype = "radius",
       k = 1,
       radius = 300
     )
@@ -783,7 +783,7 @@ aedes_red_w_larval <- rbind(
 ```
 
 
-```{r}
+```{r plot_showing_larval_subsetting, eval = FALSE}
 ggplot(aedes_red_w_larval, aes(x = x, y = y, color = water_larval_ind)) +
   geom_point(alpha = 0.25) +
   scale_color_viridis(direction = -1) +
@@ -794,11 +794,27 @@ ggplot(aedes_red_w_larval, aes(x = x, y = y, color = water_larval_ind)) +
   facet_wrap(~ visit) +
   ggtitle("Aedes nn matched")
 
-ggplot(larval_hs, aes(x = larval_X, y = larval_Y, color = container_index)) +
+aedes_red_w_larval %>% 
+  filter(!is.na(water_larval_ind)) %>% 
+ggplot(aes(x = x, y = y, color = water_larval_ind)) +
   geom_point(alpha = 0.25) +
   scale_color_viridis(direction = -1) +
   xlim(range(aedes_red_w_larval$x)) +
   ylim(range(aedes_red_w_larval$y)) +
+  coord_equal() +
+  theme_bw() +
+  facet_wrap(~ visit) +
+  ggtitle("Aedes nn matched reduced")
+
+larval_hs %>% 
+  mutate(water_larval_ind = container_index) %>% 
+ggplot(aes(x = larval_X, y = larval_Y, color = water_larval_ind)) +
+  geom_point(alpha = 0.25) +
+  scale_color_viridis(direction = -1) +
+  xlim(range(aedes_red_w_larval$x)) +
+  ylim(range(aedes_red_w_larval$y)) +
+  xlab("x") +
+  ylab("y") +
   coord_equal() +
   theme_bw() +
   facet_wrap(~ visit) +
