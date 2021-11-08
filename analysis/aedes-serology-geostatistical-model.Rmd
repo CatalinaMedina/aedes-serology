@@ -1,6 +1,11 @@
 ---
-title: "Aedes serology geostatistical model"
+title: "INLA spde modeling of individual level Aedes mosquito exposure among Cambodian children"
 output: pdf_document
+header-includes:
+- \usepackage{pdflscape}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
+classoption: landscape
 params:
   rerun_data: FALSE
   near_river_cut_off: 300
@@ -15,11 +20,11 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, eval = FALSE)
 ```
 
 
-```{r libraries}
+```{r libraries, eval = TRUE}
 library(here)
 library(readxl)
 library(janitor)
@@ -702,154 +707,14 @@ aedes_red_ind <- aedes_red %>%
 ```
 
 
-$$\text{Log saliva}_i = z_i\beta + S(x_i) + u_i$$
-
-Random effects represent residual variation which is not explained by the available covariates  
-
-$x_i$: location
-
-$u_i$: structured spatial effect to account for the spatial dependence between relative risks (areas that are close show more similar risk than areas that are not close)  
-
-## Main model
-
-```{r model prep}
-## extract relevant data (not sure if sorting is necessary)
-coords_st <- aedes_red %>% 
-  arrange(study_id, time) %>% 
-  select(
-    time, 
-    lon = x, lat = y, 
-    log_saliva_elisa,
-    gender,
-    age_cented7, distance_to_river_scaled,
-    modal_land_type,
-    num_toilets_in_home, num_domestic_water_containers_in_home,
-    insecticide_spray, larvicide_applied_to_water,
-    NFI250_home,
-    wet_season,
-    visit5
-    )
-
-## specify df of covariate values including intercept
-covar_df <- data.frame(
-  # Intercept = rep(1, nrow(coords_st)),
-  select(coords_st, -c(time, lon, lat, log_saliva_elisa))
-)
-  
-## extract coordinates as matrix, ignoring repeats
-coords <- select(coords_st, lon, lat) %>% 
-  distinct() %>% 
-  as.matrix()
-
-## create mesh, good documentation available to understand all options
-mesh <- inla.mesh.2d(
-  loc = coords,
-  max.edge = c(300, 600)
-)
-
-# specify spde
-spde <- inla.spde2.matern(mesh)
-
-# Need to specify index with spde and group (if there are replicates)
-s.index <- inla.spde.make.index(
-  "spatial.field", 
-  n.spde = spde$n.spde,
-  n.group = 5
-)
-
-## A specifies something about edge length based on the mesh
-A <- inla.spde.make.A(
-  mesh = mesh, 
-  loc = as.matrix(select(coords_st, lon, lat)), 
-  group = coords_st$time
-)
-
-## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-stack <- inla.stack(
-  data = list(y = coords_st$log_saliva_elisa),
-  A = list(A, 1),
-  effects = list(
-    s.index,
-    list(covar_df = covar_df)
-  ),
-  tag = "est"
-)
-
-## specify model formula, 'f()' incorporates spatial effect and replicate 
-formula <- y ~ #0 + Intercept
-  gender + 
-  age_cented7  + distance_to_river_scaled +
-  modal_land_type +
-  num_toilets_in_home + num_domestic_water_containers_in_home +
-  insecticide_spray + larvicide_applied_to_water  +
-  NFI250_home  +
-  wet_season +
-  visit5 +
-  f(
-    spatial.field, 
-    model = spde, 
-    group = spatial.field.group, 
-    control.group = list(model = "iid")
-  )
-  
-
-## fixed effect priors
-coeff_priors <- list(
-    mean.intercept = 0,
-    prec.intercept = 1/(2.5^2),
-    mean = list(visit5 = 0.1, default = 0),
-    prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
-)
-```
-
-```{r}
-if(params$refit_fit) {
-  main_fit <- inla(
-    formula, 
-    data = inla.stack.data(stack),
-    control.predictor = list(
-      A = inla.stack.A(stack)
-    ),
-    control.fixed = coeff_priors
-  )
-  
-  # Warning in inla(formula, data = inla.stack.data(stack), control.predictor = list(A = inla.stack.A(stack)),  :
-  # The A-matrix in the predictor (see ?control.predictor) is specified
-  # but an intercept is in the formula. This will likely result
-  # in the intercept being applied multiple times in the model, and is likely
-  # not what you want. See ?inla.stack for more information.
-  # You can remove the intercept adding ``-1'' to the formula.
-  
-  saveRDS(main_fit, here("output", "main-fit.rds"))
-} else {
-  main_fit <- readRDS(here("output", "main-fit.rds"))
-}
-```
-
-```{r}
-summary(main_fit)
-```
-
-
-```{r forest_plot_with_intercept}
-main_fit$summary.fixed %>% 
-  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
-  cbind(names = rownames(main_fit$summary.fixed)) %>% 
-  filter(names != "(Intercept)") %>% 
-  ggplot(aes(x = median, y = names)) +
-    geom_point() +
-    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
-    geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw() +
-    theme(panel.border = element_blank()) +
-    xlab("") +
-    ylab("")
-```
-
+\newpage  
+We are fitting the regression using INLA instead of MCMC where errors are correlated by space using spde approach. Repeated measurements overtime on an individual are considered iid.
 
 
 
 ## Individual visit surfaces  
+\newpage  
+Prediction surfaces of mean Aedes mosquito exposure by visit
 ```{r prep_and_fit_visit_surf_model_func}
 prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_grid_dims){
   grid_dims_prod <- mesh_to_grid_dims[1] * mesh_to_grid_dims[2]
@@ -1057,9 +922,29 @@ if(params$refit_v5_fit) {
 
 
 ```{r plot_visit1_predictions}
+ind_vist_surf_df <- rbind(
+  cbind(v1_fit$preds_df, "visit" = rep("Visit 1", nrow(v1_fit$preds_df))), 
+  cbind(v2_fit$preds_df, "visit" = rep("Visit 2", nrow(v2_fit$preds_df))), 
+  cbind(v3_fit$preds_df, "visit" = rep("Visit 3", nrow(v3_fit$preds_df))), 
+  cbind(v4_fit$preds_df, "visit" = rep("Visit 4", nrow(v4_fit$preds_df))), 
+  cbind(v5_fit$preds_df, "visit" = rep("Visit 5", nrow(v5_fit$preds_df)))
+) %>% 
+  mutate(Prediction = pred) %>% 
+  mutate(type = factor(
+    case_when(
+      type == "ci_lb0.025" ~ "CI 95% LB", 
+      type == "mean" ~ "Mean",
+      type == "ci_ub0.975" ~ "CI 95% UB"
+    ),
+    levels = c("CI 95% LB", "Mean", "CI 95% UB")
+  ))
+
+
+pdf(here("output", "visit-prediction-surfaces.pdf"))
+
 ggplot() +
-  geom_raster(data = v1_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
-  facet_wrap(~ type, nrow = 1) +
+  geom_raster(data = ind_vist_surf_df, aes(x = lon, y = lat, fill = Prediction)) +
+  facet_grid(type ~ visit) +
   coord_equal() +
   scale_fill_viridis() +
   theme_classic() +
@@ -1070,86 +955,182 @@ ggplot() +
     axis.title.y=element_blank(),
     axis.text.y=element_blank(),
     axis.ticks.y=element_blank(),
-    axis.line=element_blank()
-  ) +
-  ggtitle("Visit 1")
+    axis.line=element_blank(),
+    legend.position = "bottom"
+  ) 
+
+dev.off()
 ```
 
-```{r plot_visit2_predictions}
-ggplot() +
-  geom_raster(data = v2_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
-  facet_wrap(~ type, nrow = 1) +
-  coord_equal() +
-  scale_fill_viridis() +
-  theme_classic() +
-  theme(
-    axis.title.x=element_blank(),
-    axis.text.x=element_blank(),
-    axis.ticks.x=element_blank(),
-    axis.title.y=element_blank(),
-    axis.text.y=element_blank(),
-    axis.ticks.y=element_blank(),
-    axis.line=element_blank()
-  ) +
-  ggtitle("Visit 2")
+
+```{r display-visit-prediction-surfaces.pdf-plot, eval = TRUE, fig.align='center', out.width='100%'}
+knitr::include_graphics(here("output", "visit-prediction-surfaces.pdf"))
 ```
 
-```{r plot_visit3_predictions}
-ggplot() +
-  geom_raster(data = v3_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
-  facet_wrap(~ type, nrow = 1) +
-  coord_equal() +
-  scale_fill_viridis() +
-  theme_classic() +
-  theme(
-    axis.title.x=element_blank(),
-    axis.text.x=element_blank(),
-    axis.ticks.x=element_blank(),
-    axis.title.y=element_blank(),
-    axis.text.y=element_blank(),
-    axis.ticks.y=element_blank(),
-    axis.line=element_blank()
-  ) +
-  ggtitle("Visit 3")
+
+\newpage 
+
+## Main model
+\newpage
+Full model equation:
+
+\begin{equation*}
+  \begin{split}
+    \log(\text{Saliva antibody response})_{ij} &= \beta_0 + \boldsymbol{\beta} *(\\
+    &\text{gender}_i + \text{age}_i  + \text{distance to river}_i + \text{modal land type}_i\\
+    &+\text{toilets}_i + \text{water containers}_i + \text{insecticide}_i + \text{larvicide}_i\\
+    &+ \text{NFI}_{ij} + \text{wet season}_{ij} + \text{visit 5}_{ij})
+  \end{split}
+\end{equation*}
+
+`gender` Indicator for 
+`age` Baseline age centered at 7 years old  
+`distance to river` Distance in meters from house to nearest part of the stream; centered and scaled  
+`modal land type` This is the modal land type across *?* pixels around house; has 3 levels: "urban", "rice paddy", "cropland".  
+`toilets` Number of toilets in house  
+`water containers` Number of domestic water containers in house  
+`insecticide` Indicator for use of insecticide spray  
+`larvicide` Indicator for use of larvicide spray applied to water  
+`NFI` *Mean?* flooding index for a 250 meter buffer around house 32 days prior to visit date  
+`wet season` Indicator for visit date being in wet season  
+`visit 5` Indicator for visit being visit 5; to account for difference in data collection
+
+```{r model prep}
+## extract relevant data (not sure if sorting is necessary)
+coords_st <- aedes_red %>% 
+  arrange(study_id, time) %>% 
+  select(
+    time, 
+    lon = x, lat = y, 
+    log_saliva_elisa,
+    gender,
+    age_cented7, distance_to_river_scaled,
+    modal_land_type,
+    num_toilets_in_home, num_domestic_water_containers_in_home,
+    insecticide_spray, larvicide_applied_to_water,
+    NFI250_home,
+    wet_season,
+    visit5
+    )
+
+## specify df of covariate values including intercept
+covar_df <- data.frame(
+  # Intercept = rep(1, nrow(coords_st)),
+  select(coords_st, -c(time, lon, lat, log_saliva_elisa))
+)
+  
+## extract coordinates as matrix, ignoring repeats
+coords <- select(coords_st, lon, lat) %>% 
+  distinct() %>% 
+  as.matrix()
+
+## create mesh, good documentation available to understand all options
+mesh <- inla.mesh.2d(
+  loc = coords,
+  max.edge = c(300, 600)
+)
+
+# specify spde
+spde <- inla.spde2.matern(mesh)
+
+# Need to specify index with spde and group (if there are replicates)
+s.index <- inla.spde.make.index(
+  "spatial.field", 
+  n.spde = spde$n.spde,
+  n.group = 5
+)
+
+## A specifies something about edge length based on the mesh
+A <- inla.spde.make.A(
+  mesh = mesh, 
+  loc = as.matrix(select(coords_st, lon, lat)), 
+  group = coords_st$time
+)
+
+## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+stack <- inla.stack(
+  data = list(y = coords_st$log_saliva_elisa),
+  A = list(A, 1),
+  effects = list(
+    s.index,
+    list(covar_df = covar_df)
+  ),
+  tag = "est"
+)
+
+## specify model formula, 'f()' incorporates spatial effect and replicate 
+formula <- y ~ #0 + Intercept
+  gender + 
+  age_cented7  + distance_to_river_scaled +
+  modal_land_type +
+  num_toilets_in_home + num_domestic_water_containers_in_home +
+  insecticide_spray + larvicide_applied_to_water  +
+  NFI250_home  +
+  wet_season +
+  visit5 +
+  f(
+    spatial.field, 
+    model = spde, 
+    group = spatial.field.group, 
+    control.group = list(model = "iid")
+  )
+  
+
+## fixed effect priors
+coeff_priors <- list(
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(visit5 = 0.1, default = 0),
+    prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
+)
 ```
 
-```{r plot_visit4_predictions}
-ggplot() +
-  geom_raster(data = v4_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
-  facet_wrap(~ type, nrow = 1) +
-  coord_equal() +
-  scale_fill_viridis() +
-  theme_classic() +
-  theme(
-    axis.title.x=element_blank(),
-    axis.text.x=element_blank(),
-    axis.ticks.x=element_blank(),
-    axis.title.y=element_blank(),
-    axis.text.y=element_blank(),
-    axis.ticks.y=element_blank(),
-    axis.line=element_blank()
-  ) +
-  ggtitle("Visit 4")
+```{r}
+if(params$refit_fit) {
+  main_fit <- inla(
+    formula, 
+    data = inla.stack.data(stack),
+    control.predictor = list(
+      A = inla.stack.A(stack)
+    ),
+    control.fixed = coeff_priors
+  )
+  
+  # Warning in inla(formula, data = inla.stack.data(stack), control.predictor = list(A = inla.stack.A(stack)),  :
+  # The A-matrix in the predictor (see ?control.predictor) is specified
+  # but an intercept is in the formula. This will likely result
+  # in the intercept being applied multiple times in the model, and is likely
+  # not what you want. See ?inla.stack for more information.
+  # You can remove the intercept adding ``-1'' to the formula.
+  
+  saveRDS(main_fit, here("output", "main-fit.rds"))
+} else {
+  main_fit <- readRDS(here("output", "main-fit.rds"))
+}
 ```
 
-```{r plot_visit5_predictions}
-ggplot() +
-  geom_raster(data = v5_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
-  facet_wrap(~ type, nrow = 1) +
-  coord_equal() +
-  scale_fill_viridis() +
-  theme_classic() +
-  theme(
-    axis.title.x=element_blank(),
-    axis.text.x=element_blank(),
-    axis.ticks.x=element_blank(),
-    axis.title.y=element_blank(),
-    axis.text.y=element_blank(),
-    axis.ticks.y=element_blank(),
-    axis.line=element_blank()
-  ) +
-  ggtitle("Visit 5")
+```{r}
+summary(main_fit)
 ```
+
+
+```{r main-model-forest_plot_with_intercept}
+main_fit$summary.fixed %>% 
+  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
+  cbind(names = rownames(main_fit$summary.fixed)) %>% 
+  filter(names != "(Intercept)") %>% 
+  ggplot(aes(x = median, y = names)) +
+    geom_point() +
+    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(panel.border = element_blank()) +
+    xlab("") +
+    ylab("")
+```
+
+
+
 
 ## Larval model  
 ```{r larval-data-match}
@@ -1407,4 +1388,6 @@ larval_fit$summary.fixed %>%
     xlab("") +
     ylab("")
 ```
+
+
 
