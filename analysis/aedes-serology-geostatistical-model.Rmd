@@ -673,56 +673,7 @@ if (params$rerun_data) {
     mutate(NVI250_sch16 = ifelse(is.na(NVI250_sch16), yes = 0, no = NVI250_sch16)) %>% 
     mutate(NFI250_sch16 = ifelse(is.na(NFI250_sch16), yes = 0, no = NFI250_sch16))                 
   
-  
-  #### Incorporate larval data
-  larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv"), show_col_types = FALSE) %>% 
-    select(
-      X = "X...1",
-      Y = "Y...2",
-      larval_lon = "X...3",
-      larval_lat = "Y...4",
-      house_num = "name",
-      subj_id = "SUBJID"
-    ) %>% 
-    mutate(subj_id = as.character(as.numeric(subj_id))) %>% 
-    filter(!duplicated(subj_id)) #subjects 389 and 716 had repeat measurements; 1st kept
-    
-  
-  larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx")) %>% 
-    select(
-      subj_id = SUBJID,
-      larval_visit_date = VISITDAT,
-      water_containers_og = WATERCON,
-      water_larvae = WATERLARVAE,
-      year = Year,
-      month = Month
-    ) %>% 
-    mutate(subj_id = as.character(subj_id)) %>% 
-    mutate(water_containers = ifelse(
-      water_containers_og == "*", 
-      99999,
-      as.numeric(water_containers_og))) %>% 
-    filter(water_containers != 9999) %>% 
-    mutate(container_index = ifelse(
-      water_containers != 0,
-      as.numeric(water_larvae) / as.numeric(water_containers),
-      0
-    )) %>% 
-    left_join(y = larval_lat_lo) 
-  
-  ##############################################################################
-  # Check how much this would subset the data
-  ##############################################################################
-  
-  # larval_nn <- nn2(
-  #   select(.data = larval_hs, larval_lon, larval_lat),
-  #   query = select(.data = aedes_red, x, y), 
-  #   k = 1,
-  #   radius = 300
-  # )
-  
   aedes_red <- aedes_red %>% 
-    # mutate(larvae_cont_ind = larval_hs$container_index[larval_nn$nn.idx]) %>% 
     mutate(lat_s = (lat - mean(lat)) / sd(lat)) %>% 
     mutate(lon_s = (lon - mean(lon)) / sd(lon)) %>% 
     mutate(time = as.numeric(case_when(
@@ -746,6 +697,66 @@ aedes_red_ind <- aedes_red %>%
   filter(visit == "visit1") %>% 
   mutate(visit = droplevels(visit))
 ```
+
+```{r larval-date-prep}
+aedes_larval_matching_data <- aedes_red %>% 
+  filter(visit != "visit5") %>% 
+  mutate(visit = droplevels(visit))
+
+  #### Incorporate larval data
+  larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv"), show_col_types = FALSE) %>% 
+    select(
+      X = "X...1",
+      Y = "Y...2",
+      larval_lon = "X...3",
+      larval_lat = "Y...4",
+      house_num = "name",
+      subj_id = "SUBJID"
+    ) %>% 
+    mutate(subj_id = as.character(as.numeric(subj_id))) %>% 
+    filter(!duplicated(subj_id)) #subjects 389 and 716 had repeat measurements; 1st kept
+    
+  
+  larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx")) %>%
+    select(
+      subj_id = SUBJID,
+      water_containers_og = WATERCON,
+      water_larvae = WATERLARVAE,
+      visit_year = Year,
+      visit_month = Month
+    ) %>% 
+    mutate(subj_id = as.character(subj_id)) %>% 
+    filter(!is.na(visit_year)) %>% 
+    mutate(visit_date = ym(paste(visit_year, visit_month))) %>% 
+    mutate(water_containers = ifelse(
+      water_containers_og == "*", 
+      99999,
+      as.numeric(water_containers_og))) %>% 
+    filter(water_containers != 9999) %>% 
+    mutate(container_index = ifelse(
+      water_containers != 0,
+      as.numeric(water_larvae) / as.numeric(water_containers),
+      0
+    )) %>% 
+    left_join(y = larval_lat_lo) 
+  
+  ##############################################################################
+  # Check how much this would subset the data
+  ##############################################################################
+  
+  larval_nn <- nn2(
+    select(.data = larval_hs, X, Y),
+    query = select(.data = aedes_larval_matching_data, x, y),
+    k = 1,
+    radius = 300
+  )
+  
+  
+  aedes_larval <- aedes_larval_matching_data %>% 
+    mutate(larvae_cont_ind = larval_hs$container_index[larval_nn$nn.idx])
+
+```
+
 
 $$\text{Log saliva}_i = z_i\beta + S(x_i) + u_i$$
 
