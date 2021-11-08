@@ -6,11 +6,12 @@ params:
   near_river_cut_off: 300
   modis_lag: 32
   refit_fit: FALSE
-  refit_v1_fit: TRUE
-  refit_v2_fit: TRUE
-  refit_v3_fit: TRUE
-  refit_v4_fit: TRUE
-  refit_v5_fit: TRUE
+  refit_v1_fit: FALSE
+  refit_v2_fit: FALSE
+  refit_v3_fit: FALSE
+  refit_v4_fit: FALSE
+  refit_v5_fit: FALSE
+  refit_larval_fit: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -834,6 +835,7 @@ summary(main_fit)
 main_fit$summary.fixed %>% 
   select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
   cbind(names = rownames(main_fit$summary.fixed)) %>% 
+  filter(names != "(Intercept)") %>% 
   ggplot(aes(x = median, y = names)) +
     geom_point() +
     geom_linerange(aes(xmin = quant025, xmax = quant975)) +
@@ -1271,6 +1273,7 @@ ggplot(aes(x = larval_X, y = larval_Y, color = water_larval_ind)) +
   ggtitle("Larval data")
 ```
 
+
 ```{r larval-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_red_w_larval %>% 
@@ -1362,7 +1365,7 @@ coeff_priors <- list(
 ```
 
 ```{r}
-if(params$refit_fit) {
+if(params$refit_larval_fit) {
   larval_fit <- inla(
     formula, 
     data = inla.stack.data(stack),
@@ -1372,6 +1375,12 @@ if(params$refit_fit) {
     control.fixed = coeff_priors
   )
 
+  # Warning in inla(formula, data = inla.stack.data(stack), control.predictor = list(A = inla.stack.A(stack)),  :
+  # The A-matrix in the predictor (see ?control.predictor) is specified
+  # but an intercept is in the formula. This will likely result
+  # in the intercept being applied multiple times in the model, and is likely
+  # not what you want. See ?inla.stack for more information.
+  # You can remove the intercept adding ``-1'' to the formula.
   
   saveRDS(larval_fit, here("output", "larval_fit.rds"))
 } else {
@@ -1388,6 +1397,7 @@ summary(larval_fit)
 larval_fit$summary.fixed %>% 
   select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
   cbind(names = rownames(larval_fit$summary.fixed)) %>% 
+  filter(names != "(Intercept)") %>% 
   ggplot(aes(x = median, y = names)) +
     geom_point() +
     geom_linerange(aes(xmin = quant025, xmax = quant975)) +
