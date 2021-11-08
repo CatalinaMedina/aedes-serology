@@ -700,136 +700,6 @@ aedes_red_ind <- aedes_red %>%
   mutate(visit = droplevels(visit))
 ```
 
-```{r larval-date-prep}
-aedes_larval_red_og <- aedes_red %>% 
-  filter(visit != "visit5") %>% 
-  mutate(visit = droplevels(visit))
-
-  #### Incorporate larval data
-  larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv"), show_col_types = FALSE) %>% 
-    select(
-      larval_X = "X...1",
-      larval_Y = "Y...2",
-      larval_lon = "X...3",
-      larval_lat = "Y...4",
-      house_num = "name",
-      subj_id = "SUBJID"
-    ) %>% 
-    mutate(subj_id = as.character(as.numeric(subj_id))) %>% 
-    filter(!duplicated(subj_id)) #subjects 389 and 716 had repeat measurements; 1st kept
-    
-  
-  larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx")) %>%
-    select(
-      subj_id = SUBJID,
-      water_containers_og = WATERCON,
-      water_larvae = WATERLARVAE,
-      visit_year = Year,
-      visit_month = Month
-    ) %>% 
-    mutate(subj_id = as.character(subj_id)) %>% 
-    filter(!is.na(visit_year)) %>% 
-    mutate(visit_date = ym(paste(visit_year, visit_month))) %>% 
-    mutate(visit = factor(case_when(
-      visit_year == 2018 & visit_month >= 5 & visit_month <= 9 ~ "visit1",
-      visit_year == 2019 & !(visit_month >= 5 & visit_month <= 9) ~ "visit2",
-      visit_year == 2019 & visit_month >= 5 & visit_month <= 9 ~ "visit3",
-      visit_year == 2020 & !(visit_month >= 5 & visit_month <= 9) ~ "visit4"
-    ))) %>% 
-    mutate(water_containers = ifelse(
-      water_containers_og == "*", 
-      99999,
-      as.numeric(water_containers_og))) %>% 
-    filter(water_containers != 9999) %>% 
-    mutate(container_index = ifelse(
-      water_containers != 0,
-      as.numeric(water_larvae) / as.numeric(water_containers),
-      0
-    )) %>% 
-    left_join(y = larval_lat_lo) 
-  
-  
-  ## Match nearest larval count to aedes data
-  match_larval_data <- function(visit_num){
-    this_visit <- paste0("visit", visit_num)
-    
-    larval_hs_red <- filter(larval_hs, visit == this_visit)
-    aedes_larval_red <- filter(aedes_larval_red_og, visit == this_visit)
-    
-    larval_nn <- nn2(
-      data = larval_hs_red %>% select(larval_X, larval_Y),
-      query = aedes_larval_red %>% select(x, y),
-      searchtype = "radius",
-      k = 1,
-      radius = 300
-    )
-    
-    
-    matched <- larval_nn$nn.idx != 0
-    
-    aedes_larval_red$water_larval_ind <- rep(NA, nrow(aedes_larval_red))
-    aedes_larval_red$water_larval_ind[matched] <- larval_hs_red$container_index[larval_nn$nn.idx[matched]]
-    
-    aedes_larval_red
-  }
-  
-  
-aedes_red_w_larval <- rbind(
-  match_larval_data(visit_num = 1),
-  match_larval_data(visit_num = 2),
-  match_larval_data(visit_num = 3),
-  match_larval_data(visit_num = 4)
-)
-```
-
-
-```{r plot_showing_larval_subsetting, eval = FALSE}
-ggplot(aedes_red_w_larval, aes(x = x, y = y, color = water_larval_ind)) +
-  geom_point(alpha = 0.25) +
-  scale_color_viridis(direction = -1) +
-  xlim(range(aedes_red_w_larval$x)) +
-  ylim(range(aedes_red_w_larval$y)) +
-  coord_equal() +
-  theme_bw() +
-  facet_wrap(~ visit) +
-  ggtitle("Aedes nn matched")
-
-aedes_red_w_larval %>% 
-  filter(!is.na(water_larval_ind)) %>% 
-ggplot(aes(x = x, y = y, color = water_larval_ind)) +
-  geom_point(alpha = 0.25) +
-  scale_color_viridis(direction = -1) +
-  xlim(range(aedes_red_w_larval$x)) +
-  ylim(range(aedes_red_w_larval$y)) +
-  coord_equal() +
-  theme_bw() +
-  facet_wrap(~ visit) +
-  ggtitle("Aedes nn matched reduced")
-
-larval_hs %>% 
-  mutate(water_larval_ind = container_index) %>% 
-ggplot(aes(x = larval_X, y = larval_Y, color = water_larval_ind)) +
-  geom_point(alpha = 0.25) +
-  scale_color_viridis(direction = -1) +
-  xlim(range(aedes_red_w_larval$x)) +
-  ylim(range(aedes_red_w_larval$y)) +
-  xlab("x") +
-  ylab("y") +
-  coord_equal() +
-  theme_bw() +
-  facet_wrap(~ visit) +
-  ggtitle("Larval data")
-```
-
-```{r}
-ggplot(larval_hs, aes(x = larval_X, y = larval_Y, color = container_index)) +
-  geom_point(alpha = 0.25) +
-  scale_color_viridis(direction = -1) +
-  coord_equal() +
-  theme_bw() +
-  facet_wrap(~ visit)
-```
-
 
 $$\text{Log saliva}_i = z_i\beta + S(x_i) + u_i$$
 
@@ -1278,3 +1148,253 @@ ggplot() +
   ) +
   ggtitle("Visit 5")
 ```
+
+## Larval model  
+```{r larval-data-match}
+aedes_larval_red_og <- aedes_red %>% 
+  filter(visit != "visit5") %>% 
+  mutate(visit = droplevels(visit))
+
+  #### Incorporate larval data
+  larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv"), show_col_types = FALSE) %>% 
+    select(
+      larval_X = "X...1",
+      larval_Y = "Y...2",
+      larval_lon = "X...3",
+      larval_lat = "Y...4",
+      house_num = "name",
+      subj_id = "SUBJID"
+    ) %>% 
+    mutate(subj_id = as.character(as.numeric(subj_id))) %>% 
+    filter(!duplicated(subj_id)) #subjects 389 and 716 had repeat measurements; 1st kept
+    
+  
+  larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx")) %>%
+    select(
+      subj_id = SUBJID,
+      water_containers_og = WATERCON,
+      water_larvae = WATERLARVAE,
+      visit_year = Year,
+      visit_month = Month
+    ) %>% 
+    mutate(subj_id = as.character(subj_id)) %>% 
+    filter(!is.na(visit_year)) %>% 
+    mutate(visit_date = ym(paste(visit_year, visit_month))) %>% 
+    mutate(visit = factor(case_when(
+      visit_year == 2018 & visit_month >= 5 & visit_month <= 9 ~ "visit1",
+      visit_year == 2019 & !(visit_month >= 5 & visit_month <= 9) ~ "visit2",
+      visit_year == 2019 & visit_month >= 5 & visit_month <= 9 ~ "visit3",
+      visit_year == 2020 & !(visit_month >= 5 & visit_month <= 9) ~ "visit4"
+    ))) %>% 
+    mutate(water_containers = ifelse(
+      water_containers_og == "*", 
+      99999,
+      as.numeric(water_containers_og))) %>% 
+    filter(water_containers != 9999) %>% 
+    mutate(container_index = ifelse(
+      water_containers != 0,
+      as.numeric(water_larvae) / as.numeric(water_containers),
+      0
+    )) %>% 
+    left_join(y = larval_lat_lo) 
+  
+  
+  ## Match nearest larval count to aedes data
+  match_larval_data <- function(visit_num){
+    this_visit <- paste0("visit", visit_num)
+    
+    larval_hs_red <- filter(larval_hs, visit == this_visit)
+    aedes_larval_red <- filter(aedes_larval_red_og, visit == this_visit)
+    
+    larval_nn <- nn2(
+      data = larval_hs_red %>% select(larval_X, larval_Y),
+      query = aedes_larval_red %>% select(x, y),
+      searchtype = "radius",
+      k = 1,
+      radius = 300
+    )
+    
+    
+    matched <- larval_nn$nn.idx != 0
+    
+    aedes_larval_red$water_larval_ind <- rep(NA, nrow(aedes_larval_red))
+    aedes_larval_red$water_larval_ind[matched] <- larval_hs_red$container_index[larval_nn$nn.idx[matched]]
+    
+    aedes_larval_red
+  }
+  
+  
+aedes_red_w_larval <- rbind(
+  match_larval_data(visit_num = 1),
+  match_larval_data(visit_num = 2),
+  match_larval_data(visit_num = 3),
+  match_larval_data(visit_num = 4)
+)
+```
+
+
+```{r plot-showing-larval-subsetting, eval = FALSE}
+ggplot(aedes_red_w_larval, aes(x = x, y = y, color = water_larval_ind)) +
+  geom_point(alpha = 0.25) +
+  scale_color_viridis(direction = -1) +
+  xlim(range(aedes_red_w_larval$x)) +
+  ylim(range(aedes_red_w_larval$y)) +
+  coord_equal() +
+  theme_bw() +
+  facet_wrap(~ visit) +
+  ggtitle("Aedes nn matched")
+
+aedes_red_w_larval %>% 
+  filter(!is.na(water_larval_ind)) %>% 
+ggplot(aes(x = x, y = y, color = water_larval_ind)) +
+  geom_point(alpha = 0.25) +
+  scale_color_viridis(direction = -1) +
+  xlim(range(aedes_red_w_larval$x)) +
+  ylim(range(aedes_red_w_larval$y)) +
+  coord_equal() +
+  theme_bw() +
+  facet_wrap(~ visit) +
+  ggtitle("Aedes nn matched reduced")
+
+larval_hs %>% 
+  mutate(water_larval_ind = container_index) %>% 
+ggplot(aes(x = larval_X, y = larval_Y, color = water_larval_ind)) +
+  geom_point(alpha = 0.25) +
+  scale_color_viridis(direction = -1) +
+  xlim(range(aedes_red_w_larval$x)) +
+  ylim(range(aedes_red_w_larval$y)) +
+  xlab("x") +
+  ylab("y") +
+  coord_equal() +
+  theme_bw() +
+  facet_wrap(~ visit) +
+  ggtitle("Larval data")
+```
+
+```{r larval-model-prep}
+## extract relevant data (not sure if sorting is necessary)
+coords_st <- aedes_red_w_larval %>% 
+  arrange(study_id, time) %>% 
+  select(
+    time, 
+    lon = x, lat = y, 
+    log_saliva_elisa,
+    gender,
+    age_cented7, distance_to_river_scaled,
+    modal_land_type,
+    num_toilets_in_home, num_domestic_water_containers_in_home,
+    insecticide_spray, larvicide_applied_to_water,
+    NFI250_home,
+    wet_season, visit_year_cat,
+    water_larval_ind
+    )
+
+## specify df of covariate values including intercept
+covar_df <- data.frame(
+  # Intercept = rep(1, nrow(coords_st)),
+  select(coords_st, -c(time, lon, lat, log_saliva_elisa))
+)
+  
+## extract coordinates as matrix, ignoring repeats
+coords <- select(coords_st, lon, lat) %>% 
+  distinct() %>% 
+  as.matrix()
+
+## create mesh, good documentation available to understand all options
+mesh <- inla.mesh.2d(
+  loc = coords,
+  max.edge = c(300, 600)
+)
+
+# specify spde
+spde <- inla.spde2.matern(mesh)
+
+# Need to specify index with spde and group (if there are replicates)
+s.index <- inla.spde.make.index(
+  "spatial.field", 
+  n.spde = spde$n.spde,
+  n.group = 4
+)
+
+## A specifies something about edge length based on the mesh
+A <- inla.spde.make.A(
+  mesh = mesh, 
+  loc = as.matrix(select(coords_st, lon, lat)), 
+  group = coords_st$time
+)
+
+## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+stack <- inla.stack(
+  data = list(y = coords_st$log_saliva_elisa),
+  A = list(A, 1),
+  effects = list(
+    s.index,
+    list(covar_df = covar_df)
+  ),
+  tag = "est"
+)
+
+## specify model formula, 'f()' incorporates spatial effect and replicate 
+formula <- y ~ #0 + Intercept
+  gender + 
+  age_cented7  + distance_to_river_scaled +
+  modal_land_type +
+  num_toilets_in_home + num_domestic_water_containers_in_home +
+  insecticide_spray + larvicide_applied_to_water  +
+  NFI250_home  +
+  wet_season + visit_year_cat +
+  water_larval_ind +
+  f(
+    spatial.field, 
+    model = spde, 
+    group = spatial.field.group, 
+    control.group = list(model = "iid")
+  )
+  
+
+## fixed effect priors
+coeff_priors <- list(
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(default = 0),
+    prec = list(default = 1/(2.5^2))
+)
+```
+
+```{r}
+if(params$refit_fit) {
+  larval_fit <- inla(
+    formula, 
+    data = inla.stack.data(stack),
+    control.predictor = list(
+      A = inla.stack.A(stack)
+    ),
+    control.fixed = coeff_priors
+  )
+
+  
+  saveRDS(larval_fit, here("output", "larval_fit.rds"))
+} else {
+  larval_fit <- readRDS(here("output", "larval_fit.rds"))
+}
+```
+
+```{r}
+summary(larval_fit)
+```
+
+
+```{r forest_plot_with_intercept}
+larval_fit$summary.fixed %>% 
+  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
+  cbind(names = rownames(larval_fit$summary.fixed)) %>% 
+  ggplot(aes(x = median, y = names)) +
+    geom_point() +
+    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(panel.border = element_blank()) +
+    xlab("") +
+    ylab("")
+```
+
