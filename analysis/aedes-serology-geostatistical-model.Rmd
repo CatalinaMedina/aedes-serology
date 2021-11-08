@@ -24,6 +24,7 @@ library(readxl)
 library(janitor)
 library(zoo)
 library(RANN)
+library(viridis)
 library(tidyverse)
 
 library(INLA)
@@ -906,7 +907,10 @@ main_fit$summary.fixed %>%
 
 ## Individual visit surfaces  
 ```{r prep_and_fit_visit_surf_model_func}
-prep_and_fit_visit_surf_model <- function(visit_name, data = aedes_red){
+prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_grid_dims){
+  grid_dims_prod <- mesh_to_grid_dims[1] * mesh_to_grid_dims[2]
+  
+  
   ## extract relevant data (not sure if sorting is necessary)
   coords_st <- data %>% 
     arrange(study_id) %>% 
@@ -914,85 +918,136 @@ prep_and_fit_visit_surf_model <- function(visit_name, data = aedes_red){
     select(
       lon = x, lat = y, 
       log_saliva_elisa,
-      )
-  
+    )
+    
   ## specify df of covariate values including intercept
   covar_df <- data.frame(
     Intercept = rep(1, nrow(coords_st)),
     select(coords_st, -c(lon, lat, log_saliva_elisa))
   )
-    
+      
   ## extract coordinates as matrix, ignoring repeats
   coords <- select(coords_st, lon, lat) %>% 
     distinct() %>% 
     as.matrix()
-  
+    
   ## create mesh, good documentation available to understand all options
   mesh <- inla.mesh.2d(
     loc = coords,
     max.edge = c(300, 600)
   )
-  
-  # specify spde
+    
+    
+  ## specify spde
   spde <- inla.spde2.matern(mesh)
-  
+    
   # Need to specify index with spde and group (if there are replicates)
   s.index <- inla.spde.make.index(
     "spatial.field", 
     n.spde = spde$n.spde,
     n.group = 1
   )
-  
+    
   ## A specifies something about edge length based on the mesh
   A <- inla.spde.make.A(
     mesh = mesh, 
     loc = as.matrix(select(coords_st, lon, lat))
   )
-  
-  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-  stack <- inla.stack(
+    
+  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index. 
+  data_stack <- inla.stack(
     data = list(y = coords_st$log_saliva_elisa),
     A = list(A, 1),
-    effects = list(
-      s.index,
-      list(covar_df = covar_df)
-    ),
+    effects = list(s.index, list(covar_df = covar_df)),
     tag = "est"
   )
-  
+    
+    
   ## specify model formula, 'f()' incorporates spatial effect and replicate 
   formula <- y ~ 0 + Intercept +
     f(
       spatial.field, 
       model = spde
     )
+      
     
-  
   ## fixed effect priors
   coeff_priors <- list(
-      mean.intercept = 0,
-      prec.intercept = 1/(2.5^2),
-      mean = list(visit5 = 0.1, default = 0),
-      prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(visit5 = 0.1, default = 0),
+    prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
   )
-  
-  
+    
+    
+  ## This is with a grid
+  proj_grid <- inla.mesh.projector(
+    mesh, 
+    # xlim = range(mesh$loc[, 1]), 
+    # ylim = range(mesh$loc[, 2]),
+    dims = mesh_to_grid_dims
+  )
+    
+  pred_stack <- inla.stack(
+    data = list(y = NA),
+    A = list(proj_grid$proj$A, 1),
+    effects = list(
+      s.index, 
+      Intercept = rep(1, grid_dims_prod)
+    ),
+    tag = "pred"
+  )
+    
+    
+  full_stack <- inla.stack(data_stack, pred_stack)
+    
+    
   ## Fit model
   visit_fit <- inla(
     formula, 
-    data = inla.stack.data(stack),
-    control.predictor = list(
-      A = inla.stack.A(stack)
-    ),
-    control.fixed = coeff_priors
+    data = inla.stack.data(full_stack),
+    control.predictor = list(A = inla.stack.A(full_stack), compute = TRUE),
+    control.fixed = coeff_priors,
+    control.results = list(
+      return.marginals.random = FALSE,
+      return.marginals.predictor = TRUE
+    )
   )
-} 
+    
+    
+  ## Extract indices of observations predictions were made for
+  pred_index <- inla.stack.index(full_stack, "pred")$data
+    
+    
+  ## Extract prediction means, sd, and 0.025 and 0.975 quantiles
+  visit_preds <- visit_fit$summary.fitted.values[pred_index, c(1:3, 5)]
+  
+  
+  preds_df <- bind_rows(
+    data.frame(proj_grid$lattice$loc, "pred" = visit_preds$`0.025quant`) %>% 
+      select(lon = X1, lat = X2, pred) %>% 
+      mutate(type = rep("ci_lb0.025", grid_dims_prod)),
+    data.frame(proj_grid$lattice$loc, "pred" = visit_preds$`0.975quant`) %>% 
+        select(lon = X1, lat = X2, pred) %>% 
+        mutate(type = rep("ci_ub0.975", grid_dims_prod)),
+    data.frame(proj_grid$lattice$loc, "pred" = visit_preds$mean) %>% 
+      select(lon = X1, lat = X2, pred) %>% 
+      mutate(type = rep("mean", grid_dims_prod))
+  ) %>% 
+    mutate(type = factor(type, levels = c("ci_lb0.025", "mean", "ci_ub0.975")))
+  
+  
+  list("visit_fit" = visit_fit, "preds_df" = preds_df)
+}
 ```
 
 
 ```{r ind-visit1-surf-fit}
 if(params$refit_v1_fit) {
-  v1_fit <- prep_and_fit_visit_surf_model(visit_name = "visit1")
+  v1_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit1", 
+    mesh_to_grid_dims = c(101, 101)
+  )
   
   saveRDS(v1_fit, here("output", "v1-fit.rds"))
 } else {
@@ -1003,7 +1058,10 @@ if(params$refit_v1_fit) {
 
 ```{r ind-visit2-surf-fit}
 if(params$refit_v2_fit) {
-  v2_fit <- prep_and_fit_visit_surf_model(visit_name = "visit2")
+  v2_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit2",
+    mesh_to_grid_dims = c(101, 101)
+  )
   
   saveRDS(v2_fit, here("output", "v2-fit.rds"))
 } else {
@@ -1014,7 +1072,10 @@ if(params$refit_v2_fit) {
 
 ```{r ind-visit3-surf-fit}
 if(params$refit_v3_fit) {
-  v3_fit <- prep_and_fit_visit_surf_model(visit_name = "visit3")
+  v3_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit3",
+    mesh_to_grid_dims = c(101, 101)
+  )
   
   saveRDS(v3_fit, here("output", "v3-fit.rds"))
 } else {
@@ -1025,7 +1086,10 @@ if(params$refit_v3_fit) {
 
 ```{r ind-visit4-surf-fit}
 if(params$refit_v4_fit) {
-  v4_fit <- prep_and_fit_visit_surf_model(visit_name = "visit4")
+  v4_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit4",
+    mesh_to_grid_dims = c(101, 101)
+  )
   
   saveRDS(v4_fit, here("output", "v4-fit.rds"))
 } else {
@@ -1036,7 +1100,10 @@ if(params$refit_v4_fit) {
 
 ```{r ind-visit5-surf-fit}
 if(params$refit_v5_fit) {
-  v5_fit <- prep_and_fit_visit_surf_model(visit_name = "visit5")
+  v5_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit5",
+    mesh_to_grid_dims = c(101, 101)
+  )
   
   saveRDS(v5_fit, here("output", "v5-fit.rds"))
 } else {
@@ -1045,129 +1112,97 @@ if(params$refit_v5_fit) {
 ```
 
 
-## Visit 1 prediction surface  
-```{r adding predictions}
-data <- aedes_red
-visit_name <- "visit1"
-
-
-## extract relevant data (not sure if sorting is necessary)
-  coords_st <- data %>% 
-    arrange(study_id) %>% 
-    filter(visit == visit_name) %>% 
-    select(
-      lon = x, lat = y, 
-      log_saliva_elisa,
-      )
-  
-  ## specify df of covariate values including intercept
-  covar_df <- data.frame(
-    Intercept = rep(1, nrow(coords_st)),
-    select(coords_st, -c(lon, lat, log_saliva_elisa))
-  )
-    
-  ## extract coordinates as matrix, ignoring repeats
-  coords <- select(coords_st, lon, lat) %>% 
-    distinct() %>% 
-    as.matrix()
-  
-  ## create mesh, good documentation available to understand all options
-  mesh <- inla.mesh.2d(
-    loc = coords,
-    max.edge = c(300, 600)
-  )
-  
-  
-  ## specify spde
-  spde <- inla.spde2.matern(mesh)
-  
-  # Need to specify index with spde and group (if there are replicates)
-  s.index <- inla.spde.make.index(
-    "spatial.field", 
-    n.spde = spde$n.spde,
-    n.group = 1
-  )
-  
-  ## A specifies something about edge length based on the mesh
-  A <- inla.spde.make.A(
-    mesh = mesh, 
-    loc = as.matrix(select(coords_st, lon, lat))
-  )
-  
-  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index. 
-  data_stack <- inla.stack(
-    data = list(y = coords_st$log_saliva_elisa),
-    A = list(A, 1),
-    effects = list(s.index, list(covar_df = covar_df)),
-    tag = "est"
-  )
-  
-  
-  ## specify model formula, 'f()' incorporates spatial effect and replicate 
-  formula <- y ~ 0 + Intercept +
-    f(
-      spatial.field, 
-      model = spde
-    )
-    
-  
-  ## fixed effect priors
-  coeff_priors <- list(
-      mean.intercept = 0,
-      prec.intercept = 1/(2.5^2),
-      mean = list(visit5 = 0.1, default = 0),
-      prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
-  )
-  
-  
-  ### For prediction: 
-  ## This is with the mesh (likely too complicated/resolution too high for prediction)
-  # pred_stack <- inla.stack(
-  #   data = list(y = NA),
-  #   A = list(A, 1),
-  #   effects = list(s.index, list(covar_df = covar_df)),
-  #   tag = "pred"
-  # )
-  
-  
-  ## This is with a grid
-  proj_grid <- inla.mesh.projector(
-    mesh, 
-    xlim = range(mesh$loc[, 1]), 
-    ylim = range(mesh$loc[, 2]),
-    dims = c(101, 101)
-  )
-  
-  pred_stack <- inla.stack(
-    data = list(y = NA),
-    A = list(proj_grid$proj$A, 1),
-    effects = list(s.index, list(covar_df = covar_df)),
-    tag = "pred"
-  )
-  
-  
-  full_stack <- inla.stack(data_stack, pred_stack)
-  
-  
-  ## Fit model
-  visit_fit <- inla(
-    formula, 
-    data = inla.stack.data(full_stack),
-    control.predictor = list(A = inla.stack.A(full_stack), compute = TRUE),
-    control.fixed = coeff_priors,
-    quantiles = TRUE,
-    control.results = list(
-      return.marginals.random = FALSE,
-      return.marginals.predictor = TRUE
-    )
-  )
-  
-  
-## Extract indices of observations predictions were made for
-pred_index <- inla.stack.index(full_stack, "pred")$data
-  
-  
-## Extract prediction means, sd, and 0.025 and 0.975 quantiles
-visit_fit$summary.fitted.values[pred_index, c(1:3, 5)]
+```{r plot_visit1_predictions}
+ggplot() +
+  geom_raster(data = v1_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 1")
 ```
 
+```{r plot_visit2_predictions}
+ggplot() +
+  geom_raster(data = v2_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 2")
+```
+
+```{r plot_visit3_predictions}
+ggplot() +
+  geom_raster(data = v3_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 3")
+```
+
+```{r plot_visit4_predictions}
+ggplot() +
+  geom_raster(data = v4_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 4")
+```
+
+```{r plot_visit5_predictions}
+ggplot() +
+  geom_raster(data = v5_fit$preds_df, aes(x = lon, y = lat, fill = pred)) +
+  facet_wrap(~ type, nrow = 1) +
+  coord_equal() +
+  scale_fill_viridis() +
+  theme_classic() +
+  theme(
+    axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.line=element_blank()
+  ) +
+  ggtitle("Visit 5")
+```
