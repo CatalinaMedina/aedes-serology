@@ -726,7 +726,7 @@ coords_st <- aedes_red %>%
     num_toilets_in_home, num_domestic_water_containers_in_home,
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
-    wet_season, visit_year_cat,
+    wet_season,
     visit5
     )
 
@@ -783,7 +783,7 @@ formula <- y ~ #0 + Intercept
   num_toilets_in_home + num_domestic_water_containers_in_home +
   insecticide_spray + larvicide_applied_to_water  +
   NFI250_home  +
-  wet_season + visit_year_cat +
+  wet_season +
   visit5 +
   f(
     spatial.field, 
@@ -1288,7 +1288,7 @@ coords_st <- aedes_red_w_larval %>%
     num_toilets_in_home, num_domestic_water_containers_in_home,
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
-    wet_season, visit_year_cat,
+    wet_season,
     water_larval_ind
     )
 
@@ -1345,7 +1345,7 @@ formula <- y ~ #0 + Intercept
   num_toilets_in_home + num_domestic_water_containers_in_home +
   insecticide_spray + larvicide_applied_to_water  +
   NFI250_home  +
-  wet_season + visit_year_cat +
+  wet_season +
   water_larval_ind +
   f(
     spatial.field, 
