@@ -11,11 +11,7 @@ params:
   near_river_cut_off: 300
   modis_lag: 32
   refit_fit: FALSE
-  refit_v1_fit: FALSE
-  refit_v2_fit: FALSE
-  refit_v3_fit: FALSE
-  refit_v4_fit: FALSE
-  refit_v5_fit: FALSE
+  refit_vistit_fit: FALSE
   refit_larval_fit: FALSE
 ---
 
@@ -851,72 +847,49 @@ prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_
 ```
 
 
-```{r ind-visit1-surf-fit}
-if(params$refit_v1_fit) {
+```{r ind-visit-surf-fit}
+if(params$refit_vistit_fit) {
+  
   v1_fit <- prep_and_fit_visit_surf_model(
     visit_name = "visit1", 
     mesh_to_grid_dims = c(101, 101)
   )
   
-  saveRDS(v1_fit, here("output", "v1-fit.rds"))
-} else {
-  v1_fit <- readRDS(here("output", "v1-fit.rds"))
-}
-```
-
-
-```{r ind-visit2-surf-fit}
-if(params$refit_v2_fit) {
   v2_fit <- prep_and_fit_visit_surf_model(
     visit_name = "visit2",
     mesh_to_grid_dims = c(101, 101)
   )
   
-  saveRDS(v2_fit, here("output", "v2-fit.rds"))
-} else {
-  v2_fit <- readRDS(here("output", "v2-fit.rds"))
-}
-```
-
-
-```{r ind-visit3-surf-fit}
-if(params$refit_v3_fit) {
-  v3_fit <- prep_and_fit_visit_surf_model(
+   v3_fit <- prep_and_fit_visit_surf_model(
     visit_name = "visit3",
     mesh_to_grid_dims = c(101, 101)
   )
-  
-  saveRDS(v3_fit, here("output", "v3-fit.rds"))
-} else {
-  v3_fit <- readRDS(here("output", "v3-fit.rds"))
-}
-```
-
-
-```{r ind-visit4-surf-fit}
-if(params$refit_v4_fit) {
+   
   v4_fit <- prep_and_fit_visit_surf_model(
     visit_name = "visit4",
     mesh_to_grid_dims = c(101, 101)
   )
   
-  saveRDS(v4_fit, here("output", "v4-fit.rds"))
-} else {
-  v4_fit <- readRDS(here("output", "v4-fit.rds"))
-}
-```
-
-
-```{r ind-visit5-surf-fit}
-if(params$refit_v5_fit) {
   v5_fit <- prep_and_fit_visit_surf_model(
     visit_name = "visit5",
     mesh_to_grid_dims = c(101, 101)
   )
   
+  
+  saveRDS(v1_fit, here("output", "v1-fit.rds"))
+  saveRDS(v2_fit, here("output", "v2-fit.rds"))
+  saveRDS(v3_fit, here("output", "v3-fit.rds"))
+  saveRDS(v4_fit, here("output", "v4-fit.rds"))
   saveRDS(v5_fit, here("output", "v5-fit.rds"))
+  
 } else {
+  
+  v1_fit <- readRDS(here("output", "v1-fit.rds"))
+  v2_fit <- readRDS(here("output", "v2-fit.rds"))
+  v3_fit <- readRDS(here("output", "v3-fit.rds"))
+  v4_fit <- readRDS(here("output", "v4-fit.rds"))
   v5_fit <- readRDS(here("output", "v5-fit.rds"))
+  
 }
 ```
 
@@ -940,7 +913,7 @@ ind_vist_surf_df <- rbind(
   ))
 
 
-pdf(here("output", "visit-prediction-surfaces.pdf"))
+pdf(here("output", "visit-prediction-surfaces.pdf"), width = 10)
 
 ggplot() +
   geom_raster(data = ind_vist_surf_df, aes(x = lon, y = lat, fill = Prediction)) +
@@ -966,6 +939,7 @@ dev.off()
 ```{r display-visit-prediction-surfaces.pdf-plot, eval = TRUE, fig.align='center', out.width='100%'}
 knitr::include_graphics(here("output", "visit-prediction-surfaces.pdf"))
 ```
+
 
 
 \newpage 
