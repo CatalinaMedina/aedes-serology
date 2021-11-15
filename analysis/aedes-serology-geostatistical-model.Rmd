@@ -34,6 +34,7 @@ library(RANN)
 library(viridis)
 library(gridExtra)
 library(knitr)
+library(terra)
 library(tidyverse)
 
 library(INLA)
@@ -725,7 +726,7 @@ prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_
     arrange(study_id) %>% 
     filter(visit == visit_name) %>% 
     select(
-      lon = x, lat = y, 
+      lon = lon, lat = lat, 
       log_saliva_elisa,
     )
     
@@ -879,14 +880,13 @@ if(params$refit_vistit_fit) {
     mesh_to_grid_dims = c(101, 101)
   )
   
-  ind_vist_surf_df <- rbind(
+  ind_visit_surf_df_og <- rbind(
   cbind(v1_fit$preds_df, "visit" = rep("Visit 1", nrow(v1_fit$preds_df))), 
   cbind(v2_fit$preds_df, "visit" = rep("Visit 2", nrow(v2_fit$preds_df))), 
   cbind(v3_fit$preds_df, "visit" = rep("Visit 3", nrow(v3_fit$preds_df))), 
   cbind(v4_fit$preds_df, "visit" = rep("Visit 4", nrow(v4_fit$preds_df))), 
   cbind(v5_fit$preds_df, "visit" = rep("Visit 5", nrow(v5_fit$preds_df)))
 ) %>% 
-  mutate(Prediction = pred) %>% 
   mutate(type = factor(
     case_when(
       type == "ci_lb0.025" ~ "CI 95% LB", 
@@ -894,13 +894,31 @@ if(params$refit_vistit_fit) {
       type == "ci_ub0.975" ~ "CI 95% UB"
     ),
     levels = c("CI 95% LB", "Mean", "CI 95% UB")
-  ))
+  )) %>% 
+  mutate(Prediction = pred) %>% 
+  select(-c("pred"))
   
-  saveRDS(ind_vist_surf_df, here("output", "ind_vist_surf_df.rds"))
+  
+  # ## Get lon lat coordinates from UTMS
+  # points_ex <- vect(
+  #   as.matrix(select(ind_visit_surf_df_og, x, y)), 
+  #   crs = "+proj=utm +zone=48 +datum=WGS84 +units=m"
+  # )
+  # 
+  # points_lat_lon <- project(points_ex, "+proj=lonlat +datum=WGS84")
+  # 
+  # ind_visit_surf_df <- data.frame(
+  #   ind_visit_surf_df_og, 
+  #   lon = geom(points_lat_lon)[, "x"],
+  #   lat = geom(points_lat_lon)[, "y"]
+  # )
+  # 
+  
+  saveRDS(ind_visit_surf_df, here("output", "ind_visit_surf_df.rds"))
   
 } else {
   
-  ind_vist_surf_df <- readRDS(here("output", "ind_vist_surf_df.rds"))
+  ind_visit_surf_df <- readRDS(here("output", "ind_visit_surf_df.rds"))
   
 }
 ```
@@ -909,19 +927,19 @@ if(params$refit_vistit_fit) {
 ```{r plot-visit-predictions}
 pdf(here("output", "visit-prediction-surfaces-w-v5.pdf"), width = 10)
 
-ggplot() +
-  geom_raster(data = ind_vist_surf_df, aes(x = lon, y = lat, fill = Prediction)) +
+ggplot(ind_visit_surf_df) +
+  geom_raster(mapping = aes(x = lon, y = lat, fill = Prediction)) +
   facet_grid(type ~ visit) +
   coord_equal() +
   scale_fill_viridis() +
   theme_classic() +
   theme(
-    axis.title.x=element_blank(),
-    axis.text.x=element_blank(),
-    axis.ticks.x=element_blank(),
-    axis.title.y=element_blank(),
-    axis.text.y=element_blank(),
-    axis.ticks.y=element_blank(),
+    # axis.title.x=element_blank(),
+    # axis.text.x=element_blank(),
+    # axis.ticks.x=element_blank(),
+    # axis.title.y=element_blank(),
+    # axis.text.y=element_blank(),
+    # axis.ticks.y=element_blank(),
     axis.line=element_blank(),
     legend.position = "bottom"
   ) 
@@ -931,19 +949,20 @@ dev.off()
 
 
 ```{r display-visit-prediction-surfaces-w-v5-plot, eval = TRUE, fig.align='center', out.width='100%', fig.cap='Prediction surfaces of mean Aedes mosquito exposure by visit.'}
+
 include_graphics(here("output", "visit-prediction-surfaces-w-v5.pdf"))
 ```
 
 
 ```{r plot_visit_predictions}
-ind_vist_surf_df2 <- ind_vist_surf_df %>% 
+ind_visit_surf_df2 <- ind_visit_surf_df %>% 
   filter(visit != "Visit 5")
 
 
 pdf(here("output", "visit-prediction-surfaces-wo-v5.pdf"), width = 10)
 
 ggplot() +
-  geom_raster(data = ind_vist_surf_df2, aes(x = lon, y = lat, fill = Prediction)) +
+  geom_raster(data = ind_visit_surf_df2, aes(x = lon, y = lat, fill = Prediction)) +
   facet_grid(type ~ visit) +
   coord_equal() +
   scale_fill_viridis() +
