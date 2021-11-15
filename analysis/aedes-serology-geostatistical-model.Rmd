@@ -34,7 +34,7 @@ library(RANN)
 library(viridis)
 library(gridExtra)
 library(knitr)
-library(terra)
+library(sf)
 library(tidyverse)
 
 library(INLA)
@@ -726,7 +726,7 @@ prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_
     arrange(study_id) %>% 
     filter(visit == visit_name) %>% 
     select(
-      lon = lon, lat = lat, 
+      lon = x, lat = y, 
       log_saliva_elisa,
     )
     
@@ -785,8 +785,8 @@ prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_
   coeff_priors <- list(
     mean.intercept = 0,
     prec.intercept = 1/(2.5^2),
-    mean = list(visit5 = 0.1, default = 0),
-    prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
+    mean = list(default = 0),
+    prec = list(default = 1/(2.5^2))
   )
     
     
@@ -860,7 +860,7 @@ if(params$refit_vistit_fit) {
     mesh_to_grid_dims = c(101, 101)
   )
   
-  v2_fit <- prep_and_fit_visit_surf_model(
+   v2_fit <- prep_and_fit_visit_surf_model(
     visit_name = "visit2",
     mesh_to_grid_dims = c(101, 101)
   )
@@ -896,23 +896,28 @@ if(params$refit_vistit_fit) {
     levels = c("CI 95% LB", "Mean", "CI 95% UB")
   )) %>% 
   mutate(Prediction = pred) %>% 
+  mutate(x_m = lon) %>%
+  mutate(y_m = lat) %>% 
   select(-c("pred"))
   
   
-  # ## Get lon lat coordinates from UTMS
-  # points_ex <- vect(
-  #   as.matrix(select(ind_visit_surf_df_og, x, y)), 
-  #   crs = "+proj=utm +zone=48 +datum=WGS84 +units=m"
+  # ## Get UTMs from coordinates
+  # lon_lat_ex <- SpatialPoints(
+  #   as.matrix(ind_visit_surf_df_og[, c("lon", "lat")]),
+  #   proj4string = CRS("+proj=longlat +zone=48 +datum=WGS84")
   # )
   # 
-  # points_lat_lon <- project(points_ex, "+proj=lonlat +datum=WGS84")
+  # utm_from_lon_lat <- coordinates(spTransform(
+  #   lon_lat_ex, 
+  #   CRS("+proj=utm +zone=48 +datum=WGS84 +units=m")
+  # ))
   # 
   # ind_visit_surf_df <- data.frame(
-  #   ind_visit_surf_df_og, 
-  #   lon = geom(points_lat_lon)[, "x"],
-  #   lat = geom(points_lat_lon)[, "y"]
+  #   ind_visit_surf_df_og,
+  #   x_m = utm_from_lon_lat[, "lon"],
+  #   y_m = utm_from_lon_lat[, "lat"]
   # )
-  # 
+
   
   saveRDS(ind_visit_surf_df, here("output", "ind_visit_surf_df.rds"))
   
@@ -928,7 +933,7 @@ if(params$refit_vistit_fit) {
 pdf(here("output", "visit-prediction-surfaces-w-v5.pdf"), width = 10)
 
 ggplot(ind_visit_surf_df) +
-  geom_raster(mapping = aes(x = lon, y = lat, fill = Prediction)) +
+  geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
   facet_grid(type ~ visit) +
   coord_equal() +
   scale_fill_viridis() +
