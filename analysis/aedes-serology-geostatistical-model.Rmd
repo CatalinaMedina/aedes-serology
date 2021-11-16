@@ -937,28 +937,46 @@ lat_org <- ind_visit_surf_df %>%
 #   
 # lat_breaks <- lat_org$y_m[c(1 * lat_n5, 3 * lat_n5, 5 * lat_n5)]
 # lat_labels <- round(lat_org$lat[c(1 * lat_n5, 3 * lat_n5, 5 * lat_n5)], 2)
+fit_y <- lm(y_m ~ lat, data = ind_visit_surf_df)
+y_coef <- as.vector(fit_y$coefficients)
+lat_labels <- c(11.45, 11.46, 11.47)
+lat_breaks <- c(
+  y_coef[1] + y_coef[2] * lat_labels[1], 
+  y_coef[1] + y_coef[2] * lat_labels[2], 
+  y_coef[1] + y_coef[2] * lat_labels[3]
+)
 
-lat_breaks <- c(1266000, 1267000, 1268000)
-lat_labels <- c(11.452, 11.461, 11.47)
+fit_x <- lm(x_m ~ lon, data = ind_visit_surf_df)
+x_coef <- as.vector(fit_x$coefficients)
+lon_labels <- c(104.51, 104.53, 104.55)
+lon_breaks <- c(
+  x_coef[1] + x_coef[2] * lon_labels[1], 
+  x_coef[1] + x_coef[2] * lon_labels[2], 
+  x_coef[1] + x_coef[2] * lon_labels[3]
+)
+
 
 
 pdf(here("output", "visit-prediction-surfaces-w-v5.pdf"), width = 10)
 
-ggplot(ind_visit_surf_df) +
+ind_visit_surf_df %>% 
+  filter(x_m >= x_coef[1] + x_coef[2] * 104.50 & x_m <= x_coef[1] + x_coef[2] * 104.56) %>% 
+  filter(y_m >= y_coef[1] + y_coef[2] * 11.44 & y_m <= y_coef[1] + y_coef[2] * 11.48) %>% 
+ggplot() +
   geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
   facet_grid(type ~ visit) +
-  xlim(c(445000, 453000)) + 
-  ylim(c(1265000, 1269000)) +
   coord_equal() +
   scale_fill_viridis() +
+  xlab("Longitude") +
+  ylab("Latitude") +
   theme_bw() +
   theme(
     axis.line=element_blank(),
     legend.position = "bottom"
   ) +
-  scale_y_continuous(breaks = lat_breaks, labels = lat_labels)
-  #north(ind_visit_surf_df)
-  
+  scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
+  scale_x_continuous(breaks = lon_breaks, labels = lon_labels)
+
 
 dev.off()
 ```
