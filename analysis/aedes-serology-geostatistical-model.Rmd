@@ -35,6 +35,7 @@ library(viridis)
 library(gridExtra)
 library(knitr)
 library(sf)
+library(ggsn)
 library(tidyverse)
 
 library(INLA)
@@ -898,26 +899,23 @@ if(params$refit_vistit_fit) {
   mutate(Prediction = pred) %>% 
   mutate(x_m = lon) %>%
   mutate(y_m = lat) %>% 
-  select(-c("pred"))
+  select(-c("pred", "lon", "lat"))
   
   
-  # ## Get UTMs from coordinates
-  # lon_lat_ex <- SpatialPoints(
-  #   as.matrix(ind_visit_surf_df_og[, c("lon", "lat")]),
-  #   proj4string = CRS("+proj=longlat +zone=48 +datum=WGS84")
-  # )
-  # 
-  # utm_from_lon_lat <- coordinates(spTransform(
-  #   lon_lat_ex, 
-  #   CRS("+proj=utm +zone=48 +datum=WGS84 +units=m")
-  # ))
-  # 
-  # ind_visit_surf_df <- data.frame(
-  #   ind_visit_surf_df_og,
-  #   x_m = utm_from_lon_lat[, "lon"],
-  #   y_m = utm_from_lon_lat[, "lat"]
-  # )
-
+  ## Get UTMs from coordinates
+  utm_ex <- SpatialPoints(
+    as.matrix(select(ind_visit_surf_df_og, x_m, y_m)),
+    proj4string = CRS("+proj=utm +zone=48")
+  )
+  
+  lat_lon <- coordinates(spTransform(utm_ex, CRS("+proj=longlat")))
+  
+  ind_visit_surf_df <- data.frame(
+    ind_visit_surf_df_og,
+    lon = lat_lon[, "x_m"],
+    lat = lat_lon[, "y_m"]
+  )
+  
   
   saveRDS(ind_visit_surf_df, here("output", "ind_visit_surf_df.rds"))
   
@@ -930,24 +928,37 @@ if(params$refit_vistit_fit) {
 
 
 ```{r plot-visit-predictions}
+lat_org <- ind_visit_surf_df %>% 
+  filter(visit == "Visit 1" & type == "Mean")
+
+# 
+# lat_n <- nrow(lat_org)
+# lat_n5 <- round(lat_n / 6, digits = 0)
+#   
+# lat_breaks <- lat_org$y_m[c(1 * lat_n5, 3 * lat_n5, 5 * lat_n5)]
+# lat_labels <- round(lat_org$lat[c(1 * lat_n5, 3 * lat_n5, 5 * lat_n5)], 2)
+
+lat_breaks <- c(1266000, 1267000, 1268000)
+lat_labels <- c(11.452, 11.461, 11.47)
+
+
 pdf(here("output", "visit-prediction-surfaces-w-v5.pdf"), width = 10)
 
 ggplot(ind_visit_surf_df) +
   geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
   facet_grid(type ~ visit) +
+  xlim(c(445000, 453000)) + 
+  ylim(c(1265000, 1269000)) +
   coord_equal() +
   scale_fill_viridis() +
-  theme_classic() +
+  theme_bw() +
   theme(
-    # axis.title.x=element_blank(),
-    # axis.text.x=element_blank(),
-    # axis.ticks.x=element_blank(),
-    # axis.title.y=element_blank(),
-    # axis.text.y=element_blank(),
-    # axis.ticks.y=element_blank(),
     axis.line=element_blank(),
     legend.position = "bottom"
-  ) 
+  ) +
+  scale_y_continuous(breaks = lat_breaks, labels = lat_labels)
+  #north(ind_visit_surf_df)
+  
 
 dev.off()
 ```
