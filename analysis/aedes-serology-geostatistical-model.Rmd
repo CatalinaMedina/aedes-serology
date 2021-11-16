@@ -928,15 +928,6 @@ if(params$refit_vistit_fit) {
 
 
 ```{r plot-visit-predictions}
-lat_org <- ind_visit_surf_df %>% 
-  filter(visit == "Visit 1" & type == "Mean")
-
-# 
-# lat_n <- nrow(lat_org)
-# lat_n5 <- round(lat_n / 6, digits = 0)
-#   
-# lat_breaks <- lat_org$y_m[c(1 * lat_n5, 3 * lat_n5, 5 * lat_n5)]
-# lat_labels <- round(lat_org$lat[c(1 * lat_n5, 3 * lat_n5, 5 * lat_n5)], 2)
 fit_y <- lm(y_m ~ lat, data = ind_visit_surf_df)
 y_coef <- as.vector(fit_y$coefficients)
 lat_labels <- c(11.45, 11.46, 11.47)
@@ -956,7 +947,6 @@ lon_breaks <- c(
 )
 
 
-
 pdf(here("output", "visit-prediction-surfaces-w-v5.pdf"), width = 10)
 
 ind_visit_surf_df %>% 
@@ -971,7 +961,12 @@ ggplot() +
   ylab("Latitude") +
   theme_bw() +
   theme(
-    axis.line=element_blank(),
+    strip.background = element_rect(fill = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "white"),
+    panel.background = element_rect(fill = NA),
+    panel.ontop = TRUE,
+    panel.border = element_blank(),
     legend.position = "bottom"
   ) +
   scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
