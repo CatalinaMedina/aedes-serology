@@ -1720,6 +1720,7 @@ ggplot(aedes_red_w_larval, aes(x = con_w_larvae, y = log_saliva_elisa)) +
 
 
 ## Adult mosquito model  
+### Added adult count predictor
 ```{r adult-data-match}
 aedes_adult_red_og <- aedes_red %>% 
   filter(visit == "visit1")
@@ -1984,6 +1985,8 @@ include_graphics(here("output", "adult-model-forest-plot.pdf"))
 ```
 
 
+### Adult count as response  
+
 ```{r adult-res-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_adult_red %>% 
@@ -2066,9 +2069,9 @@ coeff_priors <- list(
 ```
 
 
-```{r adult-model-fit}
+```{r adult-res-model-fit}
 if(params$refit_adult_fit) {
-  adult_fit <- inla(
+  adult_res_fit <- inla(
     formula, 
     data = inla.stack.data(stack),
     control.predictor = list(
@@ -2077,8 +2080,46 @@ if(params$refit_adult_fit) {
     control.fixed = coeff_priors
   )
   
-  saveRDS(adult_fit, here("output", "adult_fit.rds"))
+  saveRDS(adult_res_fit, here("output", "adult_res_fit.rds"))
 } else {
-  adult_fit <- readRDS(here("output", "adult_fit.rds"))
+  adult_res_fit <- readRDS(here("output", "adult_res_fit.rds"))
 }
+```
+
+```{r adult-res-model-summary}
+summary(adult_res_fit)
+```
+
+
+```{r adult-res-model-forest-plot}
+pdf(here("output", "adult-res-model-forest-plot.pdf"))
+
+adult_res_fit$summary.fixed %>% 
+  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
+  mutate(names = c(
+    "(Intercept)",
+    "Distance to river", 
+    "Cropland",
+    "Toilets",
+    "Water containers",
+    "Insecticide",
+    "Larvicide",
+    "NFI"
+  )) %>% 
+  filter(names != "(Intercept)") %>% 
+  ggplot(aes(x = median, y = names)) +
+    geom_point() +
+    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(panel.border = element_blank()) +
+    xlab("") +
+    ylab("")
+
+dev.off()
+```
+
+
+```{r load-adult-res-model-forest-plot, eval = TRUE, fig.cap="Adult mosquito count as response."}
+include_graphics(here("output", "adult-res-model-forest-plot.pdf"))
 ```
