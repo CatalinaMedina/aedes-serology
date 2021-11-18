@@ -1706,7 +1706,7 @@ dev.off()
 ```
 
 
-```{r load-larval-model-forest-plot, eval = TRUE, fig.cap="Full model results with percent larval containter added."}
+```{r load-larval-model-forest-plot, eval = TRUE, fig.cap="Full model results with larvae containg water containers added."}
 include_graphics(here("output", "larval-model-forest-plot.pdf"))
 ```
 
@@ -1841,6 +1841,8 @@ include_graphics(here("output", "adult-subsetting-plot2.pdf"))
 ```{r adult-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_adult_red %>% 
+  filter(!is.na(adult_count)) %>% 
+  mutate(modal_land_type = droplevels(modal_land_type)) %>% 
   arrange(study_id) %>% 
   select(
     lon = x, lat = y, 
@@ -1932,13 +1934,6 @@ if(params$refit_adult_fit) {
     ),
     control.fixed = coeff_priors
   )
-
-  # Warning in inla(formula, data = inla.stack.data(stack), control.predictor = list(A = inla.stack.A(stack)),  :
-  # The A-matrix in the predictor (see ?control.predictor) is specified
-  # but an intercept is in the formula. This will likely result
-  # in the intercept being applied multiple times in the model, and is likely
-  # not what you want. See ?inla.stack for more information.
-  # You can remove the intercept adding ``-1'' to the formula.
   
   saveRDS(adult_fit, here("output", "adult_fit.rds"))
 } else {
@@ -1962,7 +1957,6 @@ adult_fit$summary.fixed %>%
     "Male", 
     "Age", 
     "Distance to river", 
-    "Rice paddy",
     "Cropland",
     "Toilets",
     "Water containers",
@@ -1985,6 +1979,6 @@ dev.off()
 ```
 
 
-```{r load-adult-model-forest-plot, eval = TRUE, fig.cap="Full model results with percent larval containter added."}
+```{r load-adult-model-forest-plot, eval = TRUE, fig.cap="Full model results with adult mosquito count added."}
 include_graphics(here("output", "adult-model-forest-plot.pdf"))
 ```
