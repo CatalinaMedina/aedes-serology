@@ -14,6 +14,7 @@ params:
   refit_fit: FALSE
   refit_vistit_fit: FALSE
   refit_larval_fit: FALSE
+  refit_aedes_fit: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -36,6 +37,7 @@ library(gridExtra)
 library(knitr)
 library(sf)
 library(ggsn)
+library(ggmap)
 library(tidyverse)
 
 library(INLA)
@@ -975,6 +977,9 @@ ggplot() +
 
 dev.off()
 ```
+```{r}
+sat_map <- get_googlemap(center = c(lon = 104.53, lat = 11.46), maptype = "terrain")
+```
 
 
 ```{r display-visit-prediction-surfaces-w-v5-plot, eval = TRUE, fig.align='center', out.width='100%', fig.cap='Prediction surfaces of mean Aedes mosquito exposure by visit.'}
@@ -984,28 +989,31 @@ include_graphics(here("output", "visit-prediction-surfaces-w-v5.pdf"))
 
 
 ```{r plot_visit_predictions}
-ind_visit_surf_df2 <- ind_visit_surf_df %>% 
-  filter(visit != "Visit 5")
-
-
 pdf(here("output", "visit-prediction-surfaces-wo-v5.pdf"), width = 10)
 
+ind_visit_surf_df %>% 
+  filter(visit != "Visit 5") %>% 
+  filter(x_m >= x_coef[1] + x_coef[2] * 104.50 & x_m <= x_coef[1] + x_coef[2] * 104.56) %>% 
+  filter(y_m >= y_coef[1] + y_coef[2] * 11.44 & y_m <= y_coef[1] + y_coef[2] * 11.48) %>% 
 ggplot() +
-  geom_raster(data = ind_visit_surf_df2, aes(x = lon, y = lat, fill = Prediction)) +
+  geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
   facet_grid(type ~ visit) +
   coord_equal() +
   scale_fill_viridis() +
-  theme_classic() +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme_bw() +
   theme(
-    axis.title.x=element_blank(),
-    axis.text.x=element_blank(),
-    axis.ticks.x=element_blank(),
-    axis.title.y=element_blank(),
-    axis.text.y=element_blank(),
-    axis.ticks.y=element_blank(),
-    axis.line=element_blank(),
+    strip.background = element_rect(fill = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "white"),
+    panel.background = element_rect(fill = NA),
+    panel.ontop = TRUE,
+    panel.border = element_blank(),
     legend.position = "bottom"
-  ) 
+  ) +
+  scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
+  scale_x_continuous(breaks = lon_breaks, labels = lon_labels)
 
 dev.off()
 ```
@@ -1698,4 +1706,210 @@ dev.off()
 
 ```{r load-larval-model-forest-plot, eval = TRUE, fig.cap="Full model results with percent larval containter added."}
 include_graphics(here("output", "larval-model-forest-plot.pdf"))
+```
+
+
+
+## Adult mosquito model  
+```{r adult-data-match}
+aedes_adult_red_og <- aedes_red %>% 
+  filter(visit == "visit1")
+
+#### Incorporate adult Aedes mosquito data
+adult_data <- read_csv(here("data", "MosqAdultData_UTM48N.csv"), show_col_types = FALSE) %>% 
+  clean_names() %>% 
+  select(
+    adult_x = x, adult_y = y, adult_lon = e, adult_lat = n,
+    date_placed, 
+    total_aed, w1_aeg, w2_aed, w3_aed, w4_aed, w5_aed, w6_aed, w7_aed, w8_aed
+  )
+  
+
+## Match nearest adult count to aedes data
+adult_nn <- nn2(
+  data = select(adult_data, adult_x, adult_y),
+  query = select(aedes_adult_red_og, x, y),
+  searchtype = "radius",
+  k = 1,
+  radius = 300
+)
+
+matched <- adult_nn$nn.idx != 0
+
+aedes_adult_red <- aedes_adult_red_og %>% 
+  mutate(adult_count = rep(NA, nrow(aedes_adult_red_og)))
+
+aedes_adult_red$adult_count[matched] <- adult_data$total_aed[adult_nn$nn.idx[matched]]
+```
+
+
+```{r plot-showing-adult-subsetting}
+pdf(here("output", "adult-subsetting-plot1.pdf"), width = 10)
+
+aedes_adult_red %>% 
+    ggplot(aes(x = x, y = y, color = adult_count)) +
+      geom_point(alpha = 0.25) +
+      scale_color_viridis(direction = -1) +
+      xlim(range(aedes_adult_red$x)) +
+      ylim(range(aedes_adult_red$y)) +
+      xlab("") +
+      ylab("") +
+      coord_equal() +
+      theme_bw() +
+      theme(
+        axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), 
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()
+      ) +
+      ggtitle("Aedes nn matched")
+  
+dev.off()
+
+
+pdf(here("output", "adult-subsetting-plot2.pdf"), width = 10)
+
+  aedes_adult_red %>% 
+    filter(!is.na(adult_count)) %>% 
+    ggplot(aes(x = x, y = y, color = adult_count))+
+      geom_point(alpha = 0.25) +
+      scale_color_viridis(direction = -1) +
+      xlim(range(aedes_adult_red$x)) +
+      ylim(range(aedes_adult_red$y)) +
+      xlab("") +
+      ylab("") +
+      coord_equal() +
+      theme_bw() +
+      theme(
+        axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), 
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()
+      ) +
+      ggtitle("Aedes nn matched reduced")
+  
+dev.off()
+
+
+pdf(here("output", "adult-subsetting-plot3.pdf"), width = 10)
+
+  adult_data %>% 
+    mutate(adult_count = total_aed) %>% 
+    ggplot(aes(x = adult_x, y = adult_y, color = adult_count)) +
+      geom_point(alpha = 0.25) +
+      scale_color_viridis(direction = -1) +
+      xlim(range(aedes_adult_red$x)) +
+      ylim(range(aedes_adult_red$y)) +
+      xlab("") +
+      ylab("") +
+      coord_equal() +
+      theme_bw() +
+      theme(
+        axis.text.x=element_blank(), 
+        axis.ticks.x=element_blank(), 
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()
+      ) +
+      ggtitle("Adult data")
+
+dev.off()
+```
+
+
+```{r load-adult-subsetting-plot3, eval = TRUE}
+include_graphics(here("output", "adult-subsetting-plot3.pdf"))
+```
+
+```{r load-adult-subsetting-plot1, eval = TRUE}
+include_graphics(here("output", "adult-subsetting-plot1.pdf"))
+```
+
+```{r load-adult-subsetting-plot2, eval = TRUE}
+include_graphics(here("output", "adult-subsetting-plot2.pdf"))
+```
+
+
+```{r larval-model-prep}
+## extract relevant data (not sure if sorting is necessary)
+coords_st <- aedes_adult_red %>% 
+  arrange(study_id) %>% 
+  select(
+    lon = x, lat = y, 
+    log_saliva_elisa,
+    gender,
+    age_cented7, distance_to_river_scaled,
+    modal_land_type,
+    num_toilets_in_home, num_domestic_water_containers_in_home,
+    insecticide_spray, larvicide_applied_to_water,
+    NFI250_home,
+    wet_season,
+    adult_count
+    )
+
+## specify df of covariate values including intercept
+covar_df <- data.frame(
+  # Intercept = rep(1, nrow(coords_st)),
+  select(coords_st, -c( lon, lat, log_saliva_elisa))
+)
+  
+## extract coordinates as matrix, ignoring repeats
+coords <- select(coords_st, lon, lat) %>% 
+  distinct() %>% 
+  as.matrix()
+
+## create mesh, good documentation available to understand all options
+mesh <- inla.mesh.2d(
+  loc = coords,
+  max.edge = c(300, 600)
+)
+
+# specify spde
+spde <- inla.spde2.matern(mesh)
+
+# Need to specify index with spde and group (if there are replicates)
+s.index <- inla.spde.make.index(
+  "spatial.field", 
+  n.spde = spde$n.spde
+)
+
+## A specifies something about edge length based on the mesh
+A <- inla.spde.make.A(
+  mesh = mesh, 
+  loc = as.matrix(select(coords_st, lon, lat))
+)
+
+## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+stack <- inla.stack(
+  data = list(y = coords_st$log_saliva_elisa),
+  A = list(A, 1),
+  effects = list(
+    s.index,
+    list(covar_df = covar_df)
+  ),
+  tag = "est"
+)
+
+## specify model formula, 'f()' incorporates spatial effect and replicate 
+formula <- y ~ #0 + Intercept
+  gender + 
+  age_cented7  + distance_to_river_scaled +
+  modal_land_type +
+  num_toilets_in_home + num_domestic_water_containers_in_home +
+  insecticide_spray + larvicide_applied_to_water  +
+  NFI250_home  +
+  wet_season +
+  adult_count +
+  f(
+    spatial.field, 
+    model = spde
+  )
+  
+
+## fixed effect priors
+coeff_priors <- list(
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(default = 0),
+    prec = list(default = 1/(2.5^2))
+)
 ```
