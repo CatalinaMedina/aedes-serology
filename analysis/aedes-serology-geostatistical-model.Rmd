@@ -1435,7 +1435,7 @@ aedes_larval_red_og <- aedes_red %>%
       query = aedes_larval_red %>% select(x, y),
       searchtype = "radius",
       k = 1,
-      radius = 300
+      radius = 250
     )
     
     
@@ -1740,7 +1740,7 @@ adult_nn <- nn2(
   query = select(aedes_adult_red_og, x, y),
   searchtype = "radius",
   k = 1,
-  radius = 300
+  radius = 250
 )
 
 matched <- adult_nn$nn.idx != 0
@@ -1947,7 +1947,7 @@ summary(adult_fit)
 ```
 
 
-```{r adult-model-forest_plot}
+```{r adult-model-forest-plot}
 pdf(here("output", "adult-model-forest-plot.pdf"))
 
 adult_fit$summary.fixed %>% 
@@ -1981,4 +1981,104 @@ dev.off()
 
 ```{r load-adult-model-forest-plot, eval = TRUE, fig.cap="Full model results with adult mosquito count added."}
 include_graphics(here("output", "adult-model-forest-plot.pdf"))
+```
+
+
+```{r adult-res-model-prep}
+## extract relevant data (not sure if sorting is necessary)
+coords_st <- aedes_adult_red %>% 
+  filter(!is.na(adult_count)) %>% 
+  mutate(modal_land_type = droplevels(modal_land_type)) %>% 
+  arrange(study_id) %>% 
+  select(
+    lon = x, lat = y, 
+    distance_to_river_scaled,
+    modal_land_type,
+    num_toilets_in_home, num_domestic_water_containers_in_home,
+    insecticide_spray, larvicide_applied_to_water,
+    NFI250_home,
+    adult_count
+    )
+
+## specify df of covariate values including intercept
+covar_df <- data.frame(
+  # Intercept = rep(1, nrow(coords_st)),
+  select(coords_st, -c( lon, lat, adult_count))
+)
+  
+## extract coordinates as matrix, ignoring repeats
+coords <- select(coords_st, lon, lat) %>% 
+  distinct() %>% 
+  as.matrix()
+
+## create mesh, good documentation available to understand all options
+mesh <- inla.mesh.2d(
+  loc = coords,
+  max.edge = c(300, 600)
+)
+
+# specify spde
+spde <- inla.spde2.matern(mesh)
+
+# Need to specify index with spde and group (if there are replicates)
+s.index <- inla.spde.make.index(
+  "spatial.field", 
+  n.spde = spde$n.spde
+)
+
+## A specifies something about edge length based on the mesh
+A <- inla.spde.make.A(
+  mesh = mesh, 
+  loc = as.matrix(select(coords_st, lon, lat))
+)
+
+## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+stack <- inla.stack(
+  data = list(y = coords_st$adult_count),
+  A = list(A, 1),
+  effects = list(
+    s.index,
+    list(covar_df = covar_df)
+  ),
+  tag = "est"
+)
+
+## specify model formula, 'f()' incorporates spatial effect and replicate 
+formula <- y ~ #0 + Intercept
+  distance_to_river_scaled +
+  modal_land_type +
+  num_toilets_in_home + num_domestic_water_containers_in_home +
+  insecticide_spray + larvicide_applied_to_water  +
+  NFI250_home  +
+  f(
+    spatial.field, 
+    model = spde
+  )
+  
+
+## fixed effect priors
+coeff_priors <- list(
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(default = 0),
+    prec = list(default = 1/(2.5^2))
+)
+```
+
+
+```{r adult-model-fit}
+if(params$refit_adult_fit) {
+  adult_fit <- inla(
+    formula, 
+    data = inla.stack.data(stack),
+    control.predictor = list(
+      A = inla.stack.A(stack)
+    ),
+    control.fixed = coeff_priors
+  )
+  
+  saveRDS(adult_fit, here("output", "adult_fit.rds"))
+} else {
+  adult_fit <- readRDS(here("output", "adult_fit.rds"))
+}
 ```
