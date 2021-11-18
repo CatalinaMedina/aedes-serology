@@ -1829,7 +1829,7 @@ include_graphics(here("output", "adult-subsetting-plot2.pdf"))
 ```
 
 
-```{r larval-model-prep}
+```{r adult-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_adult_red %>% 
   arrange(study_id) %>% 
@@ -1842,7 +1842,6 @@ coords_st <- aedes_adult_red %>%
     num_toilets_in_home, num_domestic_water_containers_in_home,
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
-    wet_season,
     adult_count
     )
 
@@ -1897,7 +1896,6 @@ formula <- y ~ #0 + Intercept
   num_toilets_in_home + num_domestic_water_containers_in_home +
   insecticide_spray + larvicide_applied_to_water  +
   NFI250_home  +
-  wet_season +
   adult_count +
   f(
     spatial.field, 
@@ -1912,4 +1910,72 @@ coeff_priors <- list(
     mean = list(default = 0),
     prec = list(default = 1/(2.5^2))
 )
+```
+
+
+```{r adult-model-fit}
+if(params$refit_adult_fit) {
+  adult_fit <- inla(
+    formula, 
+    data = inla.stack.data(stack),
+    control.predictor = list(
+      A = inla.stack.A(stack)
+    ),
+    control.fixed = coeff_priors
+  )
+
+  # Warning in inla(formula, data = inla.stack.data(stack), control.predictor = list(A = inla.stack.A(stack)),  :
+  # The A-matrix in the predictor (see ?control.predictor) is specified
+  # but an intercept is in the formula. This will likely result
+  # in the intercept being applied multiple times in the model, and is likely
+  # not what you want. See ?inla.stack for more information.
+  # You can remove the intercept adding ``-1'' to the formula.
+  
+  saveRDS(adult_fit, here("output", "adult_fit.rds"))
+} else {
+  adult_fit <- readRDS(here("output", "adult_fit.rds"))
+}
+```
+
+
+```{r adult-model-summary}
+summary(adult_fit)
+```
+
+
+```{r adult-model-forest_plot}
+pdf(here("output", "adult-model-forest-plot.pdf"))
+
+adult_fit$summary.fixed %>% 
+  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
+  mutate(names = c(
+    "(Intercept)",
+    "Male", 
+    "Age", 
+    "Distance to river", 
+    "Rice paddy",
+    "Cropland",
+    "Toilets",
+    "Water containers",
+    "Insecticide",
+    "Larvicide",
+    "NFI",
+    "Adult count"
+  )) %>% 
+  filter(names != "(Intercept)") %>% 
+  ggplot(aes(x = median, y = names)) +
+    geom_point() +
+    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw() +
+    theme(panel.border = element_blank()) +
+    xlab("") +
+    ylab("")
+
+dev.off()
+```
+
+
+```{r load-adult-model-forest-plot, eval = TRUE, fig.cap="Full model results with percent larval containter added."}
+include_graphics(here("output", "adult-model-forest-plot.pdf"))
 ```
