@@ -1419,6 +1419,7 @@ aedes_larval_red_og <- aedes_red %>%
       as.numeric(water_larvae) / as.numeric(water_containers),
       0
     )) %>% 
+    mutate(con_w_larvae = as.numeric(water_larvae)) %>% 
     left_join(y = larval_lat_lo) 
   
   
@@ -1440,8 +1441,8 @@ aedes_larval_red_og <- aedes_red %>%
     
     matched <- larval_nn$nn.idx != 0
     
-    aedes_larval_red$water_larval_ind <- rep(NA, nrow(aedes_larval_red))
-    aedes_larval_red$water_larval_ind[matched] <- larval_hs_red$container_index[larval_nn$nn.idx[matched]]
+    aedes_larval_red$con_w_larvae <- rep(NA, nrow(aedes_larval_red))
+    aedes_larval_red$con_w_larvae[matched] <- larval_hs_red$con_w_larvae[larval_nn$nn.idx[matched]]
     
     aedes_larval_red
   }
@@ -1460,7 +1461,7 @@ aedes_red_w_larval <- rbind(
 pdf(here("output", "larval-subsetting-plot1.pdf"), width = 10)
 
 aedes_red_w_larval %>% 
-    mutate(Larvae = water_larval_ind) %>% 
+    mutate(Larvae = con_w_larvae) %>% 
     ggplot(aes(x = x, y = y, color = Larvae)) +
       geom_point(alpha = 0.25) +
       scale_color_viridis(direction = -1) +
@@ -1485,8 +1486,8 @@ dev.off()
 pdf(here("output", "larval-subsetting-plot2.pdf"), width = 10)
 
   aedes_red_w_larval %>% 
-    filter(!is.na(water_larval_ind)) %>% 
-    mutate(Larvae = water_larval_ind) %>% 
+    filter(!is.na(con_w_larvae)) %>% 
+    mutate(Larvae = con_w_larvae) %>% 
     ggplot(aes(x = x, y = y, color = Larvae))+
       geom_point(alpha = 0.25) +
       scale_color_viridis(direction = -1) +
@@ -1511,7 +1512,7 @@ dev.off()
 pdf(here("output", "larval-subsetting-plot3.pdf"), width = 10)
 
   larval_hs %>% 
-    mutate(Larvae = container_index) %>% 
+    mutate(Larvae = con_w_larvae) %>% 
     ggplot(aes(x = larval_X, y = larval_Y, color = Larvae)) +
       geom_point(alpha = 0.25) +
       scale_color_viridis(direction = -1) +
@@ -1552,6 +1553,7 @@ include_graphics(here("output", "larval-subsetting-plot2.pdf"))
 ```{r larval-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_red_w_larval %>% 
+  filter(!is.na(con_w_larvae)) %>% 
   arrange(study_id, time) %>% 
   select(
     time, 
@@ -1564,7 +1566,7 @@ coords_st <- aedes_red_w_larval %>%
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
     wet_season,
-    water_larval_ind
+    con_w_larvae
     )
 
 ## specify df of covariate values including intercept
@@ -1621,7 +1623,7 @@ formula <- y ~ #0 + Intercept
   insecticide_spray + larvicide_applied_to_water  +
   NFI250_home  +
   wet_season +
-  water_larval_ind +
+  con_w_larvae +
   f(
     spatial.field, 
     model = spde, 
@@ -1688,7 +1690,7 @@ larval_fit$summary.fixed %>%
     "Larvicide",
     "NFI",
     "Wet season",
-    "Larvae %"
+    "Larvae"
   )) %>% 
   filter(names != "(Intercept)") %>% 
   ggplot(aes(x = median, y = names)) +
@@ -1708,6 +1710,13 @@ dev.off()
 include_graphics(here("output", "larval-model-forest-plot.pdf"))
 ```
 
+
+```{r saliva-vs-larvae}
+ggplot(aedes_red_w_larval, aes(x = con_w_larvae, y = log_saliva_elisa)) +
+  geom_point() +
+  xlab("Count of water containers with larae found") +
+  theme_bw()
+```
 
 
 ## Adult mosquito model  
