@@ -926,98 +926,8 @@ if(params$refit_vistit_fit) {
 ```
 
 
-```{r plot-visit-predictions}
-fit_y <- lm(y_m ~ lat, data = ind_visit_surf_df)
-y_coef <- as.vector(fit_y$coefficients)
-lat_labels <- c(11.45, 11.46, 11.47)
-lat_breaks <- c(
-  y_coef[1] + y_coef[2] * lat_labels[1], 
-  y_coef[1] + y_coef[2] * lat_labels[2], 
-  y_coef[1] + y_coef[2] * lat_labels[3]
-)
-
-fit_x <- lm(x_m ~ lon, data = ind_visit_surf_df)
-x_coef <- as.vector(fit_x$coefficients)
-lon_labels <- c(104.51, 104.53, 104.55)
-lon_breaks <- c(
-  x_coef[1] + x_coef[2] * lon_labels[1], 
-  x_coef[1] + x_coef[2] * lon_labels[2], 
-  x_coef[1] + x_coef[2] * lon_labels[3]
-)
-
-
-pdf(here("output", "visit-prediction-surfaces-w-v5.pdf"), width = 10)
-
-ind_visit_surf_df %>% 
-  filter(x_m >= x_coef[1] + x_coef[2] * 104.50 & x_m <= x_coef[1] + x_coef[2] * 104.56) %>% 
-  filter(y_m >= y_coef[1] + y_coef[2] * 11.44 & y_m <= y_coef[1] + y_coef[2] * 11.48) %>% 
-ggplot() +
-  geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
-  facet_grid(type ~ visit) +
-  coord_equal() +
-  scale_fill_viridis() +
-  xlab("Longitude") +
-  ylab("Latitude") +
-  theme_bw() +
-  theme(
-    strip.background = element_rect(fill = NA),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_line(color = "white"),
-    panel.background = element_rect(fill = NA),
-    panel.ontop = TRUE,
-    panel.border = element_blank(),
-    legend.position = "bottom"
-  ) +
-  scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
-  scale_x_continuous(breaks = lon_breaks, labels = lon_labels)
-
-
-dev.off()
-```
-
-
-```{r}
-pdf(here("output", "visit-prediction-surfaces.pdf"), width = 10)
-
-ind_visit_surf_df %>% 
-  filter(type == "Mean") %>% 
-  filter(visit != "Visit 5") %>% 
-  filter(x_m >= x_coef[1] + x_coef[2] * 104.50 & x_m <= x_coef[1] + x_coef[2] * 104.56) %>% 
-  filter(y_m >= y_coef[1] + y_coef[2] * 11.44 & y_m <= y_coef[1] + y_coef[2] * 11.48) %>% 
-ggplot() +
-  geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
-  facet_grid( ~ visit) +
-  coord_equal() +
-  scale_fill_viridis() +
-  xlab("Longitude") +
-  ylab("Latitude") +
-  theme_bw() +
-  theme(
-    strip.background = element_rect(fill = NA),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_line(color = "white"),
-    panel.background = element_rect(fill = NA),
-    panel.ontop = TRUE,
-    panel.border = element_blank(),
-    legend.position = "bottom"
-  ) +
-  scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
-  scale_x_continuous(breaks = lon_breaks, labels = lon_labels)
-
-
-dev.off()
-```
-
-
-```{r}
+```{r google-map, eval = FALSE}
 sat_map <- get_googlemap(center = c(lon = 104.53, lat = 11.46), maptype = "terrain")
-```
-
-
-
-```{r display-visit-prediction-surfaces-w-v5-plot, eval = TRUE, fig.align='center', out.width='100%', fig.cap='Prediction surfaces of mean Aedes mosquito exposure by visit.'}
-
-include_graphics(here("output", "visit-prediction-surfaces-w-v5.pdf"))
 ```
 
 
@@ -1068,7 +978,7 @@ Full model equation:
     \log(\text{Saliva antibody response})_{ij} &= \beta_0 + \boldsymbol{\beta} *(\\
     &\text{gender}_i + \text{age}_i  + \text{distance to river}_i + \text{modal land type}_i\\
     &+\text{toilets}_i + \text{water containers}_i + \text{insecticide}_i + \text{larvicide}_i\\
-    &+ \text{NFI}_{ij} + \text{wet season}_{ij} + \text{visit 5}_{ij})
+    &+ \text{NFI}_{ij} + \text{wet season}_{ij})
   \end{split}
 \end{equation*}
 
@@ -1082,165 +992,6 @@ Full model equation:
 `larvicide` Indicator for use of larvicide spray applied to water  
 `NFI` *Mean?* flooding index for a 250 meter buffer around house 32 days prior to visit date  
 `wet season` Indicator for visit date being in wet season  
-`visit 5` Indicator for visit being visit 5; to account for difference in data collection
-
-```{r main-model-prep}
-## extract relevant data (not sure if sorting is necessary)
-coords_st <- aedes_red %>% 
-  arrange(study_id, time) %>% 
-  select(
-    time, 
-    lon = x, lat = y, 
-    log_saliva_elisa,
-    gender,
-    age_cented7, distance_to_river_scaled,
-    modal_land_type,
-    num_toilets_in_home, num_domestic_water_containers_in_home,
-    insecticide_spray, larvicide_applied_to_water,
-    NFI250_home,
-    wet_season,
-    visit5
-    )
-
-## specify df of covariate values including intercept
-covar_df <- data.frame(
-  # Intercept = rep(1, nrow(coords_st)),
-  select(coords_st, -c(time, lon, lat, log_saliva_elisa))
-)
-  
-## extract coordinates as matrix, ignoring repeats
-coords <- select(coords_st, lon, lat) %>% 
-  distinct() %>% 
-  as.matrix()
-
-## create mesh, good documentation available to understand all options
-mesh <- inla.mesh.2d(
-  loc = coords,
-  max.edge = c(300, 600)
-)
-
-# specify spde
-spde <- inla.spde2.matern(mesh)
-
-# Need to specify index with spde and group (if there are replicates)
-s.index <- inla.spde.make.index(
-  "spatial.field", 
-  n.spde = spde$n.spde,
-  n.group = 5
-)
-
-## A specifies something about edge length based on the mesh
-A <- inla.spde.make.A(
-  mesh = mesh, 
-  loc = as.matrix(select(coords_st, lon, lat)), 
-  group = coords_st$time
-)
-
-## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-stack <- inla.stack(
-  data = list(y = coords_st$log_saliva_elisa),
-  A = list(A, 1),
-  effects = list(
-    s.index,
-    list(covar_df = covar_df)
-  ),
-  tag = "est"
-)
-
-## specify model formula, 'f()' incorporates spatial effect and replicate 
-formula <- y ~ #0 + Intercept
-  gender + 
-  age_cented7  + distance_to_river_scaled +
-  modal_land_type +
-  num_toilets_in_home + num_domestic_water_containers_in_home +
-  insecticide_spray + larvicide_applied_to_water  +
-  NFI250_home  +
-  wet_season +
-  visit5 +
-  f(
-    spatial.field, 
-    model = spde, 
-    group = spatial.field.group, 
-    control.group = list(model = "iid")
-  )
-  
-
-## fixed effect priors
-coeff_priors <- list(
-    mean.intercept = 0,
-    prec.intercept = 1/(2.5^2),
-    mean = list(visit5 = 0.1, default = 0),
-    prec = list(visit5 = 1/(0.05^2), default = 1/(2.5^2))
-)
-```
-
-```{r main-model}
-if(params$refit_fit) {
-  main_fit <- inla(
-    formula, 
-    data = inla.stack.data(stack),
-    control.predictor = list(
-      A = inla.stack.A(stack)
-    ),
-    control.fixed = coeff_priors
-  )
-  
-  # Warning in inla(formula, data = inla.stack.data(stack), control.predictor = list(A = inla.stack.A(stack)),  :
-  # The A-matrix in the predictor (see ?control.predictor) is specified
-  # but an intercept is in the formula. This will likely result
-  # in the intercept being applied multiple times in the model, and is likely
-  # not what you want. See ?inla.stack for more information.
-  # You can remove the intercept adding ``-1'' to the formula.
-  
-  saveRDS(main_fit, here("output", "main-fit.rds"))
-} else {
-  main_fit <- readRDS(here("output", "main-fit.rds"))
-}
-```
-
-```{r main-summary}
-summary(main_fit)
-```
-
-
-\newpage
-```{r main-model-forest-plot-w-v5}
-pdf(here("output", "main-model-forest-plot-w-v5.pdf"))
-
-main_fit$summary.fixed %>% 
-  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
-  mutate(names = c(
-    "(Intercept)",
-    "Male", 
-    "Age", 
-    "Distance to river", 
-    "Rice paddy",
-    "Cropland",
-    "Toilets",
-    "Water containers",
-    "Insecticide",
-    "Larvicide",
-    "NFI",
-    "Wet season",
-    "Visit 5"
-  )) %>% 
-  filter(names != "(Intercept)") %>% 
-  ggplot(aes(x = median, y = names)) +
-    geom_point() +
-    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
-    geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw() +
-    theme(panel.border = element_blank()) +
-    xlab("") +
-    ylab("")
-
-dev.off()
-```
-
-```{r load-main-model-forest-plot, eval = TRUE, fig.cap="Full model results with visit 5"}
-include_graphics(here("output", "main-model-forest-plot-w-v5.pdf"))
-```
-
 
 
 ```{r main-model-prep-wov5}
@@ -1332,6 +1083,7 @@ coeff_priors <- list(
 )
 ```
 
+
 ```{r main-model-wov5}
 if(params$refit_fit) {
   main_fit_wov5 <- inla(
@@ -1355,6 +1107,7 @@ if(params$refit_fit) {
   main_fit_wov5 <- readRDS(here("output", "main-fit_wov5.rds"))
 }
 ```
+
 
 ```{r main-summary-wov5}
 summary(main_fit_wov5)
