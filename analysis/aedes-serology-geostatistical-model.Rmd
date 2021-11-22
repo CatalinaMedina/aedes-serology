@@ -38,6 +38,7 @@ library(knitr)
 library(sf)
 library(ggsn)
 library(ggmap)
+library(lattice)
 library(tidyverse)
 
 library(INLA)
@@ -714,10 +715,6 @@ aedes_red_ind <- aedes_red %>%
 ```
 
 
-<!-- \newpage   -->
-<!-- We are fitting the regression using INLA instead of MCMC where errors are correlated by space using spde approach. Repeated measurements overtime on an individual are considered iid. -->
-
-
 ## Individual visit surfaces  
 ```{r prep_and_fit_visit_surf_model_func}
 prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_grid_dims){
@@ -982,6 +979,7 @@ sat_map <- get_googlemap(center = c(lon = 104.53, lat = 11.46), maptype = "terra
 ```
 
 
+
 ```{r display-visit-prediction-surfaces-w-v5-plot, eval = TRUE, fig.align='center', out.width='100%', fig.cap='Prediction surfaces of mean Aedes mosquito exposure by visit.'}
 
 include_graphics(here("output", "visit-prediction-surfaces-w-v5.pdf"))
@@ -1169,6 +1167,7 @@ if(params$refit_fit) {
 summary(main_fit)
 ```
 
+
 \newpage
 ```{r main-model-forest-plot-w-v5}
 pdf(here("output", "main-model-forest-plot-w-v5.pdf"))
@@ -1326,6 +1325,88 @@ if(params$refit_fit) {
 summary(main_fit_wov5)
 ```
 
+
+```{r Spatial-field-visualization}
+gproj <- inla.mesh.projector(mesh)
+
+
+gen_spatial_field_plots <- function(visit_num, plot_mean = TRUE){
+  if(plot_mean){
+    inla.mesh.project(
+      gproj, 
+      main_fit_wov5$summary.random$spatial.field$mean[s.index$spatial.field.group == visit_num]
+    )
+  } else {
+    inla.mesh.project(
+      gproj, 
+      main_fit_wov5$summary.random$spatial.field$sd[s.index$spatial.field.group == visit_num]
+    )
+  }
+}
+
+
+grid.arrange(
+  levelplot(
+    gen_spatial_field_plots(1), 
+    scales=list(draw=F), xlab='', ylab='', main='Visit 1 mean',col.regions = viridis(16)
+  ), 
+  levelplot(
+    gen_spatial_field_plots(2), 
+    scales=list(draw=F), xlab='', ylab='', main='Visit 2 mean',col.regions = viridis(16)
+  ),
+  levelplot(
+    gen_spatial_field_plots(3), 
+    scales=list(draw=F), xlab='', ylab='', main='Visit 3 mean',col.regions = viridis(16)
+  ),
+  levelplot(
+    gen_spatial_field_plots(4), 
+    scales=list(draw=F), xlab='', ylab='', main='Visit 4 mean',col.regions = viridis(16)
+  ),
+  nrow=2
+)
+
+grid.arrange(
+  levelplot(
+    gen_spatial_field_plots(1, plot_mean = FALSE), 
+    scales=list(draw=F), xlab='', ylab='', main='Visit 1 sd',col.regions = viridis(16)
+  ), 
+  levelplot(
+    gen_spatial_field_plots(2, plot_mean = FALSE), 
+    scales=list(draw=F), xlab='', ylab='', main='Visit 2 sd',col.regions = viridis(16)
+  ), 
+  levelplot(
+    gen_spatial_field_plots(3, plot_mean = FALSE), 
+    scales=list(draw=F), xlab='', ylab='', main='Visit 3 sd',col.regions = viridis(16)
+  ),
+  levelplot(
+    gen_spatial_field_plots(4, plot_mean = FALSE), 
+    scales=list(draw=F), xlab='', ylab='', main='Visit 4 sd',col.regions = viridis(16)
+  ), 
+  nrow=2
+)
+```
+
+
+```{r}
+g_mean <- inla.mesh.project(
+  gproj, 
+  main_fit_wov5$summary.random$spatial.field$mean[s.index$spatial.field.group == visit_num]
+)
+g_sd <- inla.mesh.project(
+  gproj, 
+  main_fit_wov5$summary.random$spatial.field$sd[s.index$spatial.field.group == visit_num]
+)
+
+
+grid.arrange(
+  levelplot(g_mean, scales=list(draw=F), xlab='', ylab='', main='mean',col.regions = heat.colors(16)),
+  levelplot(g_sd, scal=list(draw=F), xla='', yla='', main='sd' ,col.regions = heat.colors(16)), 
+  nrow=1
+)
+
+```
+
+
 \newpage
 ```{r main-model-forest-plot-wov5}
 pdf(here("output", "main-model-forest-plot-wo-v5.pdf"))
@@ -1366,7 +1447,7 @@ include_graphics(here("output", "main-model-forest-plot-wo-v5.pdf"))
 
 
 \newpage
-## Larval model  
+## Larval models  
 - The house hold survey data contains the `container index` which is the # of water containers that contained larvae in a house. This survey has different sampling units, and only has measurements around the times of visits 1 through 4.
 - The Aedes serology individual's houses were matched to nearest `container index`, within a 300 meter radius. This subsetting is visualized in plots below.
 - The same predictors from the full model were used in addition to this new larval predictor named `larval %`, and without the visit 5 predictor, to model log exposure as before
@@ -1875,7 +1956,7 @@ include_graphics(here("output", "larval-res-model-forest-plot.pdf"))
 ```
 
 
-## Adult mosquito model  
+## Adult mosquito models  
 ```{r adult-data-match}
 aedes_adult_red_og <- aedes_red %>% 
   filter(visit == "visit1")
