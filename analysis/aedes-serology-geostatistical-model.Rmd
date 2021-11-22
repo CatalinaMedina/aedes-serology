@@ -1540,7 +1540,8 @@ larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx"
 
   
 ## Match nearest larval count to aedes data
-aedes_larval_red_og$ave_larv_cont <- NA
+aedes_larval_red <- aedes_larval_red_og
+aedes_larval_red$ave_larv_cont <- NA
 aedes_l_red <- NA
 
 
@@ -1557,7 +1558,9 @@ for(v in levels(aedes_larval_red$visit)) {
 
     dists <- sqrt((id_coord[1] - larval_coord[, 1])^2 + (id_coord[2] - larval_coord[, 2])^2)
     
-    aedes_larval_red$ave_larv_cont[i] <- mean(larval_hs_red$con_w_larvae[dists <= 250])
+    if(sum(dists <= 250) > 0) {
+      aedes_larval_red$ave_larv_cont[i] <- mean(larval_hs_red$con_w_larvae[dists <= 250])
+    }
   }
   
   if(v == "visit1") {
@@ -1568,6 +1571,7 @@ for(v in levels(aedes_larval_red$visit)) {
 }
 
 aedes_red_w_larval <- aedes_l_red %>% 
+  filter(aedes_l_red, !is.na(aedes_l_red$ave_larv_cont))
   arrange(study_id, visit)
 ```
 
