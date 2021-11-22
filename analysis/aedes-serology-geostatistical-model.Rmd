@@ -1573,6 +1573,36 @@ aedes_red_w_larval <- rbind(
 ```
 
 
+```{r matching-all-neighbors-in-radius}
+aedes_larval_red_og$ave_larv_cont <- NA
+aedes_l_red <- NA
+
+
+for(v in paste0("visit", 1:4)) {
+  larval_hs_red <- filter(larval_hs, visit == v)
+  larval_coord <- as.matrix(select(larval_hs_red, larval_X, larval_Y))
+    
+  aedes_larval_red <- filter(aedes_larval_red_og, visit == v)
+  
+  curr_nrow <- nrow(aedes_larval_red)
+    
+  for(i in 1:curr_nrow){
+    id_coord <- as.matrix(aedes_larval_red[i, c("x", "y")])
+
+    dists <- sqrt((id_coord[1] - larval_coord[, 1])^2 + (id_coord[2] - larval_coord[, 2])^2)
+    
+    aedes_larval_red$ave_larv_cont[i] <- mean(larval_hs_red$con_w_larvae[dists <= 250])
+  }
+  
+  if(v == "visit1") {
+    aedes_l_red <- aedes_larval_red
+  } else {
+    aedes_l_red <- bind_rows(aedes_l_red, aedes_larval_red)
+  }
+}
+```
+
+
 ```{r plot-showing-larval-subsetting}
 pdf(here("output", "larval-subsetting-plot1.pdf"), width = 10)
 
