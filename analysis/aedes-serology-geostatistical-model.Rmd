@@ -974,6 +974,41 @@ ggplot() +
 
 dev.off()
 ```
+
+
+```{r}
+pdf(here("output", "visit-prediction-surfaces.pdf"), width = 10)
+
+ind_visit_surf_df %>% 
+  filter(type == "Mean") %>% 
+  filter(visit != "Visit 5") %>% 
+  filter(x_m >= x_coef[1] + x_coef[2] * 104.50 & x_m <= x_coef[1] + x_coef[2] * 104.56) %>% 
+  filter(y_m >= y_coef[1] + y_coef[2] * 11.44 & y_m <= y_coef[1] + y_coef[2] * 11.48) %>% 
+ggplot() +
+  geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
+  facet_grid( ~ visit) +
+  coord_equal() +
+  scale_fill_viridis() +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "white"),
+    panel.background = element_rect(fill = NA),
+    panel.ontop = TRUE,
+    panel.border = element_blank(),
+    legend.position = "bottom"
+  ) +
+  scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
+  scale_x_continuous(breaks = lon_breaks, labels = lon_labels)
+
+
+dev.off()
+```
+
+
 ```{r}
 sat_map <- get_googlemap(center = c(lon = 104.53, lat = 11.46), maptype = "terrain")
 ```
