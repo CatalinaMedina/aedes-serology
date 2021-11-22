@@ -1313,6 +1313,8 @@ for(v in levels(aedes_larval_red$visit)) {
     
     if(sum(dists <= 250) > 0) {
       aedes_larval_red$ave_larv_cont[i] <- mean(larval_hs_red$con_w_larvae[dists <= 250])
+    } else {
+      aedes_larval_red$ave_larv_cont[i] <- NA
     }
   }
   
@@ -1324,7 +1326,6 @@ for(v in levels(aedes_larval_red$visit)) {
 }
 
 aedes_red_w_larval <- aedes_l_red %>% 
-  filter(aedes_l_red, !is.na(aedes_l_red$ave_larv_cont))
   arrange(study_id, visit)
 ```
 
@@ -1333,7 +1334,7 @@ aedes_red_w_larval <- aedes_l_red %>%
 pdf(here("output", "larval-subsetting-plot1.pdf"), width = 10)
 
 aedes_red_w_larval %>% 
-    mutate(Larvae = con_w_larvae) %>% 
+    mutate(Larvae = ave_larv_cont) %>% 
     ggplot(aes(x = x, y = y, color = Larvae)) +
       geom_point(alpha = 0.25) +
       scale_color_viridis(direction = -1) +
@@ -1358,8 +1359,8 @@ dev.off()
 pdf(here("output", "larval-subsetting-plot2.pdf"), width = 10)
 
   aedes_red_w_larval %>% 
-    filter(!is.na(con_w_larvae)) %>% 
-    mutate(Larvae = con_w_larvae) %>% 
+    filter(!is.na(ave_larv_cont)) %>% 
+    mutate(Larvae = ave_larv_cont) %>% 
     ggplot(aes(x = x, y = y, color = Larvae))+
       geom_point(alpha = 0.25) +
       scale_color_viridis(direction = -1) +
@@ -1423,9 +1424,9 @@ include_graphics(here("output", "larval-subsetting-plot2.pdf"))
 
 
 ```{r saliva-vs-larvae}
-ggplot(aedes_red_w_larval, aes(x = con_w_larvae, y = log_saliva_elisa)) +
+ggplot(aedes_red_w_larval, aes(x = ave_larv_cont, y = log_saliva_elisa)) +
   geom_point() +
-  xlab("Count of water containers with larae found") +
+  xlab("Average number of water containers with larae found in 250m radius") +
   theme_bw()
 ```
 
@@ -1434,7 +1435,7 @@ ggplot(aedes_red_w_larval, aes(x = con_w_larvae, y = log_saliva_elisa)) +
 ```{r larval-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_red_w_larval %>% 
-  filter(!is.na(con_w_larvae)) %>% 
+  filter(!is.na(ave_larv_cont)) %>% 
   arrange(study_id, time) %>% 
   select(
     time, 
@@ -1447,7 +1448,7 @@ coords_st <- aedes_red_w_larval %>%
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
     wet_season,
-    con_w_larvae
+    ave_larv_cont
     )
 
 ## specify df of covariate values including intercept
@@ -1504,7 +1505,7 @@ formula <- y ~ #0 + Intercept
   insecticide_spray + larvicide_applied_to_water  +
   NFI250_home  +
   wet_season +
-  con_w_larvae +
+  ave_larv_cont +
   f(
     spatial.field, 
     model = spde, 
