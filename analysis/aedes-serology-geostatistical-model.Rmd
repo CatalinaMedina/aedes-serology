@@ -1494,91 +1494,57 @@ aedes_larval_red_og <- aedes_red %>%
   filter(visit != "visit5") %>% 
   mutate(visit = droplevels(visit))
 
-  #### Incorporate larval data
-  larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv"), show_col_types = FALSE) %>% 
-    select(
-      larval_X = "X...1",
-      larval_Y = "Y...2",
-      larval_lon = "X...3",
-      larval_lat = "Y...4",
-      house_num = "name",
-      subj_id = "SUBJID"
-    ) %>% 
-    mutate(subj_id = as.character(as.numeric(subj_id))) %>% 
-    filter(!duplicated(subj_id)) #subjects 389 and 716 had repeat measurements; 1st kept
+#### Incorporate larval data
+larval_lat_lo <- read_csv(here("data", "HH_Surveys_19Jan_UTM48N.csv"), show_col_types = FALSE) %>% 
+  select(
+    larval_X = "X...1",
+    larval_Y = "Y...2",
+    larval_lon = "X...3",
+    larval_lat = "Y...4",
+    house_num = "name",
+    subj_id = "SUBJID"
+  ) %>% 
+  mutate(subj_id = as.character(as.numeric(subj_id))) %>% 
+  filter(!duplicated(subj_id)) #subjects 389 and 716 had repeat measurements; 1st kept
     
   
-  larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx")) %>%
-    select(
-      subj_id = SUBJID,
-      water_containers_og = WATERCON,
-      water_larvae = WATERLARVAE,
-      visit_year = Year,
-      visit_month = Month
-    ) %>% 
-    mutate(subj_id = as.character(subj_id)) %>% 
-    filter(!is.na(visit_year)) %>% 
-    mutate(visit_date = ym(paste(visit_year, visit_month))) %>% 
-    mutate(visit = factor(case_when(
-      visit_year == 2018 & visit_month >= 5 & visit_month <= 9 ~ "visit1",
-      visit_year == 2019 & !(visit_month >= 5 & visit_month <= 9) ~ "visit2",
-      visit_year == 2019 & visit_month >= 5 & visit_month <= 9 ~ "visit3",
-      visit_year == 2020 & !(visit_month >= 5 & visit_month <= 9) ~ "visit4"
-    ))) %>% 
-    mutate(water_containers = ifelse(
-      water_containers_og == "*", 
-      99999,
-      as.numeric(water_containers_og))) %>% 
-    filter(water_containers != 9999) %>% 
-    mutate(container_index = ifelse(
-      water_containers != 0,
+larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx")) %>%
+  select(
+    subj_id = SUBJID,
+    water_containers_og = WATERCON,
+    water_larvae = WATERLARVAE,
+    visit_year = Year,
+    visit_month = Month
+  ) %>% 
+  mutate(subj_id = as.character(subj_id)) %>% 
+  filter(!is.na(visit_year)) %>% 
+  mutate(visit_date = ym(paste(visit_year, visit_month))) %>% 
+  mutate(visit = factor(case_when(
+    visit_year == 2018 & visit_month >= 5 & visit_month <= 9 ~ "visit1",
+    visit_year == 2019 & !(visit_month >= 5 & visit_month <= 9) ~ "visit2",
+    visit_year == 2019 & visit_month >= 5 & visit_month <= 9 ~ "visit3",
+    visit_year == 2020 & !(visit_month >= 5 & visit_month <= 9) ~ "visit4"
+  ))) %>% 
+  mutate(water_containers = ifelse(
+    water_containers_og == "*", 
+    99999,
+    as.numeric(water_containers_og))) %>% 
+  filter(water_containers != 9999) %>% 
+  mutate(container_index = ifelse(
+    water_containers != 0,
       as.numeric(water_larvae) / as.numeric(water_containers),
-      0
-    )) %>% 
-    mutate(con_w_larvae = as.numeric(water_larvae)) %>% 
-    left_join(y = larval_lat_lo) 
-  
-  
-  ## Match nearest larval count to aedes data
-  match_larval_data <- function(visit_num){
-    this_visit <- paste0("visit", visit_num)
-    
-    larval_hs_red <- filter(larval_hs, visit == this_visit)
-    aedes_larval_red <- filter(aedes_larval_red_og, visit == this_visit)
-    
-    larval_nn <- nn2(
-      data = larval_hs_red %>% select(larval_X, larval_Y),
-      query = aedes_larval_red %>% select(x, y),
-      searchtype = "radius",
-      k = 1,
-      radius = 250
-    )
-    
-    
-    matched <- larval_nn$nn.idx != 0
-    
-    aedes_larval_red$con_w_larvae <- rep(NA, nrow(aedes_larval_red))
-    aedes_larval_red$con_w_larvae[matched] <- larval_hs_red$con_w_larvae[larval_nn$nn.idx[matched]]
-    
-    aedes_larval_red
-  }
-  
-  
-aedes_red_w_larval <- rbind(
-  match_larval_data(visit_num = 1),
-  match_larval_data(visit_num = 2),
-  match_larval_data(visit_num = 3),
-  match_larval_data(visit_num = 4)
-)
-```
+    0
+  )) %>% 
+  mutate(con_w_larvae = as.numeric(water_larvae)) %>% 
+  left_join(y = larval_lat_lo) 
 
-
-```{r matching-all-neighbors-in-radius}
+  
+## Match nearest larval count to aedes data
 aedes_larval_red_og$ave_larv_cont <- NA
 aedes_l_red <- NA
 
 
-for(v in paste0("visit", 1:4)) {
+for(v in levels(aedes_larval_red$visit)) {
   larval_hs_red <- filter(larval_hs, visit == v)
   larval_coord <- as.matrix(select(larval_hs_red, larval_X, larval_Y))
     
@@ -1600,6 +1566,9 @@ for(v in paste0("visit", 1:4)) {
     aedes_l_red <- bind_rows(aedes_l_red, aedes_larval_red)
   }
 }
+
+aedes_red_w_larval <- aedes_l_red %>% 
+  arrange(study_id, visit)
 ```
 
 
