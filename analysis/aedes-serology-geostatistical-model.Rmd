@@ -1597,7 +1597,7 @@ include_graphics(here("output", "larval-model-forest-plot.pdf"))
 ```{r larval-res-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_red_w_larval %>% 
-  filter(!is.na(con_w_larvae)) %>% 
+  filter(!is.na(ave_larv_cont)) %>% 
   arrange(study_id, time) %>% 
   select(
     time, 
@@ -1608,13 +1608,13 @@ coords_st <- aedes_red_w_larval %>%
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
     wet_season,
-    con_w_larvae
+    ave_larv_cont
     )
 
 ## specify df of covariate values including intercept
 covar_df <- data.frame(
   # Intercept = rep(1, nrow(coords_st)),
-  select(coords_st, -c(time, lon, lat, con_w_larvae))
+  select(coords_st, -c(time, lon, lat, ave_larv_cont))
 )
   
 ## extract coordinates as matrix, ignoring repeats
@@ -1647,7 +1647,7 @@ A <- inla.spde.make.A(
 
 ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
 stack <- inla.stack(
-  data = list(y = coords_st$con_w_larvae),
+  data = list(y = coords_st$ave_larv_cont),
   A = list(A, 1),
   effects = list(
     s.index,
