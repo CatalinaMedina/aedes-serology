@@ -2024,7 +2024,7 @@ include_graphics(here("output", "adult-model-forest-plot.pdf"))
 ### Adult count as response  
 
 ```{r adult-res-model-prep}
-## extract relevant data (not sure if sorting is necessary)
+## extract relevant data
 coords_st <- aedes_adult_red %>% 
   filter(!is.na(adult_count)) %>% 
   mutate(modal_land_type = droplevels(modal_land_type)) %>% 
@@ -2039,24 +2039,41 @@ coords_st <- aedes_adult_red %>%
     adult_count
     )
 
+## Extact train and test data sets
+set.seed(1236)
+
+train_ind <- sample(
+  1:nrow(coords_st), 
+  size = floor(0.75 * nrow(coords_st))
+)
+
+ad_train <- coords_st[train_ind, ]
+ad_test <- coords_st[-train_ind, ]
+
 ## specify df of covariate values including intercept
 covar_df <- data.frame(
   # Intercept = rep(1, nrow(coords_st)),
   select(coords_st, -c( lon, lat, adult_count))
 )
-  
-## extract coordinates as matrix, ignoring repeats
+
+train_covar <- covar_df[train_ind, ]
+test_covar <- covar_df[-train_ind, ]
+
+## extract coordinates as matrix
 coords <- select(coords_st, lon, lat) %>% 
   distinct() %>% 
   as.matrix()
 
-## create mesh, good documentation available to understand all options
+train_coords <- coords[train_ind, ]
+test_coords <- coords[-train_ind, ]
+
+## create mesh, shared
 mesh <- inla.mesh.2d(
   loc = coords,
   max.edge = c(300, 600)
 )
 
-# specify spde
+# specify spde, shared
 spde <- inla.spde2.matern(mesh)
 
 # Need to specify index with spde and group (if there are replicates)
@@ -2066,21 +2083,38 @@ s.index <- inla.spde.make.index(
 )
 
 ## A specifies something about edge length based on the mesh
-A <- inla.spde.make.A(
+train_A <- inla.spde.make.A(
   mesh = mesh, 
-  loc = as.matrix(select(coords_st, lon, lat))
+  loc = train_coords
+)
+
+test_A <- inla.spde.make.A(
+  mesh = mesh, 
+  loc = test_coords
 )
 
 ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-stack <- inla.stack(
-  data = list(y = coords_st$adult_count),
-  A = list(A, 1),
+train_stack <- inla.stack(
+  data = list(y = ad_train$adult_count),
+  A = list(train_A, 1),
   effects = list(
     s.index,
-    list(covar_df = covar_df)
+    list(train_covar = train_covar)
   ),
   tag = "est"
 )
+
+test_stack <- inla.stack(
+  data = list(y = rep(NA, nrow(ad_test))),
+  A = list(test_A, 1),
+  effects = list(
+    s.index,
+    list(train_covar = test_covar)
+  ),
+  tag = "pred"
+)
+
+full_stk <- inla.stack(train_stack, test_stack)
 
 ## specify model formula, 'f()' incorporates spatial effect and replicate 
 formula <- y ~ #0 + Intercept
@@ -2109,9 +2143,10 @@ coeff_priors <- list(
 if(params$refit_adult_fit) {
   adult_res_fit <- inla(
     formula, 
-    data = inla.stack.data(stack),
+    data = inla.stack.data(full_stk),
     control.predictor = list(
-      A = inla.stack.A(stack)
+      A = inla.stack.A(full_stk),
+      compute = TRUE
     ),
     control.fixed = coeff_priors
   )
@@ -2125,6 +2160,18 @@ if(params$refit_adult_fit) {
 ```{r adult-res-model-summary}
 summary(adult_res_fit)
 ```
+
+```{r}
+index_pred <- inla.stack.index(full_stk, "pred")$data
+pred <- adult_res_fit$summary.linear.predictor[index_pred, "mean"]
+
+obs <- ad_test$adult_count
+
+plot(x = obs, y = pred)
+
+summary(lm(obs ~ pred))
+```
+
 
 
 ```{r adult-res-model-forest-plot}
