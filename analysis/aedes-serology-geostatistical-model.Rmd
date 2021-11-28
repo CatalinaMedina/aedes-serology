@@ -1336,7 +1336,7 @@ pdf(here("output", "larval-subsetting-plot1.pdf"), width = 10)
 aedes_red_w_larval %>% 
     mutate(Larvae = ave_larv_cont) %>% 
     ggplot(aes(x = x, y = y, color = Larvae)) +
-      geom_point(alpha = 0.25) +
+      geom_point() +
       scale_color_viridis(direction = -1) +
       xlim(range(aedes_red_w_larval$x)) +
       ylim(range(aedes_red_w_larval$y)) +
@@ -1362,7 +1362,7 @@ pdf(here("output", "larval-subsetting-plot2.pdf"), width = 10)
     filter(!is.na(ave_larv_cont)) %>% 
     mutate(Larvae = ave_larv_cont) %>% 
     ggplot(aes(x = x, y = y, color = Larvae))+
-      geom_point(alpha = 0.25) +
+      geom_point() +
       scale_color_viridis(direction = -1) +
       xlim(range(aedes_red_w_larval$x)) +
       ylim(range(aedes_red_w_larval$y)) +
@@ -1387,7 +1387,7 @@ pdf(here("output", "larval-subsetting-plot3.pdf"), width = 10)
   larval_hs %>% 
     mutate(Larvae = con_w_larvae) %>% 
     ggplot(aes(x = larval_X, y = larval_Y, color = Larvae)) +
-      geom_point(alpha = 0.25) +
+      geom_point() +
       scale_color_viridis(direction = -1) +
       xlim(range(aedes_red_w_larval$x)) +
       ylim(range(aedes_red_w_larval$y)) +
@@ -1786,7 +1786,7 @@ pdf(here("output", "adult-subsetting-plot1.pdf"), width = 10)
 
 aedes_adult_red %>% 
     ggplot(aes(x = x, y = y, color = adult_count)) +
-      geom_point(alpha = 0.25) +
+      geom_point(alpha = 0.85) +
       scale_color_viridis(direction = -1) +
       xlim(range(aedes_adult_red$x)) +
       ylim(range(aedes_adult_red$y)) +
@@ -1810,7 +1810,7 @@ pdf(here("output", "adult-subsetting-plot2.pdf"), width = 10)
   aedes_adult_red %>% 
     filter(!is.na(adult_count)) %>% 
     ggplot(aes(x = x, y = y, color = adult_count))+
-      geom_point(alpha = 0.25) +
+      geom_point(alpha = 0.85) +
       scale_color_viridis(direction = -1) +
       xlim(range(aedes_adult_red$x)) +
       ylim(range(aedes_adult_red$y)) +
@@ -1834,7 +1834,7 @@ pdf(here("output", "adult-subsetting-plot3.pdf"), width = 10)
   adult_data %>% 
     mutate(adult_count = total_aed) %>% 
     ggplot(aes(x = adult_x, y = adult_y, color = adult_count)) +
-      geom_point(alpha = 0.25) +
+      geom_point(alpha = 0.85) +
       scale_color_viridis(direction = -1) +
       xlim(range(aedes_adult_red$x)) +
       ylim(range(aedes_adult_red$y)) +
@@ -2144,6 +2144,7 @@ if(params$refit_adult_fit) {
   adult_res_fit <- inla(
     formula, 
     data = inla.stack.data(full_stk),
+    family = "gaussian",
     control.predictor = list(
       A = inla.stack.A(full_stk),
       compute = TRUE
