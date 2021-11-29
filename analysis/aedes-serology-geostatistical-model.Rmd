@@ -1038,16 +1038,16 @@ Full model equation:
   \end{split}
 \end{equation*}
 
-`gender` Indicator for 
-`age` Baseline age centered at 7 years old  
-`distance to river` Distance in meters from house to nearest part of the stream; centered and scaled  
-`modal land type` This is the modal land type across *?* pixels around house; has 3 levels: "urban", "rice paddy", "cropland".  
-`toilets` Number of toilets in house  
-`water containers` Number of domestic water containers in house  
-`insecticide` Indicator for use of insecticide spray  
-`larvicide` Indicator for use of larvicide spray applied to water  
-`NFI` *Mean?* flooding index for a 250 meter buffer around house 32 days prior to visit date  
-`wet season` Indicator for visit date being in wet season  
+`Gender` Indicator for gender (female and male only)  
+`Age` Baseline age centered at 7 years old  
+`Modal land type` This is the modal land type across *?* pixels around house; has 3 levels: "urban", "rice paddy", "cropland".  
+`Distance to river` Distance in meters from house to nearest part of the stream; centered and scaled  
+`Insecticide` Indicator for use of insecticide spray  
+`Larvicide` Indicator for use of larvicide spray applied to water  
+`Toilets` Number of toilets in house  
+`Water containers` Number of domestic water containers in house  
+`Wet season` Indicator for visit date being in wet season  
+`NFI` Mean flooding index for a 250 meter buffer around house 32 days prior to visit date
 
 
 ```{r main-model-prep-wov5}
@@ -1251,12 +1251,57 @@ grid.arrange(
 ```
 
 
+```{r set-up-main-model-results-df}
+## Check that pred_rownames and pred_name_vec line up
+pred_rownames_ordered <- c(
+  "(Intercept)",
+  "genderMale",
+  "age_cented7",
+  "modal_land_typerice paddy",
+  "modal_land_typecropland",
+  "distance_to_river_scaled",
+  "insecticide_sprayYes",
+  "larvicide_applied_to_waterYes",
+  "num_toilets_in_home",
+  "num_domestic_water_containers_in_home",
+  "wet_seasonyes",
+  "NFI250_home"
+)
+
+pred_names_vec = c(
+  "(Intercept)",
+  "Male", 
+  "Age", 
+  "Rice paddy",
+  "Cropland",
+  "Distance to river", 
+  "Insecticide",
+  "Larvicide",
+  "Toilets",
+  "Water containers",
+  "Wet season",
+  "NFI"
+)
+
+
+main_fit_wov5$summary.fixed %>% 
+  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant") %>% 
+  mutate(names = rownames(main_fit_wov5$summary.fixed)) %>% 
+  mutate(pred_names = factor(
+    names
+    ),
+    levels = pred_rownames_ordered,
+    labels = pred_names_vec
+  )
+```
+
+
 \newpage
 ```{r main-model-forest-plot-wov5}
 pdf(here("output", "main-model-forest-plot-wo-v5.pdf"))
 
 main_fit_wov5$summary.fixed %>% 
-  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
+  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant") %>% 
   mutate(names = c(
     "(Intercept)",
     "Male", 
@@ -1272,7 +1317,7 @@ main_fit_wov5$summary.fixed %>%
     "Wet season"
   )) %>% 
   filter(names != "(Intercept)") %>% 
-  ggplot(aes(x = median, y = names)) +
+  ggplot(aes(x = mean, y = names)) +
     geom_point() +
     geom_linerange(aes(xmin = quant025, xmax = quant975)) +
     geom_vline(xintercept = 0, linetype = "dashed") +
