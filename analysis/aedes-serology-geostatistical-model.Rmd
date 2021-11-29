@@ -1284,15 +1284,14 @@ pred_names_vec = c(
 )
 
 
-main_fit_wov5$summary.fixed %>% 
+main_fit_df <- main_fit_wov5$summary.fixed %>% 
   select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant") %>% 
-  mutate(names = rownames(main_fit_wov5$summary.fixed)) %>% 
+  mutate(unordered_names = rownames(main_fit_wov5$summary.fixed)) %>% 
   mutate(pred_names = factor(
-    names
-    ),
+    unordered_names,
     levels = pred_rownames_ordered,
     labels = pred_names_vec
-  )
+  ))
 ```
 
 
@@ -1300,31 +1299,17 @@ main_fit_wov5$summary.fixed %>%
 ```{r main-model-forest-plot-wov5}
 pdf(here("output", "main-model-forest-plot-wo-v5.pdf"))
 
-main_fit_wov5$summary.fixed %>% 
-  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant") %>% 
-  mutate(names = c(
-    "(Intercept)",
-    "Male", 
-    "Age", 
-    "Distance to river", 
-    "Rice paddy",
-    "Cropland",
-    "Toilets",
-    "Water containers",
-    "Insecticide",
-    "Larvicide",
-    "NFI",
-    "Wet season"
-  )) %>% 
-  filter(names != "(Intercept)") %>% 
-  ggplot(aes(x = mean, y = names)) +
+main_fit_df %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  ggplot(aes(x = mean, y = pred_names)) +
     geom_point() +
     geom_linerange(aes(xmin = quant025, xmax = quant975)) +
     geom_vline(xintercept = 0, linetype = "dashed") +
     theme_bw() +
     theme(panel.border = element_blank()) +
     xlab("") +
-    ylab("")
+    ylab("") +
+  scale_y_discrete(limits = rev)
 
 dev.off()
 ```
@@ -1656,34 +1641,29 @@ summary(larval_fit)
 
 
 ```{r larval-model-forest_plot}
+larval_fit_df <- larval_fit$summary.fixed %>% 
+  mutate(unordered_names = rownames(larval_fit$summary.fixed)) %>% 
+  mutate(pred_names = factor(
+    unordered_names,
+    levels = c(pred_rownames_ordered, "ave_larv_cont"),
+    labels = c(pred_names_vec, "Larval containers")
+  )) %>% 
+  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) 
+
+    
 pdf(here("output", "larval-model-forest-plot.pdf"))
 
-larval_fit$summary.fixed %>% 
-  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
-  mutate(names = c(
-    "(Intercept)",
-    "Male", 
-    "Age", 
-    "Distance to river", 
-    "Rice paddy",
-    "Cropland",
-    "Toilets",
-    "Water containers",
-    "Insecticide",
-    "Larvicide",
-    "NFI",
-    "Wet season",
-    "Larvae"
-  )) %>% 
-  filter(names != "(Intercept)") %>% 
-  ggplot(aes(x = median, y = names)) +
+larval_fit_df %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  ggplot(aes(x = mean, y = pred_names)) +
     geom_point() +
     geom_linerange(aes(xmin = quant025, xmax = quant975)) +
     geom_vline(xintercept = 0, linetype = "dashed") +
     theme_bw() +
     theme(panel.border = element_blank()) +
     xlab("") +
-    ylab("")
+    ylab("") +
+  scale_y_discrete(limits = rev)
 
 dev.off()
 ```
@@ -2086,32 +2066,32 @@ summary(adult_fit)
 
 
 ```{r adult-model-forest-plot}
+adult_fit_df <- adult_fit$summary.fixed %>% 
+  mutate(unordered_names = rownames(adult_fit$summary.fixed)) %>% 
+  mutate(pred_names = factor(
+    unordered_names,
+    levels = c(
+      pred_rownames_ordered[pred_rownames_ordered != "modal_land_typerice paddy"], 
+      "adult_count"
+    ),
+    labels = c(pred_names_vec[pred_names_vec != "Rice paddy"], "Mosquito counts")
+  )) %>% 
+  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) 
+
+
 pdf(here("output", "adult-model-forest-plot.pdf"))
 
-adult_fit$summary.fixed %>% 
-  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
-  mutate(names = c(
-    "(Intercept)",
-    "Male", 
-    "Age", 
-    "Distance to river", 
-    "Cropland",
-    "Toilets",
-    "Water containers",
-    "Insecticide",
-    "Larvicide",
-    "NFI",
-    "Adult count"
-  )) %>% 
-  filter(names != "(Intercept)") %>% 
-  ggplot(aes(x = median, y = names)) +
+adult_fit_df %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  ggplot(aes(x = mean, y = pred_names)) +
     geom_point() +
     geom_linerange(aes(xmin = quant025, xmax = quant975)) +
     geom_vline(xintercept = 0, linetype = "dashed") +
     theme_bw() +
     theme(panel.border = element_blank()) +
     xlab("") +
-    ylab("")
+    ylab("") +
+    scale_y_discrete(limits = rev)
 
 dev.off()
 ```
