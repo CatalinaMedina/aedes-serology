@@ -39,6 +39,9 @@ library(sf)
 library(ggsn)
 library(ggmap)
 library(lattice)
+library(magrittr)
+library(knitr)
+library(kableExtra)
 library(tidyverse)
 
 library(INLA)
@@ -1032,15 +1035,15 @@ Full model equation:
 \begin{equation*}
   \begin{split}
     \log(\text{Saliva antibody response})_{ij} &= \beta_0 + \boldsymbol{\beta} *(\\
-    &\text{gender}_i + \text{age}_i  + \text{distance to river}_i + \text{modal land type}_i\\
-    &+\text{toilets}_i + \text{water containers}_i + \text{insecticide}_i + \text{larvicide}_i\\
-    &+ \text{NFI}_{ij} + \text{wet season}_{ij})
+    &\text{Gender}_i + \text{Age}_i  + \text{Distance to river}_i + \text{Land type}_i\\
+    &+\text{Toilets}_i + \text{Water containers}_i + \text{Insecticide}_i + \text{Larval containers}_i\\
+    &+ \text{NFI}_{ij} + \text{Wet season}_{ij})
   \end{split}
 \end{equation*}
 
 `Gender` Indicator for gender (female and male only)  
 `Age` Baseline age centered at 7 years old  
-`Modal land type` This is the modal land type across *?* pixels around house; has 3 levels: "urban", "rice paddy", "cropland".  
+`Land type` This is the modal land type across *?* pixels around house; has 3 levels: "urban", "rice paddy", "cropland".  
 `Distance to river` Distance in meters from house to nearest part of the stream; centered and scaled  
 `Insecticide` Indicator for use of insecticide spray  
 `Larvicide` Indicator for use of larvicide spray applied to water  
@@ -1264,8 +1267,8 @@ pred_rownames_ordered <- c(
   "larvicide_applied_to_waterYes",
   "num_toilets_in_home",
   "num_domestic_water_containers_in_home",
-  "wet_seasonyes",
-  "NFI250_home"
+  "NFI250_home",
+  "wet_seasonyes"
 )
 
 pred_names_vec = c(
@@ -1279,18 +1282,153 @@ pred_names_vec = c(
   "Larvicide",
   "Toilets",
   "Water containers",
-  "Wet season",
-  "NFI"
+  "NFI",
+  "Wet season"
 )
 
 
 main_fit_df <- main_fit_wov5$summary.fixed %>% 
-  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant") %>% 
   mutate(unordered_names = rownames(main_fit_wov5$summary.fixed)) %>% 
   mutate(pred_names = factor(
     unordered_names,
     levels = pred_rownames_ordered,
     labels = pred_names_vec
+  )) %>% 
+  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names)
+```
+
+
+```{r main-model-table-data-prep}
+total_n <- nrow(aedes_red_ind)
+
+aedes_red_wo5 <- filter(aedes_red, visit != "visit5") %>% mutate(visit = droplevels(visit))
+visit_n_df <- group_by(aedes_red_wo5, visit) %>% summarize(group_n = n())
+
+
+## Visit 1 summary statistics
+visit1_summary <- bind_rows(
+  ## Gender
+  aedes_red_ind %>% group_by(gender) %>% summarize(count_n = n()) %>% 
+    mutate(variable1 = "Gender") %>% mutate(variable2 = gender) %>% 
+    mutate(visit1 = paste0(
+      count_n, " (", round(100 * count_n / total_n, 2), "%)")) %>% 
+    select(variable1, variable2, visit1),
+  ## Age
+  data.frame(
+    variable1 = " ", 
+    variable2 = "Age",
+    visit1 = paste0(
+      round(mean(aedes_red_ind$age), 2), " (", round(sd(aedes_red_ind$age), 2), ")"
+    )
+  ),
+  ## Land type
+  aedes_red_ind %>% group_by(modal_land_type) %>% summarize(count_n = n()) %>% 
+    mutate(variable1 = "Land type") %>% mutate(variable2 = modal_land_type) %>% 
+    mutate(visit1 = paste0(
+      count_n, " (", round(100 * count_n / total_n, 2), "%)"
+    )) %>% 
+    select(variable1, variable2, visit1),
+  ## Distance to river
+  data.frame(
+    variable1 = " ", 
+    variable2 = "Distance to river",
+    visit1 = paste0(
+      round(mean(aedes_red_ind$distance_to_river), 2), " (", round(sd(aedes_red_ind$distance_to_river), 2), ")"
+    )
+  )
+) %>% 
+  mutate(variable2 = str_to_sentence(variable2)) %>% 
+  mutate(visit2 = "") %>% mutate(visit3 = "") %>% mutate(visit4 = "")
+
+
+all_visits_summary <- bind_rows(
+  ## Insecticide spray
+  aedes_red_wo5 %>% 
+    group_by(visit, insecticide_spray) %>% summarize(count_n = n()) %>% 
+    left_join(visit_n_df) %>% 
+    mutate(col_summary = paste0(
+      count_n, " (", round(100 * count_n / group_n, 2), "%)"
+    )) %>%
+    mutate(variable1 = "Insecticide") %>% mutate(variable2 = insecticide_spray) %>% 
+    select(variable1, variable2, visit, col_summary) %>% 
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = ""),
+  ## Larvicide spray
+   aedes_red_wo5 %>% 
+    group_by(visit, larvicide_applied_to_water) %>% summarize(count_n = n()) %>% 
+    left_join(visit_n_df) %>% 
+    mutate(col_summary = paste0(
+      count_n, " (", round(100 * count_n / group_n, 2), "%)"
+    )) %>%
+    mutate(variable1 = "Larvicide") %>% mutate(variable2 = larvicide_applied_to_water) %>% 
+    select(variable1, variable2, visit, col_summary) %>% 
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = ""),
+  ## Toilets
+  aedes_red_wo5 %>% 
+    group_by(visit) %>% 
+    summarize(mean = mean(num_toilets_in_home), sd = sd(num_toilets_in_home)) %>% 
+    mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
+    mutate(variable1 = "") %>% mutate(variable2 = "Toilets") %>% 
+    select(variable1, variable2, visit, col_summary) %>% 
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = ""),
+  ## Water containers
+  aedes_red_wo5 %>% 
+    group_by(visit) %>% 
+    summarize(mean = mean(num_domestic_water_containers_in_home), sd = sd(num_domestic_water_containers_in_home)) %>% 
+    mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
+    mutate(variable1 = "") %>% mutate(variable2 = "Water containers") %>% 
+    select(variable1, variable2, visit, col_summary) %>% 
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = ""),
+  ## NFI
+  aedes_red_wo5 %>% 
+    group_by(visit) %>% 
+    summarize(mean = mean(NFI250_home), sd = sd(NFI250_home)) %>% 
+    mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
+    mutate(variable1 = "") %>% mutate(variable2 = "NFI") %>% 
+    select(variable1, variable2, visit, col_summary) %>% 
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = "")
+)
+  
+
+
+main_est <- main_fit_df %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  mutate(Estimate = paste0(
+    round(mean, 3), " (", round(quant025, 3 ), ", ", round(quant975, 3), ")"
+  ))
+
+main_est1 <- main_est[order(main_est$pred_names, pred_names_vec[-1]), ]
+
+main_results_table <- bind_rows(visit1_summary, all_visits_summary) %>% 
+  bind_rows(data.frame(
+    variable1 = rep("Wet season", 2),
+    variable2 = c("No", "Yes"),
+    visit1 = c("", "X"),
+    visit2 = c("", ""),
+    visit3 = c("", "X"),
+    visit4 = c("", "")
+  )) %>% 
+  mutate(Estimate = "Reference")
+
+main_results_table$Estimate[c(2:3, 5:7, 9, 11:14, 16)] <- main_est1$Estimate
+
+saveRDS(main_results_table, here("output", "main-model-results-table.RDS"))
+```
+
+
+```{r main-model-results-table, eval = TRUE}
+main_results_table <- readRDS(here("output", "main-model-results-table.RDS"))
+
+kbl(main_results_table[, -1], booktabs = TRUE) %>% 
+  kable_styling() %>% 
+  pack_rows(index = c(
+    "Gender" = 2,
+    " " = 1,
+    "Land type" = 3,
+    " " = 1,
+    "Insecticide" = 2,
+    "Larvicide" = 2,
+    " " = 3,
+    "Wet season" = 2
   ))
 ```
 
