@@ -42,6 +42,7 @@ library(lattice)
 library(magrittr)
 library(knitr)
 library(kableExtra)
+library(INLAutils)
 library(tidyverse)
 
 library(INLA)
@@ -1149,7 +1150,8 @@ if(params$refit_fit) {
     formula, 
     data = inla.stack.data(stack),
     control.predictor = list(
-      A = inla.stack.A(stack)
+      A = inla.stack.A(stack),
+      compute = TRUE
     ),
     control.fixed = coeff_priors
   )
@@ -1165,6 +1167,15 @@ if(params$refit_fit) {
 } else {
   main_fit_wov5 <- readRDS(here("output", "main-fit_wov5.rds"))
 }
+```
+
+
+```{r}
+ggplot_inla_residuals2(
+  main_fit_wov5, 
+  coords_st$log_saliva_elisa, 
+  se = FALSE
+)
 ```
 
 
@@ -1402,10 +1413,10 @@ main_results_table <- bind_rows(visit1_summary, all_visits_summary) %>%
   bind_rows(data.frame(
     variable1 = rep("Wet season", 2),
     variable2 = c("No", "Yes"),
-    visit1 = c("", "X"),
-    visit2 = c("", ""),
-    visit3 = c("", "X"),
-    visit4 = c("", "")
+    visit1 = c("0", paste0(visit_n_df$group_n[1])),
+    visit2 = c(paste0(visit_n_df$group_n[2]), "0"),
+    visit3 = c("0", paste0(visit_n_df$group_n[3])),
+    visit4 = c(paste0(visit_n_df$group_n[4]), "0")
   )) %>% 
   mutate(Estimate = "Reference")
 
@@ -1418,18 +1429,26 @@ saveRDS(main_results_table, here("output", "main-model-results-table.RDS"))
 ```{r main-model-results-table, eval = TRUE}
 main_results_table <- readRDS(here("output", "main-model-results-table.RDS"))
 
-kbl(main_results_table[, -1], booktabs = TRUE) %>% 
+main_results_table %>% 
+  select(-c("variable1")) %>% 
+kbl(
+  #booktabs = TRUE, 
+  col.names = c(" ", "Visit 1", "Visit 2", "Visit 3", "Visit 4", "Mean Estimate (95% CI)")
+) %>% 
   kable_styling() %>% 
-  pack_rows(index = c(
-    "Gender" = 2,
-    " " = 1,
-    "Land type" = 3,
-    " " = 1,
-    "Insecticide" = 2,
-    "Larvicide" = 2,
-    " " = 3,
-    "Wet season" = 2
-  ))
+  pack_rows(
+    index = c(
+      "Gender" = 2,
+      " " = 1,
+      "Land type" = 3,
+      " " = 1,
+      "Insecticide" = 2,
+      "Larvicide" = 2,
+      " " = 3,
+      "Wet season" = 2
+    ), 
+    bold = FALSE
+  )
 ```
 
 
@@ -1754,7 +1773,8 @@ if(params$refit_larval_fit) {
     formula, 
     data = inla.stack.data(stack),
     control.predictor = list(
-      A = inla.stack.A(stack)
+      A = inla.stack.A(stack),
+      compute = TRUE
     ),
     control.fixed = coeff_priors
   )
@@ -1907,7 +1927,8 @@ if(params$refit_larval_fit) {
     formula, 
     data = inla.stack.data(stack),
     control.predictor = list(
-      A = inla.stack.A(stack)
+      A = inla.stack.A(stack),
+      compute = TRUE
     ),
     control.fixed = coeff_priors
   )
@@ -1923,6 +1944,16 @@ if(params$refit_larval_fit) {
 } else {
   larval_res_fit <- readRDS(here("output", "larval_res_fit.rds"))
 }
+```
+
+
+```{r}
+ggplot_inla_residuals2(
+  larval_res_fit, 
+  coords_st$ave_larv_cont, 
+  se = FALSE
+) +
+  theme_bw()
 ```
 
 
@@ -2376,6 +2407,17 @@ if(params$refit_adult_fit) {
   adult_res_fit <- readRDS(here("output", "adult_res_fit.rds"))
 }
 ```
+
+
+```{r}
+ggplot_inla_residuals2(
+  adult_res_fit, 
+  coords_st$ave_larv_cont, 
+  se = FALSE
+) +
+  theme_bw()
+```
+
 
 ```{r adult-res-model-summary}
 summary(adult_res_fit)
