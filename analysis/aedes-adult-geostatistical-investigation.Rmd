@@ -1,0 +1,16 @@
+---
+title: "Aedes adult mosquito geostatistical investigation"
+output: pdf_document
+header-includes:
+  - \usepackage{float}
+params:   
+  refit_adult_fit: FALSE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, eval = FALSE, 
+  fig.pos = 'H', fig.align = "center",
+  message = FALSE, warning = FALSE
+)
+```
