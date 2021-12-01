@@ -1,0 +1,14 @@
+---
+title: "aedes-larval-geostatistical-investigation"
+output: pdf_document
+params:   
+  refit_larval_fit: FALSE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, eval = FALSE, 
+  fig.pos = 'H', fig.align = "center",
+  message = FALSE, warning = FALSE
+)
+```s
