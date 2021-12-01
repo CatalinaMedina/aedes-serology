@@ -16,6 +16,31 @@ knitr::opts_chunk$set(
 ```
 
 
+```{r libraries, eval = TRUE}
+library(here)
+library(readxl)
+library(janitor)
+library(zoo)
+library(RANN)
+library(viridis)
+library(gridExtra)
+library(knitr)
+library(sf)
+library(ggsn)
+library(ggmap)
+library(lattice)
+library(magrittr)
+library(knitr)
+library(kableExtra)
+library(INLAutils)
+library(tidyverse)
+
+library(INLA)
+
+source(here("analysis", "process-modis-data-function.R"))
+```
+
+
 ## Adult mosquito models  
 ```{r adult-data-match}
 aedes_adult_red_og <- aedes_red %>% 

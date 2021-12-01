@@ -16,6 +16,37 @@ knitr::opts_chunk$set(
 ```
 
 
+```{r libraries, eval = TRUE}
+library(here)
+library(readxl)
+library(janitor)
+library(zoo)
+library(RANN)
+library(viridis)
+library(gridExtra)
+library(knitr)
+library(sf)
+library(ggsn)
+library(ggmap)
+library(lattice)
+library(magrittr)
+library(knitr)
+library(kableExtra)
+library(INLAutils)
+library(tidyverse)
+
+library(INLA)
+
+source(here("analysis", "process-modis-data-function.R"))
+```
+
+
+### Set up larval data 
+- The house hold survey data contains the `container index` which is the # of water containers that contained larvae in a house. This survey has different sampling units, and only has measurements around the times of visits 1 through 4.
+- The Aedes serology individual's houses were matched to nearest `container index`, within a 300 meter radius. This subsetting is visualized in plots below.
+- The same predictors from the full model were used in addition to this new larval predictor named `larval %`, and without the visit 5 predictor, to model log exposure as before
+
+
 ```{r load full aedes data}
 aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds")) 
 
@@ -25,13 +56,6 @@ aedes_red_ind <- aedes_red %>%
 ```
 
 
-## Larval models  
-- The house hold survey data contains the `container index` which is the # of water containers that contained larvae in a house. This survey has different sampling units, and only has measurements around the times of visits 1 through 4.
-- The Aedes serology individual's houses were matched to nearest `container index`, within a 300 meter radius. This subsetting is visualized in plots below.
-- The same predictors from the full model were used in addition to this new larval predictor named `larval %`, and without the visit 5 predictor, to model log exposure as before
-
-
-\newpage
 ```{r larval-data-match}
 aedes_larval_red_og <- aedes_red %>% 
   filter(visit != "visit5") %>% 
