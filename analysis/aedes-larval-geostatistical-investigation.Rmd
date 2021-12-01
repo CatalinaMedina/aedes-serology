@@ -255,6 +255,8 @@ if(!params$refit_full_model_wo_larval) {
   fit_full_wo_larval_preds <- read_csv(file = here("output", "fit_full_wo_larval_preds.csv"))
   
 } else {
+  set.seed(12345)
+  
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
   
@@ -280,8 +282,6 @@ if(!params$refit_full_model_wo_larval) {
         )
     
     ## Extract train and test data sets
-    set.seed(1234)
-    
     train_ind <- sample(
       1:nrow(all_data),
       size = floor(0.75 * nrow(all_data))
@@ -413,113 +413,338 @@ if(!params$refit_full_model_wo_larval) {
 ```
 
 
-```{r full model plus larval pred}
+```{r full model with larval pred}
 if(!params$refit_full_model_w_larval) {
+  ## Load model fit from last fit
   fit_full_w_larval <- readRDS(here("output", "fit_full_w_larval.rds"))
+  ## Load predictions df
+  fit_full_w_larval_preds <- read_csv(file = here("output", "fit_full_w_larval_preds.csv"))
+  
 } else {
-  ### Model prep
-  ## extract relevant data (not sure if sorting is necessary)
-  coords_st <- aedes_larval_red %>% 
-    filter(!is.na(ave_larv_cont)) %>% 
-    arrange(study_id, time) %>% 
-    select(
-      time, 
-      lon = x, lat = y, 
-      log_saliva_elisa,
-      gender,
-      age_cented7, distance_to_river_scaled,
-      modal_land_type,
-      num_toilets_in_home, num_domestic_water_containers_in_home,
-      insecticide_spray, larvicide_applied_to_water,
-      NFI250_home,
-      wet_season,
-      ave_larv_cont
-      )
+  set.seed(1234)
   
-  ## specify df of covariate values including intercept
-  covar_df <- data.frame(
-    # Intercept = rep(1, nrow(coords_st)),
-    select(coords_st, -c(time, lon, lat, log_saliva_elisa))
-  )
+  ## Repeat multiple times for cross validation
+  num_coss_validation_reps <- 10
+  
+  fit_full_w_larval_preds <- NULL
+  
+  for(j in 1:num_coss_validation_reps){
+    ### Model prep
+    ## extract relevant data (not sure if sorting is necessary)
+    all_data <- aedes_larval_red %>% 
+      filter(!is.na(ave_larv_cont)) %>% 
+      arrange(study_id, time) %>% 
+      select(
+        time, 
+        lon = x, lat = y, 
+        log_saliva_elisa,
+        gender,
+        age_cented7, distance_to_river_scaled,
+        modal_land_type,
+        num_toilets_in_home, num_domestic_water_containers_in_home,
+        insecticide_spray, larvicide_applied_to_water,
+        NFI250_home,
+        wet_season,
+        ave_larv_cont
+        )
     
-  ## extract coordinates as matrix, ignoring repeats
-  coords <- select(coords_st, lon, lat) %>% 
-    distinct() %>% 
-    as.matrix()
-  
-  ## create mesh, good documentation available to understand all options
-  mesh <- inla.mesh.2d(
-    loc = coords,
-    max.edge = c(300, 600)
-  )
-  
-  # specify spde
-  spde <- inla.spde2.matern(mesh)
-  
-  # Need to specify index with spde and group (if there are replicates)
-  s.index <- inla.spde.make.index(
-    "spatial.field", 
-    n.spde = spde$n.spde,
-    n.group = 4
-  )
-  
-  ## A specifies something about edge length based on the mesh
-  A <- inla.spde.make.A(
-    mesh = mesh, 
-    loc = as.matrix(select(coords_st, lon, lat)), 
-    group = coords_st$time
-  )
-  
-  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-  stack <- inla.stack(
-    data = list(y = coords_st$log_saliva_elisa),
-    A = list(A, 1),
-    effects = list(
-      s.index,
-      list(covar_df = covar_df)
-    ),
-    tag = "est"
-  )
-  
-  ## specify model formula, 'f()' incorporates spatial effect and replicate 
-  formula <- y ~ #0 + Intercept
-    gender + 
-    age_cented7  + distance_to_river_scaled +
-    modal_land_type +
-    num_toilets_in_home + num_domestic_water_containers_in_home +
-    insecticide_spray + larvicide_applied_to_water  +
-    NFI250_home  +
-    wet_season +
-    ave_larv_cont +
-    f(
-      spatial.field, 
-      model = spde, 
-      group = spatial.field.group, 
-      control.group = list(model = "iid")
+    ## Extract train and test data sets
+    train_ind <- sample(
+      1:nrow(all_data),
+      size = floor(0.75 * nrow(all_data))
     )
     
+    train_data <- all_data[train_ind, ]
+    test_data <- all_data[-train_ind, ]
+    
+    ## specify df of covariate values
+    all_covar_df <- data.frame(
+      select(all_data, -c(time, lon, lat, log_saliva_elisa))
+    )
+    
+    train_covar_df <- all_covar_df[train_ind, ]
+    test_covar_df <- all_covar_df[-train_ind, ]
+      
+    ## extract coordinates as matrix, ignoring repeats
+    all_coords <- all_data %>% 
+      filter(time == 1) %>% 
+      select(lon, lat) %>% 
+      as.matrix()
+    
+    ## create mesh, good documentation available to understand all options
+    mesh <- inla.mesh.2d(
+      loc = all_coords,
+      max.edge = c(300, 600)
+    )
+    
+    # specify spde
+    spde <- inla.spde2.matern(mesh)
+    
+    # Need to specify index with spde and group (if there are replicates)
+    s.index <- inla.spde.make.index(
+      "spatial.field", 
+      n.spde = spde$n.spde,
+      n.group = 4
+    )
+    
+    ## A specifies something about edge length based on the mesh
+    train_A <- inla.spde.make.A(
+      mesh = mesh, 
+      loc = as.matrix(select(train_data, lon, lat)),
+      group = train_data$time
+    )
+    
+    test_A <- inla.spde.make.A(
+      mesh = mesh, 
+      loc = as.matrix(select(test_data, lon, lat)),
+      group = test_data$time
+    )
+    
+    ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+    train_stack <- inla.stack(
+      data = list(y = train_data$log_saliva_elisa),
+      A = list(train_A, 1),
+      effects = list(
+        s.index,
+        list(train_covar_df = train_covar_df)
+      ),
+      tag = "train"
+    )
+    
+    test_stack <- inla.stack(
+      data = list(y = rep(NA, nrow(test_data))),
+      A = list(test_A, 1),
+      effects = list(
+        s.index,
+        list(test_covar_df = test_covar_df)
+      ),
+      tag = "test"
+    )
+    
+    full_stack <- inla.stack(train_stack, test_stack)
+    
+    ## specify model formula, 'f()' incorporates spatial effect and replicate 
+    formula <- y ~ #0 + Intercept
+      gender + 
+      age_cented7  + distance_to_river_scaled +
+      modal_land_type +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water  +
+      NFI250_home  +
+      wet_season +
+      ave_larv_cont +
+      f(
+        spatial.field, 
+        model = spde, 
+        group = spatial.field.group, 
+        control.group = list(model = "iid")
+      )
+      
+    
+    ## fixed effect priors
+    coeff_priors <- list(
+        mean.intercept = 0,
+        prec.intercept = 1/(2.5^2),
+        mean = list(default = 0),
+        prec = list(default = 1/(2.5^2))
+    )
   
-  ## fixed effect priors
-  coeff_priors <- list(
-      mean.intercept = 0,
-      prec.intercept = 1/(2.5^2),
-      mean = list(default = 0),
-      prec = list(default = 1/(2.5^2))
-  )
-
-  ## Fit model
-  fit_full_w_larval <- inla(
-    formula, 
-    data = inla.stack.data(stack),
-    control.predictor = list(
-      A = inla.stack.A(stack),
-      compute = TRUE
-    ),
-    control.fixed = coeff_priors
-  )
+    ## Fit model
+    fit_full_w_larval <- inla(
+      formula, 
+      data = inla.stack.data(full_stack),
+      control.predictor = list(
+        A = inla.stack.A(full_stack),
+        compute = TRUE
+      ),
+      control.fixed = coeff_priors
+    )
+    
+    
+    index_pred <- inla.stack.index(full_stack, "test")$data
   
+    preds_df <- data.frame(
+      "pred" = fit_full_w_larval$summary.linear.predictor[index_pred, "mean"],
+      "obs" = test_data$log_saliva_elisa,
+      "pred_iter" = rep(j, nrow(test_data))
+    )
+    
+    
+    fit_full_w_larval_preds <- bind_rows(fit_full_w_larval_preds, preds_df)
+  }
   
+  ## Saves last one so we have coefficient estimates
   saveRDS(fit_full_w_larval, here("output", "fit_full_w_larval.rds"))
+  ## Saves predictions
+  write.csv(fit_full_w_larval_preds, file = here("output", "fit_full_w_larval_preds.csv"), row.names = FALSE)
+}
+```
+
+
+```{r full model without enviro preds}
+if(!params$refit_model_w_larval_wo_enviro) {
+  ## Load model fit from last fit
+  fit_full_wo_enviro <- readRDS(here("output", "fit_full_wo_enviro.rds"))
+  ## Load predictions df
+  fit_full_wo_enviro_preds <- read_csv(file = here("output", "fit_full_wo_enviro_preds.csv"))
+  
+} else {
+  set.seed(1234)
+  
+  ## Repeat multiple times for cross validation
+  num_coss_validation_reps <- 10
+  
+  fit_full_wo_enviro_preds <- NULL
+  
+  for(j in 1:num_coss_validation_reps){
+    ### Model prep
+    ## extract relevant data (not sure if sorting is necessary)
+    all_data <- aedes_larval_red %>% 
+      filter(!is.na(ave_larv_cont)) %>% 
+      arrange(study_id, time) %>% 
+      select(
+        time, 
+        lon = x, lat = y, 
+        log_saliva_elisa,
+        gender,
+        age_cented7, #distance_to_river_scaled,
+        #modal_land_type,
+        num_toilets_in_home, num_domestic_water_containers_in_home,
+        insecticide_spray, larvicide_applied_to_water,
+        #NFI250_home,
+        wet_season,
+        ave_larv_cont
+        )
+    
+    ## Extract train and test data sets
+    train_ind <- sample(
+      1:nrow(all_data),
+      size = floor(0.75 * nrow(all_data))
+    )
+    
+    train_data <- all_data[train_ind, ]
+    test_data <- all_data[-train_ind, ]
+    
+    ## specify df of covariate values
+    all_covar_df <- data.frame(
+      select(all_data, -c(time, lon, lat, log_saliva_elisa))
+    )
+    
+    train_covar_df <- all_covar_df[train_ind, ]
+    test_covar_df <- all_covar_df[-train_ind, ]
+      
+    ## extract coordinates as matrix, ignoring repeats
+    all_coords <- all_data %>% 
+      filter(time == 1) %>% 
+      select(lon, lat) %>% 
+      as.matrix()
+    
+    ## create mesh, good documentation available to understand all options
+    mesh <- inla.mesh.2d(
+      loc = all_coords,
+      max.edge = c(300, 600)
+    )
+    
+    # specify spde
+    spde <- inla.spde2.matern(mesh)
+    
+    # Need to specify index with spde and group (if there are replicates)
+    s.index <- inla.spde.make.index(
+      "spatial.field", 
+      n.spde = spde$n.spde,
+      n.group = 4
+    )
+    
+    ## A specifies something about edge length based on the mesh
+    train_A <- inla.spde.make.A(
+      mesh = mesh, 
+      loc = as.matrix(select(train_data, lon, lat)),
+      group = train_data$time
+    )
+    
+    test_A <- inla.spde.make.A(
+      mesh = mesh, 
+      loc = as.matrix(select(test_data, lon, lat)),
+      group = test_data$time
+    )
+    
+    ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+    train_stack <- inla.stack(
+      data = list(y = train_data$log_saliva_elisa),
+      A = list(train_A, 1),
+      effects = list(
+        s.index,
+        list(train_covar_df = train_covar_df)
+      ),
+      tag = "train"
+    )
+    
+    test_stack <- inla.stack(
+      data = list(y = rep(NA, nrow(test_data))),
+      A = list(test_A, 1),
+      effects = list(
+        s.index,
+        list(test_covar_df = test_covar_df)
+      ),
+      tag = "test"
+    )
+    
+    full_stack <- inla.stack(train_stack, test_stack)
+    
+    ## specify model formula, 'f()' incorporates spatial effect and replicate 
+    formula <- y ~ #0 + Intercept
+      gender + 
+      age_cented7  + #distance_to_river_scaled +
+      #modal_land_type +
+      num_toilets_in_home + num_domestic_water_containers_in_home +
+      insecticide_spray + larvicide_applied_to_water  +
+      #NFI250_home  +
+      wet_season +
+      ave_larv_cont +
+      f(
+        spatial.field, 
+        model = spde, 
+        group = spatial.field.group, 
+        control.group = list(model = "iid")
+      )
+      
+    
+    ## fixed effect priors
+    coeff_priors <- list(
+        mean.intercept = 0,
+        prec.intercept = 1/(2.5^2),
+        mean = list(default = 0),
+        prec = list(default = 1/(2.5^2))
+    )
+  
+    ## Fit model
+    fit_full_wo_enviro <- inla(
+      formula, 
+      data = inla.stack.data(full_stack),
+      control.predictor = list(
+        A = inla.stack.A(full_stack),
+        compute = TRUE
+      ),
+      control.fixed = coeff_priors
+    )
+    
+    
+    index_pred <- inla.stack.index(full_stack, "test")$data
+  
+    preds_df <- data.frame(
+      "pred" = fit_full_wo_enviro$summary.linear.predictor[index_pred, "mean"],
+      "obs" = test_data$log_saliva_elisa,
+      "pred_iter" = rep(j, nrow(test_data))
+    )
+    
+    
+    fit_full_wo_enviro_preds <- bind_rows(fit_full_wo_enviro_preds, preds_df)
+  }
+  
+  ## Saves last one so we have coefficient estimates
+  saveRDS(fit_full_wo_enviro, here("output", "fit_full_wo_enviro.rds"))
+  ## Saves predictions
+  write.csv(fit_full_wo_enviro_preds, file = here("output", "fit_full_wo_enviro_preds.csv"), row.names = FALSE)
 }
 ```
 
