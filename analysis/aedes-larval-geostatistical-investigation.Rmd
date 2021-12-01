@@ -255,7 +255,7 @@ if(!params$refit_full_model_wo_larval) {
   fit_full_wo_larval_preds <- read_csv(file = here("output", "fit_full_wo_larval_preds.csv"))
   
 } else {
-  set.seed(12345)
+  set.seed(123456)
   
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
@@ -421,7 +421,7 @@ if(!params$refit_full_model_w_larval) {
   fit_full_w_larval_preds <- read_csv(file = here("output", "fit_full_w_larval_preds.csv"))
   
 } else {
-  set.seed(1234)
+  set.seed(123456)
   
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
@@ -589,7 +589,7 @@ if(!params$refit_model_w_larval_wo_enviro) {
   fit_full_wo_enviro_preds <- read_csv(file = here("output", "fit_full_wo_enviro_preds.csv"))
   
 } else {
-  set.seed(1234)
+  set.seed(123456)
   
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
@@ -746,6 +746,22 @@ if(!params$refit_model_w_larval_wo_enviro) {
   ## Saves predictions
   write.csv(fit_full_wo_enviro_preds, file = here("output", "fit_full_wo_enviro_preds.csv"), row.names = FALSE)
 }
+```
+
+
+```{r cross validation comparison}
+fit_full_wo_larval_preds %>% 
+  mutate(mse_wo_sum = (pred - obs)^2) %>% 
+  select(mse_wo_sum) %>% 
+  sum()
+fit_full_w_larval_preds %>% 
+  mutate(mse_wo_sum = (pred - obs)^2) %>% 
+  select(mse_wo_sum) %>% 
+  sum()
+fit_full_wo_enviro_preds %>% 
+  mutate(mse_wo_sum = (pred - obs)^2) %>% 
+  select(mse_wo_sum) %>% 
+  sum()
 ```
 
 
