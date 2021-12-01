@@ -506,6 +506,37 @@ ggplot_inla_residuals2(
 
 ```{r larval-res-model-summary}
 summary(larval_res_fit)
+
+## Check that pred_rownames and pred_name_vec line up
+pred_rownames_ordered <- c(
+  "(Intercept)",
+  "genderMale",
+  "age_cented7",
+  "modal_land_typerice paddy",
+  "modal_land_typecropland",
+  "distance_to_river_scaled",
+  "insecticide_sprayYes",
+  "larvicide_applied_to_waterYes",
+  "num_toilets_in_home",
+  "num_domestic_water_containers_in_home",
+  "NFI250_home",
+  "wet_seasonyes"
+)
+
+pred_names_vec = c(
+  "(Intercept)",
+  "Male", 
+  "Age", 
+  "Rice paddy",
+  "Cropland",
+  "Distance to river", 
+  "Insecticide",
+  "Larvicide",
+  "Toilets",
+  "Water containers",
+  "NFI",
+  "Wet season"
+)
 ```
 
 
