@@ -2013,21 +2013,44 @@ adult_data <- read_csv(here("data", "MosqAdultData_UTM48N.csv"), show_col_types 
   )
   
 
-## Match nearest adult count to aedes data
-adult_nn <- nn2(
-  data = select(adult_data, adult_x, adult_y),
-  query = select(aedes_adult_red_og, x, y),
-  searchtype = "radius",
-  k = 1,
-  radius = 250
-)
+# ## Match nearest adult count to aedes data
+# adult_nn <- nn2(
+#   data = select(adult_data, adult_x, adult_y),
+#   query = select(aedes_adult_red_og, x, y),
+#   searchtype = "radius",
+#   k = 1,
+#   radius = 250
+# )
+# 
+# matched <- adult_nn$nn.idx != 0
+# 
+# aedes_adult_red <- aedes_adult_red_og %>% 
+#   mutate(adult_count = rep(NA, nrow(aedes_adult_red_og)))
+# 
+# aedes_adult_red$adult_count[matched] <- adult_data$total_aed[adult_nn$nn.idx[matched]]
 
-matched <- adult_nn$nn.idx != 0
 
-aedes_adult_red <- aedes_adult_red_og %>% 
-  mutate(adult_count = rep(NA, nrow(aedes_adult_red_og)))
+## Match nearest larval count to aedes data
+aedes_adult_red <- aedes_adult_red_og
+aedes_adult_red$ave_adult_count <- NA
 
-aedes_adult_red$adult_count[matched] <- adult_data$total_aed[adult_nn$nn.idx[matched]]
+
+
+adult_coord <- as.matrix(select(adult_data, adult_x, adult_y))
+    
+max_nrow <- nrow(aedes_adult_red)
+    
+for(i in 1:max_nrow){
+  id_coord <- as.matrix(aedes_adult_red[i, c("x", "y")])
+
+  dists <- sqrt((id_coord[1] - adult_coord[, 1])^2 + (id_coord[2] - adult_coord[, 2])^2)
+    
+  if(sum(dists <= 250) > 0) {
+      aedes_adult_red$ave_adult_count[i] <- mean(adult_data$total_aed[dists <= 250])
+  } else {
+    aedes_adult_red$ave_adult_count[i] <- NA
+  }
+}
 ```
 
 
@@ -2035,7 +2058,7 @@ aedes_adult_red$adult_count[matched] <- adult_data$total_aed[adult_nn$nn.idx[mat
 pdf(here("output", "adult-subsetting-plot1.pdf"), width = 10)
 
 aedes_adult_red %>% 
-    ggplot(aes(x = x, y = y, color = adult_count)) +
+    ggplot(aes(x = x, y = y, color = ave_adult_count)) +
       geom_point(alpha = 0.85) +
       scale_color_viridis(direction = -1) +
       xlim(range(aedes_adult_red$x)) +
@@ -2058,8 +2081,8 @@ dev.off()
 pdf(here("output", "adult-subsetting-plot2.pdf"), width = 10)
 
   aedes_adult_red %>% 
-    filter(!is.na(adult_count)) %>% 
-    ggplot(aes(x = x, y = y, color = adult_count))+
+    filter(!is.na(ave_adult_count)) %>% 
+    ggplot(aes(x = x, y = y, color = ave_adult_count))+
       geom_point(alpha = 0.85) +
       scale_color_viridis(direction = -1) +
       xlim(range(aedes_adult_red$x)) +
@@ -2128,7 +2151,7 @@ ggplot(aedes_adult_red, aes(x = adult_count, y = log_saliva_elisa)) +
 ```{r adult-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_adult_red %>% 
-  filter(!is.na(adult_count)) %>% 
+  filter(!is.na(ave_adult_count)) %>% 
   mutate(modal_land_type = droplevels(modal_land_type)) %>% 
   arrange(study_id) %>% 
   select(
@@ -2140,7 +2163,7 @@ coords_st <- aedes_adult_red %>%
     num_toilets_in_home, num_domestic_water_containers_in_home,
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
-    adult_count
+    ave_adult_count
     )
 
 ## specify df of covariate values including intercept
@@ -2194,7 +2217,7 @@ formula <- y ~ #0 + Intercept
   num_toilets_in_home + num_domestic_water_containers_in_home +
   insecticide_spray + larvicide_applied_to_water  +
   NFI250_home  +
-  adult_count +
+  ave_adult_count +
   f(
     spatial.field, 
     model = spde
@@ -2217,7 +2240,8 @@ if(params$refit_adult_fit) {
     formula, 
     data = inla.stack.data(stack),
     control.predictor = list(
-      A = inla.stack.A(stack)
+      A = inla.stack.A(stack),
+      compute = TRUE
     ),
     control.fixed = coeff_priors
   )
@@ -2241,9 +2265,9 @@ adult_fit_df <- adult_fit$summary.fixed %>%
     unordered_names,
     levels = c(
       pred_rownames_ordered[pred_rownames_ordered != "modal_land_typerice paddy"], 
-      "adult_count"
+      "ave_adult_count"
     ),
-    labels = c(pred_names_vec[pred_names_vec != "Rice paddy"], "Mosquito counts")
+    labels = c(pred_names_vec[pred_names_vec != "Rice paddy"], "Ave Mosquito count")
   )) %>% 
   select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) 
 
@@ -2276,7 +2300,7 @@ include_graphics(here("output", "adult-model-forest-plot.pdf"))
 ```{r adult-res-model-prep}
 ## extract relevant data
 coords_st <- aedes_adult_red %>% 
-  filter(!is.na(adult_count)) %>% 
+  filter(!is.na(ave_adult_count)) %>% 
   mutate(modal_land_type = droplevels(modal_land_type)) %>% 
   arrange(study_id) %>% 
   select(
@@ -2286,7 +2310,7 @@ coords_st <- aedes_adult_red %>%
     num_toilets_in_home, num_domestic_water_containers_in_home,
     insecticide_spray, larvicide_applied_to_water,
     NFI250_home,
-    adult_count
+    ave_adult_count
     )
 
 ## Extact train and test data sets
@@ -2303,7 +2327,7 @@ ad_test <- coords_st[-train_ind, ]
 ## specify df of covariate values including intercept
 covar_df <- data.frame(
   # Intercept = rep(1, nrow(coords_st)),
-  select(coords_st, -c( lon, lat, adult_count))
+  select(coords_st, -c( lon, lat, ave_adult_count))
 )
 
 train_covar <- covar_df[train_ind, ]
@@ -2345,7 +2369,7 @@ test_A <- inla.spde.make.A(
 
 ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
 train_stack <- inla.stack(
-  data = list(y = ad_train$adult_count),
+  data = list(y = ad_train$ave_adult_count),
   A = list(train_A, 1),
   effects = list(
     s.index,
@@ -2412,7 +2436,7 @@ if(params$refit_adult_fit) {
 ```{r}
 ggplot_inla_residuals2(
   adult_res_fit, 
-  coords_st$ave_larv_cont, 
+  coords_st$ave_adult_count, 
   se = FALSE
 ) +
   theme_bw()
@@ -2427,7 +2451,7 @@ summary(adult_res_fit)
 index_pred <- inla.stack.index(full_stk, "pred")$data
 pred <- adult_res_fit$summary.linear.predictor[index_pred, "mean"]
 
-obs <- ad_test$adult_count
+obs <- ad_test$ave_adult_count
 
 plot(x = obs, y = pred)
 
