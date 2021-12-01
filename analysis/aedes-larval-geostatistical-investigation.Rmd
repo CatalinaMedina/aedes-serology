@@ -5,6 +5,7 @@ header-includes:
   - \usepackage{float}
 params:   
   refit_larval_fit: FALSE
+  refit_full_model_plus_larval: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -27,7 +28,6 @@ library(gridExtra)
 library(knitr)
 library(sf)
 library(ggsn)
-library(ggmap)
 library(lattice)
 library(magrittr)
 library(knitr)
@@ -107,39 +107,39 @@ larval_hs <- read_xlsx(here("data", "House Survey Data_Extracted 03May2021.xlsx"
 
   
 ## Match nearest larval count to aedes data
-aedes_larval_red <- aedes_larval_red_og
-aedes_larval_red$ave_larv_cont <- NA
+aedes_red_w_larval <- aedes_larval_red_og
+aedes_red_w_larval$ave_larv_cont <- NA
 aedes_l_red <- NA
 
 
-for(v in levels(aedes_larval_red$visit)) {
+for(v in levels(aedes_red_w_larval$visit)) {
   larval_hs_red <- filter(larval_hs, visit == v)
   larval_coord <- as.matrix(select(larval_hs_red, larval_X, larval_Y))
     
-  aedes_larval_red <- filter(aedes_larval_red_og, visit == v)
+  aedes_red_w_larval <- filter(aedes_larval_red_og, visit == v)
   
-  curr_nrow <- nrow(aedes_larval_red)
+  curr_nrow <- nrow(aedes_red_w_larval)
     
   for(i in 1:curr_nrow){
-    id_coord <- as.matrix(aedes_larval_red[i, c("x", "y")])
+    id_coord <- as.matrix(aedes_red_w_larval[i, c("x", "y")])
 
     dists <- sqrt((id_coord[1] - larval_coord[, 1])^2 + (id_coord[2] - larval_coord[, 2])^2)
     
     if(sum(dists <= 250) > 0) {
-      aedes_larval_red$ave_larv_cont[i] <- mean(larval_hs_red$con_w_larvae[dists <= 250])
+      aedes_red_w_larval$ave_larv_cont[i] <- mean(larval_hs_red$con_w_larvae[dists <= 250])
     } else {
-      aedes_larval_red$ave_larv_cont[i] <- NA
+      aedes_red_w_larval$ave_larv_cont[i] <- NA
     }
   }
   
   if(v == "visit1") {
-    aedes_l_red <- aedes_larval_red
+    aedes_l_red <- aedes_red_w_larval
   } else {
-    aedes_l_red <- bind_rows(aedes_l_red, aedes_larval_red)
+    aedes_l_red <- bind_rows(aedes_l_red, aedes_red_w_larval)
   }
 }
 
-aedes_red_w_larval <- aedes_l_red %>% 
+aedes_larval_red <- aedes_l_red %>% 
   arrange(study_id, visit)
 ```
 
@@ -147,13 +147,13 @@ aedes_red_w_larval <- aedes_l_red %>%
 ```{r plot-showing-larval-subsetting}
 pdf(here("output", "larval-subsetting-plot1.pdf"), width = 10)
 
-aedes_red_w_larval %>% 
+aedes_larval_red %>% 
     mutate(Larvae = ave_larv_cont) %>% 
     ggplot(aes(x = x, y = y, color = Larvae)) +
       geom_point() +
       scale_color_viridis(direction = -1) +
-      xlim(range(aedes_red_w_larval$x)) +
-      ylim(range(aedes_red_w_larval$y)) +
+      xlim(range(aedes_larval_red$x)) +
+      ylim(range(aedes_larval_red$y)) +
       xlab("") +
       ylab("") +
       coord_equal() +
@@ -172,14 +172,14 @@ dev.off()
 
 pdf(here("output", "larval-subsetting-plot2.pdf"), width = 10)
 
-  aedes_red_w_larval %>% 
+  aedes_larval_red %>% 
     filter(!is.na(ave_larv_cont)) %>% 
     mutate(Larvae = ave_larv_cont) %>% 
     ggplot(aes(x = x, y = y, color = Larvae))+
       geom_point() +
       scale_color_viridis(direction = -1) +
-      xlim(range(aedes_red_w_larval$x)) +
-      ylim(range(aedes_red_w_larval$y)) +
+      xlim(range(aedes_larval_red$x)) +
+      ylim(range(aedes_larval_red$y)) +
       xlab("") +
       ylab("") +
       coord_equal() +
@@ -203,8 +203,8 @@ pdf(here("output", "larval-subsetting-plot3.pdf"), width = 10)
     ggplot(aes(x = larval_X, y = larval_Y, color = Larvae)) +
       geom_point() +
       scale_color_viridis(direction = -1) +
-      xlim(range(aedes_red_w_larval$x)) +
-      ylim(range(aedes_red_w_larval$y)) +
+      xlim(range(aedes_larval_red$x)) +
+      ylim(range(aedes_larval_red$y)) +
       xlab("") +
       ylab("") +
       coord_equal() +
@@ -238,108 +238,218 @@ include_graphics(here("output", "larval-subsetting-plot2.pdf"))
 
 
 ```{r saliva-vs-larvae}
-ggplot(aedes_red_w_larval, aes(x = ave_larv_cont, y = log_saliva_elisa)) +
+ggplot(aedes_larval_red, aes(x = ave_larv_cont, y = log_saliva_elisa)) +
   geom_point() +
   xlab("Average number of water containers with larae found in 250m radius") +
   theme_bw()
 ```
 
 
-### Added containters with larvae as predictor
-```{r larval-model-prep}
-## extract relevant data (not sure if sorting is necessary)
-coords_st <- aedes_red_w_larval %>% 
-  filter(!is.na(ave_larv_cont)) %>% 
-  arrange(study_id, time) %>% 
-  select(
-    time, 
-    lon = x, lat = y, 
-    log_saliva_elisa,
-    gender,
-    age_cented7, distance_to_river_scaled,
-    modal_land_type,
-    num_toilets_in_home, num_domestic_water_containers_in_home,
-    insecticide_spray, larvicide_applied_to_water,
-    NFI250_home,
-    wet_season,
-    ave_larv_cont
-    )
-
-## specify df of covariate values including intercept
-covar_df <- data.frame(
-  # Intercept = rep(1, nrow(coords_st)),
-  select(coords_st, -c(time, lon, lat, log_saliva_elisa))
-)
+### Full model with and without larval and environmental predictors
+```{r full model without larval pred}
+if(!params$refit_full_model_plus_larval) {
+  fit_full_wo_larval <- readRDS(here("output", "fit_full_wo_larval.rds"))
+} else {
+  ### Model prep
+  ## extract relevant data (not sure if sorting is necessary)
+  coords_st <- aedes_larval_red %>% 
+    filter(!is.na(ave_larv_cont)) %>% 
+    arrange(study_id, time) %>% 
+    select(
+      time, 
+      lon = x, lat = y, 
+      log_saliva_elisa,
+      gender,
+      age_cented7, distance_to_river_scaled,
+      modal_land_type,
+      num_toilets_in_home, num_domestic_water_containers_in_home,
+      insecticide_spray, larvicide_applied_to_water,
+      NFI250_home,
+      wet_season
+      )
   
-## extract coordinates as matrix, ignoring repeats
-coords <- select(coords_st, lon, lat) %>% 
-  distinct() %>% 
-  as.matrix()
-
-## create mesh, good documentation available to understand all options
-mesh <- inla.mesh.2d(
-  loc = coords,
-  max.edge = c(300, 600)
-)
-
-# specify spde
-spde <- inla.spde2.matern(mesh)
-
-# Need to specify index with spde and group (if there are replicates)
-s.index <- inla.spde.make.index(
-  "spatial.field", 
-  n.spde = spde$n.spde,
-  n.group = 4
-)
-
-## A specifies something about edge length based on the mesh
-A <- inla.spde.make.A(
-  mesh = mesh, 
-  loc = as.matrix(select(coords_st, lon, lat)), 
-  group = coords_st$time
-)
-
-## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-stack <- inla.stack(
-  data = list(y = coords_st$log_saliva_elisa),
-  A = list(A, 1),
-  effects = list(
-    s.index,
-    list(covar_df = covar_df)
-  ),
-  tag = "est"
-)
-
-## specify model formula, 'f()' incorporates spatial effect and replicate 
-formula <- y ~ #0 + Intercept
-  gender + 
-  age_cented7  + distance_to_river_scaled +
-  modal_land_type +
-  num_toilets_in_home + num_domestic_water_containers_in_home +
-  insecticide_spray + larvicide_applied_to_water  +
-  NFI250_home  +
-  wet_season +
-  ave_larv_cont +
-  f(
-    spatial.field, 
-    model = spde, 
-    group = spatial.field.group, 
-    control.group = list(model = "iid")
+  ## specify df of covariate values including intercept
+  covar_df <- data.frame(
+    # Intercept = rep(1, nrow(coords_st)),
+    select(coords_st, -c(time, lon, lat, log_saliva_elisa))
+  )
+    
+  ## extract coordinates as matrix, ignoring repeats
+  coords <- select(coords_st, lon, lat) %>% 
+    distinct() %>% 
+    as.matrix()
+  
+  ## create mesh, good documentation available to understand all options
+  mesh <- inla.mesh.2d(
+    loc = coords,
+    max.edge = c(300, 600)
   )
   
+  # specify spde
+  spde <- inla.spde2.matern(mesh)
+  
+  # Need to specify index with spde and group (if there are replicates)
+  s.index <- inla.spde.make.index(
+    "spatial.field", 
+    n.spde = spde$n.spde,
+    n.group = 4
+  )
+  
+  ## A specifies something about edge length based on the mesh
+  A <- inla.spde.make.A(
+    mesh = mesh, 
+    loc = as.matrix(select(coords_st, lon, lat)), 
+    group = coords_st$time
+  )
+  
+  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+  stack <- inla.stack(
+    data = list(y = coords_st$log_saliva_elisa),
+    A = list(A, 1),
+    effects = list(
+      s.index,
+      list(covar_df = covar_df)
+    ),
+    tag = "est"
+  )
+  
+  ## specify model formula, 'f()' incorporates spatial effect and replicate 
+  formula <- y ~ #0 + Intercept
+    gender + 
+    age_cented7  + distance_to_river_scaled +
+    modal_land_type +
+    num_toilets_in_home + num_domestic_water_containers_in_home +
+    insecticide_spray + larvicide_applied_to_water  +
+    NFI250_home  +
+    wet_season +
+    f(
+      spatial.field, 
+      model = spde, 
+      group = spatial.field.group, 
+      control.group = list(model = "iid")
+    )
+    
+  
+  ## fixed effect priors
+  coeff_priors <- list(
+      mean.intercept = 0,
+      prec.intercept = 1/(2.5^2),
+      mean = list(default = 0),
+      prec = list(default = 1/(2.5^2))
+  )
 
-## fixed effect priors
-coeff_priors <- list(
-    mean.intercept = 0,
-    prec.intercept = 1/(2.5^2),
-    mean = list(default = 0),
-    prec = list(default = 1/(2.5^2))
-)
+  ## Fit model
+  fit_full_wo_larval <- inla(
+    formula, 
+    data = inla.stack.data(stack),
+    control.predictor = list(
+      A = inla.stack.A(stack),
+      compute = TRUE
+    ),
+    control.fixed = coeff_priors
+  )
+  
+  
+  saveRDS(fit_full_wo_larval, here("output", "fit_full_wo_larval.rds"))
+}
 ```
 
 
-```{r larval-model-fit}
-if(params$refit_larval_fit) {
+```{r full model plus larval pred}
+if(!params$refit_larval_fit) {
+  larval_fit <- readRDS(here("output", "larval_fit.rds"))
+} else {
+  ### Model prep
+  ## extract relevant data (not sure if sorting is necessary)
+  coords_st <- aedes_larval_red %>% 
+    filter(!is.na(ave_larv_cont)) %>% 
+    arrange(study_id, time) %>% 
+    select(
+      time, 
+      lon = x, lat = y, 
+      log_saliva_elisa,
+      gender,
+      age_cented7, distance_to_river_scaled,
+      modal_land_type,
+      num_toilets_in_home, num_domestic_water_containers_in_home,
+      insecticide_spray, larvicide_applied_to_water,
+      NFI250_home,
+      wet_season,
+      ave_larv_cont
+      )
+  
+  ## specify df of covariate values including intercept
+  covar_df <- data.frame(
+    # Intercept = rep(1, nrow(coords_st)),
+    select(coords_st, -c(time, lon, lat, log_saliva_elisa))
+  )
+    
+  ## extract coordinates as matrix, ignoring repeats
+  coords <- select(coords_st, lon, lat) %>% 
+    distinct() %>% 
+    as.matrix()
+  
+  ## create mesh, good documentation available to understand all options
+  mesh <- inla.mesh.2d(
+    loc = coords,
+    max.edge = c(300, 600)
+  )
+  
+  # specify spde
+  spde <- inla.spde2.matern(mesh)
+  
+  # Need to specify index with spde and group (if there are replicates)
+  s.index <- inla.spde.make.index(
+    "spatial.field", 
+    n.spde = spde$n.spde,
+    n.group = 4
+  )
+  
+  ## A specifies something about edge length based on the mesh
+  A <- inla.spde.make.A(
+    mesh = mesh, 
+    loc = as.matrix(select(coords_st, lon, lat)), 
+    group = coords_st$time
+  )
+  
+  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+  stack <- inla.stack(
+    data = list(y = coords_st$log_saliva_elisa),
+    A = list(A, 1),
+    effects = list(
+      s.index,
+      list(covar_df = covar_df)
+    ),
+    tag = "est"
+  )
+  
+  ## specify model formula, 'f()' incorporates spatial effect and replicate 
+  formula <- y ~ #0 + Intercept
+    gender + 
+    age_cented7  + distance_to_river_scaled +
+    modal_land_type +
+    num_toilets_in_home + num_domestic_water_containers_in_home +
+    insecticide_spray + larvicide_applied_to_water  +
+    NFI250_home  +
+    wet_season +
+    ave_larv_cont +
+    f(
+      spatial.field, 
+      model = spde, 
+      group = spatial.field.group, 
+      control.group = list(model = "iid")
+    )
+    
+  
+  ## fixed effect priors
+  coeff_priors <- list(
+      mean.intercept = 0,
+      prec.intercept = 1/(2.5^2),
+      mean = list(default = 0),
+      prec = list(default = 1/(2.5^2))
+  )
+
+  ## Fit model
   larval_fit <- inla(
     formula, 
     data = inla.stack.data(stack),
@@ -349,17 +459,9 @@ if(params$refit_larval_fit) {
     ),
     control.fixed = coeff_priors
   )
-
-  # Warning in inla(formula, data = inla.stack.data(stack), control.predictor = list(A = inla.stack.A(stack)),  :
-  # The A-matrix in the predictor (see ?control.predictor) is specified
-  # but an intercept is in the formula. This will likely result
-  # in the intercept being applied multiple times in the model, and is likely
-  # not what you want. See ?inla.stack for more information.
-  # You can remove the intercept adding ``-1'' to the formula.
+  
   
   saveRDS(larval_fit, here("output", "larval_fit.rds"))
-} else {
-  larval_fit <- readRDS(here("output", "larval_fit.rds"))
 }
 ```
 
@@ -406,7 +508,7 @@ include_graphics(here("output", "larval-model-forest-plot.pdf"))
 ### Containters with larvae as response
 ```{r larval-res-model-prep}
 ## extract relevant data (not sure if sorting is necessary)
-coords_st <- aedes_red_w_larval %>% 
+coords_st <- aedes_larval_red %>% 
   filter(!is.na(ave_larv_cont)) %>% 
   arrange(study_id, time) %>% 
   select(
