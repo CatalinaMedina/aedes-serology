@@ -11,7 +11,7 @@ params:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE, eval = FALSE, 
+  echo = FALSE, eval = TRUE, 
   fig.pos = 'H', fig.align = "center",
   message = FALSE, warning = FALSE
 )
@@ -54,6 +54,37 @@ aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds"))
 aedes_red_ind <- aedes_red %>%
   filter(visit == "visit1") %>% 
   mutate(visit = droplevels(visit))
+
+## Check that pred_rownames and pred_name_vec line up
+pred_rownames_ordered <- c(
+  "(Intercept)",
+  "genderMale",
+  "age_cented7",
+  "modal_land_typerice paddy",
+  "modal_land_typecropland",
+  "distance_to_river_scaled",
+  "insecticide_sprayYes",
+  "larvicide_applied_to_waterYes",
+  "num_toilets_in_home",
+  "num_domestic_water_containers_in_home",
+  "NFI250_home",
+  "wet_seasonyes"
+)
+
+pred_names_vec = c(
+  "(Intercept)",
+  "Male", 
+  "Age", 
+  "Rice paddy",
+  "Cropland",
+  "Distance to river", 
+  "Insecticide",
+  "Larvicide",
+  "Toilets",
+  "Water containers",
+  "NFI",
+  "Wet season"
+)
 ```
 
 
@@ -142,10 +173,13 @@ for(v in levels(aedes_red_w_larval$visit)) {
 
 aedes_larval_red <- aedes_l_red %>% 
   arrange(study_id, visit)
+
+
+larval_pred_est <- read_csv(here("output", "larval_pred_est.csv"))
 ```
 
 
-```{r plot-showing-larval-subsetting}
+```{r plot-showing-larval-subsetting, eval = FALSE}
 pdf(here("output", "larval-subsetting-plot1.pdf"), width = 10)
 
 aedes_larval_red %>% 
@@ -225,20 +259,20 @@ dev.off()
 ```
 
 
-```{r load-larval-subsetting-plot3, eval = TRUE}
+```{r load-larval-subsetting-plot3, eval = FALSE}
 include_graphics(here("output", "larval-subsetting-plot3.pdf"))
 ```
 
-```{r load-larval-subsetting-plot1, eval = TRUE}
+```{r load-larval-subsetting-plot1, eval = FALSE}
 include_graphics(here("output", "larval-subsetting-plot1.pdf"))
 ```
 
-```{r load-larval-subsetting-plot2, eval = TRUE}
+```{r load-larval-subsetting-plot2, eval = FALSE}
 include_graphics(here("output", "larval-subsetting-plot2.pdf"))
 ```
 
 
-```{r saliva-vs-larvae}
+```{r saliva-vs-larvae, eval = FALSE}
 ggplot(aedes_larval_red, aes(x = ave_larv_cont, y = log_saliva_elisa)) +
   geom_point() +
   xlab("Average number of water containers with larae found in 250m radius") +
@@ -249,13 +283,11 @@ ggplot(aedes_larval_red, aes(x = ave_larv_cont, y = log_saliva_elisa)) +
 ### Full model with and without larval and environmental predictors
 ```{r full model without larval pred}
 if(!params$refit_full_model_wo_larval) {
-  ## Load model fit from last fit
-  fit_full_wo_larval <- readRDS(here("output", "fit_full_wo_larval.rds"))
   ## Load predictions df
   fit_full_wo_larval_preds <- read_csv(file = here("output", "fit_full_wo_larval_preds.csv"))
   
 } else {
-  set.seed(123456)
+  set.seed(1234)
   
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
@@ -284,7 +316,7 @@ if(!params$refit_full_model_wo_larval) {
     ## Extract train and test data sets
     train_ind <- sample(
       1:nrow(all_data),
-      size = floor(0.75 * nrow(all_data))
+      size = floor(0.95 * nrow(all_data))
     )
     
     train_data <- all_data[train_ind, ]
@@ -405,8 +437,6 @@ if(!params$refit_full_model_wo_larval) {
     fit_full_wo_larval_preds <- bind_rows(fit_full_wo_larval_preds, preds_df)
   }
   
-  ## Saves last one so we have coefficient estimates
-  saveRDS(fit_full_wo_larval, here("output", "fit_full_wo_larval.rds"))
   ## Saves predictions
   write.csv(fit_full_wo_larval_preds, file = here("output", "fit_full_wo_larval_preds.csv"), row.names = FALSE)
 }
@@ -415,13 +445,14 @@ if(!params$refit_full_model_wo_larval) {
 
 ```{r full model with larval pred}
 if(!params$refit_full_model_w_larval) {
-  ## Load model fit from last fit
-  fit_full_w_larval <- readRDS(here("output", "fit_full_w_larval.rds"))
   ## Load predictions df
   fit_full_w_larval_preds <- read_csv(file = here("output", "fit_full_w_larval_preds.csv"))
   
+  ## Load overall fit without predictions
+  fit_full_w_larval_no_pred <- readRDS(here("output", "fit_full_w_larval_no_pred.rds"))
+  
 } else {
-  set.seed(123456)
+  set.seed(1234)
   
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
@@ -451,7 +482,7 @@ if(!params$refit_full_model_w_larval) {
     ## Extract train and test data sets
     train_ind <- sample(
       1:nrow(all_data),
-      size = floor(0.75 * nrow(all_data))
+      size = floor(0.95 * nrow(all_data))
     )
     
     train_data <- all_data[train_ind, ]
@@ -573,23 +604,55 @@ if(!params$refit_full_model_w_larval) {
     fit_full_w_larval_preds <- bind_rows(fit_full_w_larval_preds, preds_df)
   }
   
-  ## Saves last one so we have coefficient estimates
-  saveRDS(fit_full_w_larval, here("output", "fit_full_w_larval.rds"))
+
   ## Saves predictions
   write.csv(fit_full_w_larval_preds, file = here("output", "fit_full_w_larval_preds.csv"), row.names = FALSE)
+  
+  
+  ### Fit model on all data to get coefficient estimate
+  ## A specifies something about edge length based on the mesh
+  all_A <- inla.spde.make.A(
+    mesh = mesh, 
+    loc = as.matrix(select(all_data, lon, lat)),
+    group = all_data$time
+  )
+
+  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+  data_stack <- inla.stack(
+    data = list(y = all_data$log_saliva_elisa),
+    A = list(all_A, 1),
+    effects = list(
+      s.index,
+      list(all_covar_df = all_covar_df)
+    ),
+    tag = "est"
+  )
+  
+  ## Fit model
+  fit_full_w_larval_no_pred <- inla(
+    formula, 
+    data = inla.stack.data(data_stack),
+    control.predictor = list(
+      A = inla.stack.A(data_stack),
+      compute = TRUE
+    ),
+    control.fixed = coeff_priors
+  )
+    
+  larval_pred_est[2, ] <- fit_full_w_larval_no_pred$summary.fixed["ave_larv_cont", c("mean", "0.025quant", "0.975quant")]
+  
+  saveRDS(fit_full_w_larval_no_pred, here("output", "fit_full_w_larval_no_pred.rds"))
 }
 ```
 
 
 ```{r full model without enviro preds}
 if(!params$refit_model_w_larval_wo_enviro) {
-  ## Load model fit from last fit
-  fit_full_wo_enviro <- readRDS(here("output", "fit_full_wo_enviro.rds"))
   ## Load predictions df
   fit_full_wo_enviro_preds <- read_csv(file = here("output", "fit_full_wo_enviro_preds.csv"))
   
 } else {
-  set.seed(123456)
+  set.seed(1234)
   
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
@@ -619,7 +682,7 @@ if(!params$refit_model_w_larval_wo_enviro) {
     ## Extract train and test data sets
     train_ind <- sample(
       1:nrow(all_data),
-      size = floor(0.75 * nrow(all_data))
+      size = floor(0.95 * nrow(all_data))
     )
     
     train_data <- all_data[train_ind, ]
@@ -741,36 +804,101 @@ if(!params$refit_model_w_larval_wo_enviro) {
     fit_full_wo_enviro_preds <- bind_rows(fit_full_wo_enviro_preds, preds_df)
   }
   
-  ## Saves last one so we have coefficient estimates
-  saveRDS(fit_full_wo_enviro, here("output", "fit_full_wo_enviro.rds"))
+  
   ## Saves predictions
   write.csv(fit_full_wo_enviro_preds, file = here("output", "fit_full_wo_enviro_preds.csv"), row.names = FALSE)
+  
+  
+  ### Fit model on full data yto get larval preds
+  all_A <- inla.spde.make.A(
+    mesh = mesh, 
+    loc = as.matrix(select(all_data, lon, lat)),
+    group = all_data$time
+  )
+    
+  ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+  all_stack <- inla.stack(
+    data = list(y = all_data$log_saliva_elisa),
+    A = list(all_A, 1),
+    effects = list(
+      s.index,
+      list(all_covar_df = all_covar_df)
+    ),
+    tag = "train"
+  )
+    
+  ## Fit model
+  fit_full_wo_enviro_no_pred <- inla(
+    formula, 
+    data = inla.stack.data(all_stack),
+    control.predictor = list(
+      A = inla.stack.A(all_stack),
+      compute = TRUE
+    ),
+    control.fixed = coeff_priors
+  )
+  
+  larval_pred_est[3, ] <- fit_full_wo_enviro_no_pred$summary.fixed["ave_larv_cont", c("mean", "0.025quant", "0.975quant")]
 }
 ```
 
-
-```{r cross validation comparison}
-fit_full_wo_larval_preds %>% 
-  mutate(mse_wo_sum = (pred - obs)^2) %>% 
-  select(mse_wo_sum) %>% 
-  sum()
-fit_full_w_larval_preds %>% 
-  mutate(mse_wo_sum = (pred - obs)^2) %>% 
-  select(mse_wo_sum) %>% 
-  sum()
-fit_full_wo_enviro_preds %>% 
-  mutate(mse_wo_sum = (pred - obs)^2) %>% 
-  select(mse_wo_sum) %>% 
-  sum()
+\newpage
+```{r cross validation comparison plot}
+bind_rows(
+  data.frame(fit_full_wo_larval_preds, model = "Full wo larval"),
+  data.frame(fit_full_w_larval_preds, model = "Full w larval"),
+  data.frame(fit_full_wo_enviro_preds, model = "No enviro w larval")
+) %>% 
+ggplot(aes(x = obs, y = pred, color = model)) +
+  geom_point(alpha = 0.8) +
+  theme_bw() +
+  geom_abline(slope = 1, intercept = 0)
+  
 ```
 
 
-```{r larval-model-summary}
-summary(larval_fit)
+```{r cross validation comparison table}
+write.csv(larval_pred_est, here("output", "larval_pred_est.csv"), row.names = FALSE)
+
+
+larval_MSE <- c(
+  fit_full_wo_larval_preds %>% 
+    mutate(mse_wo_sum = (pred - obs)^2) %>% 
+    select(mse_wo_sum) %>% 
+    sum() / nrow(fit_full_wo_larval_preds),
+  fit_full_w_larval_preds %>% 
+    mutate(mse_wo_sum = (pred - obs)^2) %>% 
+    select(mse_wo_sum) %>% 
+    sum() / nrow(fit_full_w_larval_preds),
+  fit_full_wo_enviro_preds %>% 
+    mutate(mse_wo_sum = (pred - obs)^2) %>% 
+    select(mse_wo_sum) %>% 
+    sum() / nrow(fit_full_wo_enviro_preds)
+)
+
+
+data.frame(
+  "Model" = c("Without larval", "With larval", "With larval and without environmental"),
+  "MSE" = round(larval_MSE, 4), 
+  larval_pred_est
+) %>% 
+  mutate("Larval predictor estimate (95% BCI)" = ifelse(
+    is.na(mean),
+    "NA",
+    paste0(
+      round(mean, 3), " (", round(X0.025quant, 3), ", ", round(X0.975quant, 3), ")"
+    )
+  )) %>% 
+  select("Full model" = Model, "Prediction MSE" = MSE, "Larval predictor estimate (95% BCI)") %>% 
+kbl(booktabs = TRUE) %>% 
+  kable_styling()
 ```
 
+\newpage
 
 ```{r larval-model-forest_plot}
+larval_fit <- fit_full_w_larval_no_pred
+
 larval_fit_df <- larval_fit$summary.fixed %>% 
   mutate(unordered_names = rownames(larval_fit$summary.fixed)) %>% 
   mutate(pred_names = factor(
@@ -802,10 +930,10 @@ dev.off()
 ```{r load-larval-model-forest-plot, eval = TRUE, fig.cap="Full model results with larvae containg water containers added."}
 include_graphics(here("output", "larval-model-forest-plot.pdf"))
 ```
-
+\newpage
 
 ### Containters with larvae as response
-```{r larval-res-model-prep}
+```{r larval-res-model-prep, eval = FALSE}
 ## extract relevant data (not sure if sorting is necessary)
 coords_st <- aedes_larval_red %>% 
   filter(!is.na(ave_larv_cont)) %>% 
@@ -893,7 +1021,7 @@ coeff_priors <- list(
 ```
 
 
-```{r larval-res-model-fit}
+```{r larval-res-model-fit, eval = FALSE}
 if(params$refit_larval_fit) {
   larval_res_fit <- inla(
     formula, 
@@ -919,53 +1047,7 @@ if(params$refit_larval_fit) {
 ```
 
 
-```{r}
-ggplot_inla_residuals2(
-  larval_res_fit, 
-  coords_st$ave_larv_cont, 
-  se = FALSE
-) +
-  theme_bw()
-```
-
-
-```{r larval-res-model-summary}
-summary(larval_res_fit)
-
-## Check that pred_rownames and pred_name_vec line up
-pred_rownames_ordered <- c(
-  "(Intercept)",
-  "genderMale",
-  "age_cented7",
-  "modal_land_typerice paddy",
-  "modal_land_typecropland",
-  "distance_to_river_scaled",
-  "insecticide_sprayYes",
-  "larvicide_applied_to_waterYes",
-  "num_toilets_in_home",
-  "num_domestic_water_containers_in_home",
-  "NFI250_home",
-  "wet_seasonyes"
-)
-
-pred_names_vec = c(
-  "(Intercept)",
-  "Male", 
-  "Age", 
-  "Rice paddy",
-  "Cropland",
-  "Distance to river", 
-  "Insecticide",
-  "Larvicide",
-  "Toilets",
-  "Water containers",
-  "NFI",
-  "Wet season"
-)
-```
-
-
-```{r larval-res-model-forest_plot}
+```{r larval-res-model-forest_plot, eval = FALSE}
 pdf(here("output", "larval-res-model-forest-plot.pdf"))
 
 larval_res_fit$summary.fixed %>% 
@@ -996,7 +1078,7 @@ dev.off()
 ```
 
 
-```{r load-larval-res-model-forest-plot, eval = TRUE, fig.cap="Results with larvae containg water containers as response"}
+```{r load-larval-res-model-forest-plot, eval = FALSE, fig.cap="Results with larvae containg water containers as response"}
 include_graphics(here("output", "larval-res-model-forest-plot.pdf"))
 ```
 
