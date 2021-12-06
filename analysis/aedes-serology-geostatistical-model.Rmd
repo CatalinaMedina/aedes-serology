@@ -13,6 +13,8 @@ params:
   modis_lag: 32
   refit_fit: FALSE
   refit_vistit_fit: FALSE
+  refit_larval_fit: FALSE
+  refit_aedes_fit: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -1340,9 +1342,9 @@ visit1_summary <- bind_rows(
   ## Distance to river
   data.frame(
     variable1 = " ", 
-    variable2 = "Distance to river",
+    variable2 = "Distance to river (std. dev.)",
     visit1 = paste0(
-      round(mean(aedes_red_ind$distance_to_river), 2), " (", round(sd(aedes_red_ind$distance_to_river), 2), ")"
+      round(mean(aedes_red_ind$distance_to_river_scaled), 2), " (", round(sd(aedes_red_ind$distance_to_river_scaled), 2), ")"
     )
   )
 ) %>% 
@@ -1472,7 +1474,3 @@ dev.off()
 ```{r load-main-model-forest-plot-wov5, eval = TRUE, fig.cap="Full model results without visit 5"}
 include_graphics(here("output", "main-model-forest-plot-wo-v5.pdf"))
 ```
-
-
-
-\newpage
