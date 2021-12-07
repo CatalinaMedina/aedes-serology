@@ -1433,7 +1433,7 @@ main_results_table %>%
   select(-c("variable1")) %>% 
 kbl(
   #booktabs = TRUE, 
-  col.names = c(" ", "Visit 1", "Visit 2", "Visit 3", "Visit 4", "Mean Estimate (95% CI)")
+  col.names = c(" ", "Visit 1", "Visit 2", "Visit 3", "Visit 4", "Mean Estimate (95% BCI)")
 ) %>% 
   kable_styling() %>% 
   pack_rows(
@@ -1471,6 +1471,6 @@ main_fit_df %>%
 dev.off()
 ```
 
-```{r load-main-model-forest-plot-wov5, eval = TRUE, fig.cap="Full model results without visit 5"}
+```{r load-main-model-forest-plot-wov5, eval = TRUE, fig.cap="Full model results, estimated mean and BCI"}
 include_graphics(here("output", "main-model-forest-plot-wo-v5.pdf"))
 ```
