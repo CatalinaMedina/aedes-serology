@@ -11,7 +11,7 @@ params:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE, eval = FALSE, 
+  echo = FALSE, eval = TRUE, 
   fig.pos = 'H', fig.align = "center",
   message = FALSE, warning = FALSE
 )
@@ -140,7 +140,7 @@ adult_pred_est <- read_csv(here("output", "adult_pred_est.csv"))
 ```
 
 
-```{r plot-showing-adult-subsetting}
+```{r plot-showing-adult-subsetting, eval = FALSE}
 pdf(here("output", "adult-subsetting-plot1.pdf"), width = 10)
 
 aedes_adult_red %>% 
@@ -213,19 +213,19 @@ dev.off()
 ```
 
 
-```{r load-adult-subsetting-plot3, eval = TRUE}
+```{r load-adult-subsetting-plot3, eval = FALSE}
 include_graphics(here("output", "adult-subsetting-plot3.pdf"))
 ```
 
-```{r load-adult-subsetting-plot1, eval = TRUE}
+```{r load-adult-subsetting-plot1, eval = FALSE}
 include_graphics(here("output", "adult-subsetting-plot1.pdf"))
 ```
 
-```{r load-adult-subsetting-plot2, eval = TRUE}
+```{r load-adult-subsetting-plot2, eval = FALSE}
 include_graphics(here("output", "adult-subsetting-plot2.pdf"))
 ```
 
-```{r saliva-vs-adult}
+```{r saliva-vs-adult, eval = FALSE}
 ggplot(aedes_adult_red, aes(x = adult_count, y = log_saliva_elisa)) +
   geom_point() +
   xlab("Nearby count of adult mosquitos (total from 8 weeks of collecting)") +
@@ -251,6 +251,7 @@ if(!params$refit_full_model_wo_adult) {
     ## extract relevant data (not sure if sorting is necessary)
     all_data <- aedes_adult_red %>% 
       filter(!is.na(ave_adult_count)) %>% 
+      mutate(modal_land_type = droplevels(modal_land_type)) %>% 
       arrange(study_id) %>% 
       select(
         lon = x, lat = y, 
@@ -407,6 +408,7 @@ if(!params$refit_full_model_w_adult) {
     ## extract relevant data (not sure if sorting is necessary)
     all_data <- aedes_adult_red %>% 
       filter(!is.na(ave_adult_count)) %>% 
+      mutate(modal_land_type = droplevels(modal_land_type)) %>% 
       arrange(study_id) %>% 
       select(
         lon = x, lat = y, 
@@ -596,7 +598,8 @@ if(!params$refit_model_w_adult_wo_enviro) {
     ### Model prep
     ## extract relevant data (not sure if sorting is necessary)
     all_data <- aedes_adult_red %>% 
-      filter(!is.na(ave_adult_count)) %>% 
+      filter(!is.na(ave_adult_count)) %>%
+      mutate(modal_land_type = droplevels(modal_land_type)) %>%  
       arrange(study_id) %>% 
       select(
         lon = x, lat = y, 
@@ -766,353 +769,278 @@ if(!params$refit_model_w_adult_wo_enviro) {
 ```
 
 
-
-
-
-
-
-```{r adult-model-prep}
-## extract relevant data (not sure if sorting is necessary)
-coords_st <- aedes_adult_red %>% 
-  filter(!is.na(ave_adult_count)) %>% 
-  mutate(modal_land_type = droplevels(modal_land_type)) %>% 
-  arrange(study_id) %>% 
-  select(
-    lon = x, lat = y, 
-    log_saliva_elisa,
-    gender,
-    age_cented7, distance_to_river_scaled,
-    modal_land_type,
-    num_toilets_in_home, num_domestic_water_containers_in_home,
-    insecticide_spray, larvicide_applied_to_water,
-    NFI250_home,
-    ave_adult_count
-    )
-
-## specify df of covariate values including intercept
-covar_df <- data.frame(
-  # Intercept = rep(1, nrow(coords_st)),
-  select(coords_st, -c( lon, lat, log_saliva_elisa))
-)
-  
-## extract coordinates as matrix, ignoring repeats
-coords <- select(coords_st, lon, lat) %>% 
-  distinct() %>% 
-  as.matrix()
-
-## create mesh, good documentation available to understand all options
-mesh <- inla.mesh.2d(
-  loc = coords,
-  max.edge = c(300, 600)
-)
-
-# specify spde
-spde <- inla.spde2.matern(mesh)
-
-# Need to specify index with spde and group (if there are replicates)
-s.index <- inla.spde.make.index(
-  "spatial.field", 
-  n.spde = spde$n.spde
-)
-
-## A specifies something about edge length based on the mesh
-A <- inla.spde.make.A(
-  mesh = mesh, 
-  loc = as.matrix(select(coords_st, lon, lat))
-)
-
-## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-stack <- inla.stack(
-  data = list(y = coords_st$log_saliva_elisa),
-  A = list(A, 1),
-  effects = list(
-    s.index,
-    list(covar_df = covar_df)
-  ),
-  tag = "est"
-)
-
-## specify model formula, 'f()' incorporates spatial effect and replicate 
-formula <- y ~ #0 + Intercept
-  gender + 
-  age_cented7  + distance_to_river_scaled +
-  modal_land_type +
-  num_toilets_in_home + num_domestic_water_containers_in_home +
-  insecticide_spray + larvicide_applied_to_water  +
-  NFI250_home  +
-  ave_adult_count +
-  f(
-    spatial.field, 
-    model = spde
-  )
-  
-
-## fixed effect priors
-coeff_priors <- list(
-    mean.intercept = 0,
-    prec.intercept = 1/(2.5^2),
-    mean = list(default = 0),
-    prec = list(default = 1/(2.5^2))
-)
-```
-
-
-```{r adult-model-fit}
-if(params$refit_adult_fit) {
-  adult_fit <- inla(
-    formula, 
-    data = inla.stack.data(stack),
-    control.predictor = list(
-      A = inla.stack.A(stack),
-      compute = TRUE
-    ),
-    control.fixed = coeff_priors
-  )
-  
-  saveRDS(adult_fit, here("output", "adult_fit.rds"))
-} else {
-  adult_fit <- readRDS(here("output", "adult_fit.rds"))
-}
-```
-
-
-```{r adult-model-summary}
-summary(adult_fit)
-```
-
-
-```{r adult-model-forest-plot}
-adult_fit_df <- adult_fit$summary.fixed %>% 
-  mutate(unordered_names = rownames(adult_fit$summary.fixed)) %>% 
-  mutate(pred_names = factor(
-    unordered_names,
-    levels = c(
-      pred_rownames_ordered[pred_rownames_ordered != "modal_land_typerice paddy"], 
-      "ave_adult_count"
-    ),
-    labels = c(pred_names_vec[pred_names_vec != "Rice paddy"], "Ave Mosquito count")
-  )) %>% 
-  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) 
-
-
-pdf(here("output", "adult-model-forest-plot.pdf"))
-
-adult_fit_df %>% 
-  filter(pred_names != "(Intercept)") %>% 
-  ggplot(aes(x = mean, y = pred_names)) +
-    geom_point() +
-    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
-    geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw() +
-    theme(panel.border = element_blank()) +
-    xlab("") +
-    ylab("") +
-    scale_y_discrete(limits = rev)
-
-dev.off()
-```
-
-
-```{r load-adult-model-forest-plot, eval = TRUE, fig.cap="Full model results with adult mosquito count added."}
-include_graphics(here("output", "adult-model-forest-plot.pdf"))
-```
-
-
-## Adult count as response  
-
-```{r adult-res-model-prep}
-## extract relevant data
-coords_st <- aedes_adult_red %>% 
-  filter(!is.na(ave_adult_count)) %>% 
-  mutate(modal_land_type = droplevels(modal_land_type)) %>% 
-  arrange(study_id) %>% 
-  select(
-    lon = x, lat = y, 
-    distance_to_river_scaled,
-    modal_land_type,
-    num_toilets_in_home, num_domestic_water_containers_in_home,
-    insecticide_spray, larvicide_applied_to_water,
-    NFI250_home,
-    ave_adult_count
-    )
-
-## Extact train and test data sets
-set.seed(1236)
-
-train_ind <- sample(
-  1:nrow(coords_st), 
-  size = floor(0.75 * nrow(coords_st))
-)
-
-ad_train <- coords_st[train_ind, ]
-ad_test <- coords_st[-train_ind, ]
-
-## specify df of covariate values including intercept
-covar_df <- data.frame(
-  # Intercept = rep(1, nrow(coords_st)),
-  select(coords_st, -c( lon, lat, ave_adult_count))
-)
-
-train_covar <- covar_df[train_ind, ]
-test_covar <- covar_df[-train_ind, ]
-
-## extract coordinates as matrix
-coords <- select(coords_st, lon, lat) %>% 
-  distinct() %>% 
-  as.matrix()
-
-train_coords <- coords[train_ind, ]
-test_coords <- coords[-train_ind, ]
-
-## create mesh, shared
-mesh <- inla.mesh.2d(
-  loc = coords,
-  max.edge = c(300, 600)
-)
-
-# specify spde, shared
-spde <- inla.spde2.matern(mesh)
-
-# Need to specify index with spde and group (if there are replicates)
-s.index <- inla.spde.make.index(
-  "spatial.field", 
-  n.spde = spde$n.spde
-)
-
-## A specifies something about edge length based on the mesh
-train_A <- inla.spde.make.A(
-  mesh = mesh, 
-  loc = train_coords
-)
-
-test_A <- inla.spde.make.A(
-  mesh = mesh, 
-  loc = test_coords
-)
-
-## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
-train_stack <- inla.stack(
-  data = list(y = ad_train$ave_adult_count),
-  A = list(train_A, 1),
-  effects = list(
-    s.index,
-    list(train_covar = train_covar)
-  ),
-  tag = "est"
-)
-
-test_stack <- inla.stack(
-  data = list(y = rep(NA, nrow(ad_test))),
-  A = list(test_A, 1),
-  effects = list(
-    s.index,
-    list(train_covar = test_covar)
-  ),
-  tag = "pred"
-)
-
-full_stk <- inla.stack(train_stack, test_stack)
-
-## specify model formula, 'f()' incorporates spatial effect and replicate 
-formula <- y ~ #0 + Intercept
-  distance_to_river_scaled +
-  modal_land_type +
-  num_toilets_in_home + num_domestic_water_containers_in_home +
-  insecticide_spray + larvicide_applied_to_water  +
-  NFI250_home  +
-  f(
-    spatial.field, 
-    model = spde
-  )
-  
-
-## fixed effect priors
-coeff_priors <- list(
-    mean.intercept = 0,
-    prec.intercept = 1/(2.5^2),
-    mean = list(default = 0),
-    prec = list(default = 1/(2.5^2))
-)
-```
-
-
-```{r adult-res-model-fit}
-if(params$refit_adult_fit) {
-  adult_res_fit <- inla(
-    formula, 
-    data = inla.stack.data(full_stk),
-    family = "gaussian",
-    control.predictor = list(
-      A = inla.stack.A(full_stk),
-      compute = TRUE
-    ),
-    control.fixed = coeff_priors
-  )
-  
-  saveRDS(adult_res_fit, here("output", "adult_res_fit.rds"))
-} else {
-  adult_res_fit <- readRDS(here("output", "adult_res_fit.rds"))
-}
-```
-
-
 ```{r}
-ggplot_inla_residuals2(
-  adult_res_fit, 
-  coords_st$ave_adult_count, 
-  se = FALSE
-) +
-  theme_bw()
-```
-
-
-```{r adult-res-model-summary}
-summary(adult_res_fit)
-```
-
-```{r}
-index_pred <- inla.stack.index(full_stk, "pred")$data
-pred <- adult_res_fit$summary.linear.predictor[index_pred, "mean"]
-
-obs <- ad_test$ave_adult_count
-
-plot(x = obs, y = pred)
-
-summary(lm(obs ~ pred))
-```
+write.csv(adult_pred_est, here("output", "adult_pred_est.csv"), row.names = FALSE)
 
 
 
-```{r adult-res-model-forest-plot}
-pdf(here("output", "adult-res-model-forest-plot.pdf"))
+adult_MSE <- c(
+  fit_full_wo_adult_preds %>% 
+    mutate(mse_wo_sum = (pred - obs)^2) %>% 
+    select(mse_wo_sum) %>% 
+    sum() / nrow(fit_full_wo_adult_preds),
+  fit_full_w_adult_preds %>% 
+    mutate(mse_wo_sum = (pred - obs)^2) %>% 
+    select(mse_wo_sum) %>% 
+    sum() / nrow(fit_full_w_adult_preds),
+  fit_full_wo_enviro_preds %>% 
+    mutate(mse_wo_sum = (pred - obs)^2) %>% 
+    select(mse_wo_sum) %>% 
+    sum() / nrow(fit_full_wo_enviro_preds)
+)
 
-adult_res_fit$summary.fixed %>% 
-  select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>% 
-  mutate(names = c(
-    "(Intercept)",
-    "Distance to river", 
-    "Cropland",
-    "Toilets",
-    "Water containers",
-    "Insecticide",
-    "Larvicide",
-    "NFI"
+
+data.frame(
+  "Model" = c("Without adult", "With adult", "With adult and without environmental"),
+  "MSE" = round(adult_MSE, 4), 
+  adult_pred_est
+) %>% 
+  mutate("adult predictor estimate (95% BCI)" = ifelse(
+    is.na(mean),
+    "NA",
+    paste0(
+      round(mean, 3), " (", round(X0.025quant, 3), ", ", round(X0.975quant, 3), ")"
+    )
   )) %>% 
-  filter(names != "(Intercept)") %>% 
-  ggplot(aes(x = median, y = names)) +
-    geom_point() +
-    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
-    geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw() +
-    theme(panel.border = element_blank()) +
-    xlab("") +
-    ylab("")
-
-dev.off()
+  select("Full model" = Model, "Prediction MSE" = MSE, "adult predictor estimate (95% BCI)") %>% 
+kbl(booktabs = TRUE) %>% 
+  kable_styling()
 ```
 
 
-```{r load-adult-res-model-forest-plot, eval = TRUE, fig.cap="Adult mosquito count as response."}
-include_graphics(here("output", "adult-res-model-forest-plot.pdf"))
-```
+
+<!-- ```{r adult-model-forest-plot} -->
+<!-- adult_fit_df <- adult_fit$summary.fixed %>%  -->
+<!--   mutate(unordered_names = rownames(adult_fit$summary.fixed)) %>%  -->
+<!--   mutate(pred_names = factor( -->
+<!--     unordered_names, -->
+<!--     levels = c( -->
+<!--       pred_rownames_ordered[pred_rownames_ordered != "modal_land_typerice paddy"],  -->
+<!--       "ave_adult_count" -->
+<!--     ), -->
+<!--     labels = c(pred_names_vec[pred_names_vec != "Rice paddy"], "Ave Mosquito count") -->
+<!--   )) %>%  -->
+<!--   select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names)  -->
+
+
+<!-- pdf(here("output", "adult-model-forest-plot.pdf")) -->
+
+<!-- adult_fit_df %>%  -->
+<!--   filter(pred_names != "(Intercept)") %>%  -->
+<!--   ggplot(aes(x = mean, y = pred_names)) + -->
+<!--     geom_point() + -->
+<!--     geom_linerange(aes(xmin = quant025, xmax = quant975)) + -->
+<!--     geom_vline(xintercept = 0, linetype = "dashed") + -->
+<!--     theme_bw() + -->
+<!--     theme(panel.border = element_blank()) + -->
+<!--     xlab("") + -->
+<!--     ylab("") + -->
+<!--     scale_y_discrete(limits = rev) -->
+
+<!-- dev.off() -->
+<!-- ``` -->
+
+
+<!-- ```{r load-adult-model-forest-plot, eval = TRUE, fig.cap="Full model results with adult mosquito count added."} -->
+<!-- include_graphics(here("output", "adult-model-forest-plot.pdf")) -->
+<!-- ``` -->
+
+
+<!-- ## Adult count as response   -->
+
+<!-- ```{r adult-res-model-prep} -->
+<!-- ## extract relevant data -->
+<!-- coords_st <- aedes_adult_red %>%  -->
+<!--   filter(!is.na(ave_adult_count)) %>%  -->
+<!--   mutate(modal_land_type = droplevels(modal_land_type)) %>%  -->
+<!--   arrange(study_id) %>%  -->
+<!--   select( -->
+<!--     lon = x, lat = y,  -->
+<!--     distance_to_river_scaled, -->
+<!--     modal_land_type, -->
+<!--     num_toilets_in_home, num_domestic_water_containers_in_home, -->
+<!--     insecticide_spray, larvicide_applied_to_water, -->
+<!--     NFI250_home, -->
+<!--     ave_adult_count -->
+<!--     ) -->
+
+<!-- ## Extact train and test data sets -->
+<!-- set.seed(1236) -->
+
+<!-- train_ind <- sample( -->
+<!--   1:nrow(coords_st),  -->
+<!--   size = floor(0.75 * nrow(coords_st)) -->
+<!-- ) -->
+
+<!-- ad_train <- coords_st[train_ind, ] -->
+<!-- ad_test <- coords_st[-train_ind, ] -->
+
+<!-- ## specify df of covariate values including intercept -->
+<!-- covar_df <- data.frame( -->
+<!--   # Intercept = rep(1, nrow(coords_st)), -->
+<!--   select(coords_st, -c( lon, lat, ave_adult_count)) -->
+<!-- ) -->
+
+<!-- train_covar <- covar_df[train_ind, ] -->
+<!-- test_covar <- covar_df[-train_ind, ] -->
+
+<!-- ## extract coordinates as matrix -->
+<!-- coords <- select(coords_st, lon, lat) %>%  -->
+<!--   distinct() %>%  -->
+<!--   as.matrix() -->
+
+<!-- train_coords <- coords[train_ind, ] -->
+<!-- test_coords <- coords[-train_ind, ] -->
+
+<!-- ## create mesh, shared -->
+<!-- mesh <- inla.mesh.2d( -->
+<!--   loc = coords, -->
+<!--   max.edge = c(300, 600) -->
+<!-- ) -->
+
+<!-- # specify spde, shared -->
+<!-- spde <- inla.spde2.matern(mesh) -->
+
+<!-- # Need to specify index with spde and group (if there are replicates) -->
+<!-- s.index <- inla.spde.make.index( -->
+<!--   "spatial.field",  -->
+<!--   n.spde = spde$n.spde -->
+<!-- ) -->
+
+<!-- ## A specifies something about edge length based on the mesh -->
+<!-- train_A <- inla.spde.make.A( -->
+<!--   mesh = mesh,  -->
+<!--   loc = train_coords -->
+<!-- ) -->
+
+<!-- test_A <- inla.spde.make.A( -->
+<!--   mesh = mesh,  -->
+<!--   loc = test_coords -->
+<!-- ) -->
+
+<!-- ## Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index -->
+<!-- train_stack <- inla.stack( -->
+<!--   data = list(y = ad_train$ave_adult_count), -->
+<!--   A = list(train_A, 1), -->
+<!--   effects = list( -->
+<!--     s.index, -->
+<!--     list(train_covar = train_covar) -->
+<!--   ), -->
+<!--   tag = "est" -->
+<!-- ) -->
+
+<!-- test_stack <- inla.stack( -->
+<!--   data = list(y = rep(NA, nrow(ad_test))), -->
+<!--   A = list(test_A, 1), -->
+<!--   effects = list( -->
+<!--     s.index, -->
+<!--     list(train_covar = test_covar) -->
+<!--   ), -->
+<!--   tag = "pred" -->
+<!-- ) -->
+
+<!-- full_stk <- inla.stack(train_stack, test_stack) -->
+
+<!-- ## specify model formula, 'f()' incorporates spatial effect and replicate  -->
+<!-- formula <- y ~ #0 + Intercept -->
+<!--   distance_to_river_scaled + -->
+<!--   modal_land_type + -->
+<!--   num_toilets_in_home + num_domestic_water_containers_in_home + -->
+<!--   insecticide_spray + larvicide_applied_to_water  + -->
+<!--   NFI250_home  + -->
+<!--   f( -->
+<!--     spatial.field,  -->
+<!--     model = spde -->
+<!--   ) -->
+
+
+<!-- ## fixed effect priors -->
+<!-- coeff_priors <- list( -->
+<!--     mean.intercept = 0, -->
+<!--     prec.intercept = 1/(2.5^2), -->
+<!--     mean = list(default = 0), -->
+<!--     prec = list(default = 1/(2.5^2)) -->
+<!-- ) -->
+<!-- ``` -->
+
+
+<!-- ```{r adult-res-model-fit} -->
+<!-- if(params$refit_adult_fit) { -->
+<!--   adult_res_fit <- inla( -->
+<!--     formula,  -->
+<!--     data = inla.stack.data(full_stk), -->
+<!--     family = "gaussian", -->
+<!--     control.predictor = list( -->
+<!--       A = inla.stack.A(full_stk), -->
+<!--       compute = TRUE -->
+<!--     ), -->
+<!--     control.fixed = coeff_priors -->
+<!--   ) -->
+
+<!--   saveRDS(adult_res_fit, here("output", "adult_res_fit.rds")) -->
+<!-- } else { -->
+<!--   adult_res_fit <- readRDS(here("output", "adult_res_fit.rds")) -->
+<!-- } -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- ggplot_inla_residuals2( -->
+<!--   adult_res_fit,  -->
+<!--   coords_st$ave_adult_count,  -->
+<!--   se = FALSE -->
+<!-- ) + -->
+<!--   theme_bw() -->
+<!-- ``` -->
+
+
+<!-- ```{r adult-res-model-summary} -->
+<!-- summary(adult_res_fit) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- index_pred <- inla.stack.index(full_stk, "pred")$data -->
+<!-- pred <- adult_res_fit$summary.linear.predictor[index_pred, "mean"] -->
+
+<!-- obs <- ad_test$ave_adult_count -->
+
+<!-- plot(x = obs, y = pred) -->
+
+<!-- summary(lm(obs ~ pred)) -->
+<!-- ``` -->
+
+
+
+<!-- ```{r adult-res-model-forest-plot} -->
+<!-- pdf(here("output", "adult-res-model-forest-plot.pdf")) -->
+
+<!-- adult_res_fit$summary.fixed %>%  -->
+<!--   select(quant025 = "0.025quant", median = "0.5quant", quant975 = "0.975quant") %>%  -->
+<!--   mutate(names = c( -->
+<!--     "(Intercept)", -->
+<!--     "Distance to river",  -->
+<!--     "Cropland", -->
+<!--     "Toilets", -->
+<!--     "Water containers", -->
+<!--     "Insecticide", -->
+<!--     "Larvicide", -->
+<!--     "NFI" -->
+<!--   )) %>%  -->
+<!--   filter(names != "(Intercept)") %>%  -->
+<!--   ggplot(aes(x = median, y = names)) + -->
+<!--     geom_point() + -->
+<!--     geom_linerange(aes(xmin = quant025, xmax = quant975)) + -->
+<!--     geom_vline(xintercept = 0, linetype = "dashed") + -->
+<!--     theme_bw() + -->
+<!--     theme(panel.border = element_blank()) + -->
+<!--     xlab("") + -->
+<!--     ylab("") -->
+
+<!-- dev.off() -->
+<!-- ``` -->
+
+
+<!-- ```{r load-adult-res-model-forest-plot, eval = TRUE, fig.cap="Adult mosquito count as response."} -->
+<!-- include_graphics(here("output", "adult-res-model-forest-plot.pdf")) -->
+<!-- ``` -->
 
