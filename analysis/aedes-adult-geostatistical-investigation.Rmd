@@ -769,6 +769,20 @@ if(!params$refit_model_w_adult_wo_enviro) {
 ```
 
 
+```{r cross validation comparison plot}
+bind_rows(
+  data.frame(fit_full_wo_adult_preds, model = "Full wo adult"),
+  data.frame(fit_full_w_adult_preds, model = "Full w adult"),
+  data.frame(fit_full_wo_enviro_preds, model = "No enviro w adult")
+) %>% 
+ggplot(aes(x = obs, y = pred, color = model)) +
+  geom_point(alpha = 0.8) +
+  theme_bw() +
+  geom_abline(slope = 1, intercept = 0)
+  
+```
+
+
 ```{r}
 write.csv(adult_pred_est, here("output", "adult_pred_est.csv"), row.names = FALSE)
 
@@ -807,6 +821,27 @@ kbl(booktabs = TRUE) %>%
   kable_styling()
 ```
 
+## Adult trapped mosquitoes as response  
+
+```{r}
+library(splines)
+
+spline_adult_res_fit <- lm(
+  formula = I(sqrt(ave_adult_count)) ~ #0 + Intercept
+    distance_to_river_scaled +
+    modal_land_type +
+    num_toilets_in_home + num_domestic_water_containers_in_home +
+    insecticide_spray + larvicide_applied_to_water  +
+    bs(NFI250_home16),
+  data = filter(aedes_adult_red, !is.na(ave_adult_count))
+    
+)
+
+
+data.frame("mean" = spline_adult_res_fit$coefficients, confint(spline_adult_res_fit))
+
+plot(spline_adult_res_fit)
+```
 
 
 <!-- ```{r adult-model-forest-plot} -->
