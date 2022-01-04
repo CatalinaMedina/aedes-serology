@@ -43,9 +43,12 @@ library(magrittr)
 library(knitr)
 library(kableExtra)
 library(INLAutils)
+library(extrafont)
 library(tidyverse)
-
 library(INLA)
+
+loadfonts(device = "win")
+windowsFonts(Times = windowsFont("TT Times New Roman"))
 
 source(here("analysis", "process-modis-data-function.R"))
 ```
@@ -1278,23 +1281,23 @@ pred_rownames_ordered <- c(
   "larvicide_applied_to_waterYes",
   "num_toilets_in_home",
   "num_domestic_water_containers_in_home",
-  "NFI250_home",
-  "wet_seasonyes"
+  "wet_seasonyes",
+  "NFI250_home"
 )
 
 pred_names_vec = c(
   "(Intercept)",
-  "Male", 
+  "     Male", 
   "Age", 
-  "Rice paddy",
-  "Cropland",
-  "Distance to river", 
-  "Insecticide",
-  "Larvicide",
+  "     Rice paddy",
+  "     Cropland",
+  "Distance to river (std. dev.)", 
+  "Insecticide used",
+  "Larvicide used",
   "Toilets",
   "Water containers",
-  "NFI",
-  "Wet season"
+  "Wet season",
+  "NFI"
 )
 
 
@@ -1305,6 +1308,7 @@ main_fit_df <- main_fit_wov5$summary.fixed %>%
     levels = pred_rownames_ordered,
     labels = pred_names_vec
   )) %>% 
+  arrange(pred_names) %>% 
   select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names)
 ```
 
@@ -1456,14 +1460,25 @@ kbl(
 ```{r main-model-forest-plot-wov5}
 pdf(here("output", "main-model-forest-plot-wo-v5.pdf"))
 
-main_fit_df %>% 
+main_fit_plot_df <- main_fit_df %>% 
   filter(pred_names != "(Intercept)") %>% 
+  add_row(pred_names = "Sex [ref: Female]", .before = 1) %>% 
+  add_row(pred_names = "Modal land type [ref: Urban]", .before = 4) %>% 
+  mutate(pred_names = factor(pred_names, levels = pred_names))
+
+main_fit_plot_df %>% 
   ggplot(aes(x = mean, y = pred_names)) +
     geom_point() +
     geom_linerange(aes(xmin = quant025, xmax = quant975)) +
     geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw() +
-    theme(panel.border = element_blank()) +
+    theme_bw(base_size = 12, base_family = 'Times New Roman') +
+    theme(
+      panel.border = element_blank(),
+      axis.text.y = element_text(hjust = 0, color = "black"),
+      axis.ticks.y = element_blank(),
+      axis.text.x=element_text(color = "black"),
+      panel.grid.major = element_line(colour = "gray90")
+    ) +
     xlab("") +
     ylab("") +
   scale_y_discrete(limits = rev)
