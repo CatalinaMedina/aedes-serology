@@ -55,7 +55,12 @@ source(here("analysis", "process-modis-data-function.R"))
 
 
 ```{r read-process-data}
-if (params$rerun_data) {
+if (!params$rerun_data) {
+  
+  aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds")) 
+  
+} else {
+  
   ##### read-process-survey-data
   
   saliva_ELISA_log_shift <- 0.15
@@ -711,8 +716,6 @@ if (params$rerun_data) {
   
   saveRDS(aedes_red, file = here("data", "processed_aedes_data.rds"))
   
-} else { 
-  aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds")) 
 }
   
 
@@ -1047,14 +1050,14 @@ Full model equation:
 
 `Gender` Indicator for gender (female and male only)  
 `Age` Baseline age centered at 7 years old  
-`Land type` This is the modal land type across *?* pixels around house; has 3 levels: "urban", "rice paddy", "cropland".  
+`Modal land type` This is the modal land type across *?* pixels around house; has 3 levels: "urban", "rice paddy", "cropland".  
 `Distance to river` Distance in meters from house to nearest part of the stream; centered and scaled  
-`Insecticide` Indicator for use of insecticide spray  
-`Larvicide` Indicator for use of larvicide spray applied to water  
-`Toilets` Number of toilets in house  
-`Water containers` Number of domestic water containers in house  
+`Insecticide use` Indicator for use of insecticide spray  
+`Larvicide use` Indicator for use of larvicide spray applied to water  
+`Number of toilets` Number of toilets in house  
+`Number of water containers` Number of domestic water containers in house  
 `Wet season` Indicator for visit date being in wet season  
-`NFI` Mean flooding index for a 250 meter buffer around house 32 days prior to visit date
+`NFI (flooding index)` Mean flooding index for a 250 meter buffer around house 32 days prior to visit date
 
 
 ```{r main-model-prep-wov5}
@@ -1166,150 +1169,54 @@ if(params$refit_fit) {
   # not what you want. See ?inla.stack for more information.
   # You can remove the intercept adding ``-1'' to the formula.
   
-  saveRDS(main_fit_wov5, here("output", "main-fit_wov5.rds"))
-} else {
-  main_fit_wov5 <- readRDS(here("output", "main-fit_wov5.rds"))
-}
-```
-
-
-```{r}
-ggplot_inla_residuals2(
-  main_fit_wov5, 
-  coords_st$log_saliva_elisa, 
-  se = FALSE
-)
-```
-
-
-```{r main-summary-wov5}
-summary(main_fit_wov5)
-```
-
-
-```{r Spatial-field-visualization}
-gproj <- inla.mesh.projector(mesh)
-
-
-gen_spatial_field_plots <- function(visit_num, plot_mean = TRUE){
-  if(plot_mean){
-    inla.mesh.project(
-      gproj, 
-      main_fit_wov5$summary.random$spatial.field$mean[s.index$spatial.field.group == visit_num]
-    )
-  } else {
-    inla.mesh.project(
-      gproj, 
-      main_fit_wov5$summary.random$spatial.field$sd[s.index$spatial.field.group == visit_num]
-    )
-  }
-}
-
-
-grid.arrange(
-  levelplot(
-    gen_spatial_field_plots(1), 
-    scales=list(draw=F), xlab='', ylab='', main='Visit 1 mean',col.regions = viridis(16)
-  ), 
-  levelplot(
-    gen_spatial_field_plots(2), 
-    scales=list(draw=F), xlab='', ylab='', main='Visit 2 mean',col.regions = viridis(16)
-  ),
-  levelplot(
-    gen_spatial_field_plots(3), 
-    scales=list(draw=F), xlab='', ylab='', main='Visit 3 mean',col.regions = viridis(16)
-  ),
-  levelplot(
-    gen_spatial_field_plots(4), 
-    scales=list(draw=F), xlab='', ylab='', main='Visit 4 mean',col.regions = viridis(16)
-  ),
-  nrow=2
-)
-
-grid.arrange(
-  levelplot(
-    gen_spatial_field_plots(1, plot_mean = FALSE), 
-    scales=list(draw=F), xlab='', ylab='', main='Visit 1 sd',col.regions = viridis(16)
-  ), 
-  levelplot(
-    gen_spatial_field_plots(2, plot_mean = FALSE), 
-    scales=list(draw=F), xlab='', ylab='', main='Visit 2 sd',col.regions = viridis(16)
-  ), 
-  levelplot(
-    gen_spatial_field_plots(3, plot_mean = FALSE), 
-    scales=list(draw=F), xlab='', ylab='', main='Visit 3 sd',col.regions = viridis(16)
-  ),
-  levelplot(
-    gen_spatial_field_plots(4, plot_mean = FALSE), 
-    scales=list(draw=F), xlab='', ylab='', main='Visit 4 sd',col.regions = viridis(16)
-  ), 
-  nrow=2
-)
-```
-
-
-```{r}
-g_mean <- inla.mesh.project(
-  gproj, 
-  main_fit_wov5$summary.random$spatial.field$mean[s.index$spatial.field.group == visit_num]
-)
-g_sd <- inla.mesh.project(
-  gproj, 
-  main_fit_wov5$summary.random$spatial.field$sd[s.index$spatial.field.group == visit_num]
-)
-
-
-grid.arrange(
-  levelplot(g_mean, scales=list(draw=F), xlab='', ylab='', main='mean',col.regions = heat.colors(16)),
-  levelplot(g_sd, scal=list(draw=F), xla='', yla='', main='sd' ,col.regions = heat.colors(16)), 
-  nrow=1
-)
-
-```
-
-
-```{r set-up-main-model-results-df}
-## Check that pred_rownames and pred_name_vec line up
+  
+  ## Check that pred_rownames and pred_name_vec line up
 pred_rownames_ordered <- c(
   "(Intercept)",
   "genderMale",
   "age_cented7",
-  "modal_land_typerice paddy",
-  "modal_land_typecropland",
-  "distance_to_river_scaled",
   "insecticide_sprayYes",
   "larvicide_applied_to_waterYes",
   "num_toilets_in_home",
   "num_domestic_water_containers_in_home",
+  "modal_land_typerice paddy",
+  "modal_land_typecropland",
+  "distance_to_river_scaled",
   "wet_seasonyes",
   "NFI250_home"
 )
 
 pred_names_vec = c(
   "(Intercept)",
-  "     Male", 
+  "Male", 
   "Age", 
-  "     Rice paddy",
-  "     Cropland",
-  "Distance to river (std. dev.)", 
   "Insecticide used",
   "Larvicide used",
   "Toilets",
   "Water containers",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std. dev.)", 
   "Wet season",
   "NFI"
 )
 
 
-main_fit_df <- main_fit_wov5$summary.fixed %>% 
-  mutate(unordered_names = rownames(main_fit_wov5$summary.fixed)) %>% 
-  mutate(pred_names = factor(
-    unordered_names,
-    levels = pred_rownames_ordered,
-    labels = pred_names_vec
-  )) %>% 
-  arrange(pred_names) %>% 
-  select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names)
+  main_fit_df <- main_fit_wov5$summary.fixed %>% 
+    mutate(unordered_names = rownames(main_fit_wov5$summary.fixed)) %>% 
+    mutate(pred_names = factor(
+      unordered_names,
+      levels = pred_rownames_ordered,
+      labels = pred_names_vec
+    )) %>% 
+    arrange(pred_names) %>% 
+    select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) %>% 
+    mutate(pred_names = factor(pred_names, levels = pred_names))
+
+  write.csv(main_fit_df, here("output", "main_fit_df.csv"))
+} else {
+  main_fit_df <- readRDS(here("output", "main_fit_df.csv"))
+}
 ```
 
 
