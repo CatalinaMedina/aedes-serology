@@ -1212,7 +1212,9 @@ pred_names_vec = c(
 
   write.csv(main_fit_df, here("output", "main_fit_df.csv"))
 } else {
-  main_fit_df <- readRDS(here("output", "main_fit_df.csv"))
+  main_fit_df <- read.csv(here("output", "main_fit_df.csv"))
+  rownames(main_fit_df) <- main_fit_df$X
+  main_fit_df <- main_fit_df[, -1]
 }
 ```
 
@@ -1230,7 +1232,8 @@ visit1_summary <- bind_rows(
   aedes_red_ind %>% group_by(gender) %>% summarize(count_n = n()) %>% 
     mutate(variable1 = "Gender") %>% mutate(variable2 = gender) %>% 
     mutate(visit1 = paste0(
-      count_n, " (", round(100 * count_n / total_n, 2), "%)")) %>% 
+      count_n, " (", round(100 * count_n / total_n, 2), "%)")
+    ) %>% 
     select(variable1, variable2, visit1) %>% 
     mutate(pred_names = c("Female", "Male")),
   ## Age
@@ -1338,9 +1341,9 @@ main_est <- main_fit_df %>%
 main_results_table <- bind_rows(visit1_summary, all_visits_summary) %>% 
   full_join(main_est, by = "pred_names") %>% 
   mutate(Estimate = ifelse(is.na(Estimate), "Reference", Estimate)) %>% 
-  select(-pred_names)
+  select(-pred_names) 
 
-saveRDS(main_results_table, here("output", "main-model-results-table.RDS"))
+write.csv(main_results_table, here("output", "main-model-results-table.csv"))
 ```
 
 
