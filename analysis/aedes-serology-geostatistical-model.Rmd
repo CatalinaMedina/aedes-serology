@@ -13,8 +13,6 @@ params:
   modis_lag: 32
   refit_fit: FALSE
   refit_vistit_fit: FALSE
-  refit_larval_fit: FALSE
-  refit_aedes_fit: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -1189,16 +1187,16 @@ pred_rownames_ordered <- c(
 pred_names_vec = c(
   "(Intercept)",
   "Male", 
-  "Age", 
+  "Age (centered at 7)", 
   "Insecticide used",
   "Larvicide used",
-  "Toilets",
-  "Water containers",
+  "Number of toilets in home",
+  "Number of water containers in home",
   "Rice paddy",
   "Cropland",
   "Distance to river (std. dev.)", 
   "Wet season",
-  "NFI"
+  "Normalized flooding index"
 )
 
 
@@ -1210,8 +1208,7 @@ pred_names_vec = c(
       labels = pred_names_vec
     )) %>% 
     arrange(pred_names) %>% 
-    select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) %>% 
-    mutate(pred_names = factor(pred_names, levels = pred_names))
+    select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names)
 
   write.csv(main_fit_df, here("output", "main_fit_df.csv"))
 } else {
@@ -1234,7 +1231,8 @@ visit1_summary <- bind_rows(
     mutate(variable1 = "Gender") %>% mutate(variable2 = gender) %>% 
     mutate(visit1 = paste0(
       count_n, " (", round(100 * count_n / total_n, 2), "%)")) %>% 
-    select(variable1, variable2, visit1),
+    select(variable1, variable2, visit1) %>% 
+    mutate(pred_names = c("Female", "Male")),
   ## Age
   data.frame(
     variable1 = " ", 
@@ -1242,14 +1240,16 @@ visit1_summary <- bind_rows(
     visit1 = paste0(
       round(mean(aedes_red_ind$age), 2), " (", round(sd(aedes_red_ind$age), 2), ")"
     )
-  ),
+  ) %>% 
+    mutate(pred_names = "Age (centered at 7)"),
   ## Land type
   aedes_red_ind %>% group_by(modal_land_type) %>% summarize(count_n = n()) %>% 
     mutate(variable1 = "Land type") %>% mutate(variable2 = modal_land_type) %>% 
     mutate(visit1 = paste0(
       count_n, " (", round(100 * count_n / total_n, 2), "%)"
     )) %>% 
-    select(variable1, variable2, visit1),
+    select(variable1, variable2, visit1) %>% 
+    mutate(pred_names = c("Urban", "Rice paddy", "Cropland")),
   ## Distance to river
   data.frame(
     variable1 = " ", 
@@ -1257,7 +1257,8 @@ visit1_summary <- bind_rows(
     visit1 = paste0(
       round(mean(aedes_red_ind$distance_to_river_scaled), 2), " (", round(sd(aedes_red_ind$distance_to_river_scaled), 2), ")"
     )
-  )
+  ) %>% 
+    mutate(pred_names = "Distance to river (std. dev.)")
 ) %>% 
   mutate(variable2 = str_to_sentence(variable2)) %>% 
   mutate(visit2 = "") %>% mutate(visit3 = "") %>% mutate(visit4 = "")
@@ -1273,7 +1274,8 @@ all_visits_summary <- bind_rows(
     )) %>%
     mutate(variable1 = "Insecticide") %>% mutate(variable2 = insecticide_spray) %>% 
     select(variable1, variable2, visit, col_summary) %>% 
-    pivot_wider(names_from = visit, values_from = col_summary, values_fill = ""),
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+    mutate(pred_names = c("Insecticide not used", "Insecticide used")),
   ## Larvicide spray
    aedes_red_wo5 %>% 
     group_by(visit, larvicide_applied_to_water) %>% summarize(count_n = n()) %>% 
@@ -1283,7 +1285,8 @@ all_visits_summary <- bind_rows(
     )) %>%
     mutate(variable1 = "Larvicide") %>% mutate(variable2 = larvicide_applied_to_water) %>% 
     select(variable1, variable2, visit, col_summary) %>% 
-    pivot_wider(names_from = visit, values_from = col_summary, values_fill = ""),
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+    mutate(pred_names = c("Larvicide not used", "Larvicide used")),
   ## Toilets
   aedes_red_wo5 %>% 
     group_by(visit) %>% 
@@ -1291,7 +1294,8 @@ all_visits_summary <- bind_rows(
     mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
     mutate(variable1 = "") %>% mutate(variable2 = "Toilets") %>% 
     select(variable1, variable2, visit, col_summary) %>% 
-    pivot_wider(names_from = visit, values_from = col_summary, values_fill = ""),
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+    mutate(pred_names = "Number of toilets in home"),
   ## Water containers
   aedes_red_wo5 %>% 
     group_by(visit) %>% 
@@ -1299,28 +1303,9 @@ all_visits_summary <- bind_rows(
     mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
     mutate(variable1 = "") %>% mutate(variable2 = "Water containers") %>% 
     select(variable1, variable2, visit, col_summary) %>% 
-    pivot_wider(names_from = visit, values_from = col_summary, values_fill = ""),
-  ## NFI
-  aedes_red_wo5 %>% 
-    group_by(visit) %>% 
-    summarize(mean = mean(NFI250_home), sd = sd(NFI250_home)) %>% 
-    mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
-    mutate(variable1 = "") %>% mutate(variable2 = "NFI") %>% 
-    select(variable1, variable2, visit, col_summary) %>% 
-    pivot_wider(names_from = visit, values_from = col_summary, values_fill = "")
-)
-  
-
-
-main_est <- main_fit_df %>% 
-  filter(pred_names != "(Intercept)") %>% 
-  mutate(Estimate = paste0(
-    round(mean, 3), " (", round(quant025, 3 ), ", ", round(quant975, 3), ")"
-  ))
-
-main_est1 <- main_est[order(main_est$pred_names, pred_names_vec[-1]), ]
-
-main_results_table <- bind_rows(visit1_summary, all_visits_summary) %>% 
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+    mutate(pred_names = "Number of water containers in home"),
+  ## Wet season
   bind_rows(data.frame(
     variable1 = rep("Wet season", 2),
     variable2 = c("No", "Yes"),
@@ -1329,9 +1314,31 @@ main_results_table <- bind_rows(visit1_summary, all_visits_summary) %>%
     visit3 = c("0", paste0(visit_n_df$group_n[3])),
     visit4 = c(paste0(visit_n_df$group_n[4]), "0")
   )) %>% 
-  mutate(Estimate = "Reference")
+    mutate(pred_names = c("Wet season no", "Wet season")),
+  ## NFI
+  aedes_red_wo5 %>% 
+    group_by(visit) %>% 
+    summarize(mean = mean(NFI250_home), sd = sd(NFI250_home)) %>% 
+    mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
+    mutate(variable1 = "") %>% mutate(variable2 = "Normalized flooding index") %>% 
+    select(variable1, variable2, visit, col_summary) %>% 
+    pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+    mutate(pred_names = "Normalized flooding index")
+)
+  
 
-main_results_table$Estimate[c(2:3, 5:7, 9, 11:14, 16)] <- main_est1$Estimate
+
+main_est <- main_fit_df %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  mutate(Estimate = paste0(
+    round(mean, 3), " (", round(quant025, 3 ), ", ", round(quant975, 3), ")"
+  )) %>% 
+  select(Estimate, pred_names)
+
+main_results_table <- bind_rows(visit1_summary, all_visits_summary) %>% 
+  full_join(main_est, by = "pred_names") %>% 
+  mutate(Estimate = ifelse(is.na(Estimate), "Reference", Estimate)) %>% 
+  select(-pred_names)
 
 saveRDS(main_results_table, here("output", "main-model-results-table.RDS"))
 ```
