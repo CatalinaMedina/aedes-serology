@@ -55,7 +55,11 @@ source(here("analysis", "process-modis-data-function.R"))
 ```{r read-process-data}
 if (!params$rerun_data) {
   
-  aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds")) 
+  aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds"))
+  
+  aedes_red_ind <- aedes_red %>%
+  filter(visit == "visit1") %>% 
+  mutate(visit = droplevels(visit))
   
 } else {
   
@@ -1148,7 +1152,7 @@ coeff_priors <- list(
 ```
 
 
-```{r main-model-wov5}
+```{r main-model-wov5, eval = TRUE}
 if(params$refit_fit) {
   main_fit_wov5 <- inla(
     formula, 
@@ -1219,7 +1223,7 @@ pred_names_vec = c(
 ```
 
 
-```{r main-model-table-data-prep}
+```{r main-model-table-data-prep, eval = TRUE}
 total_n <- nrow(aedes_red_ind)
 
 aedes_red_wo5 <- filter(aedes_red, visit != "visit5") %>% mutate(visit = droplevels(visit))
@@ -1256,7 +1260,7 @@ visit1_summary <- bind_rows(
   ## Distance to river
   data.frame(
     variable1 = " ", 
-    variable2 = "Distance to river (std. dev.)",
+    variable2 = "Distance to river (std.)",
     visit1 = paste0(
       round(mean(aedes_red_ind$distance_to_river_scaled), 2), " (", round(sd(aedes_red_ind$distance_to_river_scaled), 2), ")"
     )
@@ -1323,7 +1327,7 @@ all_visits_summary <- bind_rows(
     group_by(visit) %>% 
     summarize(mean = mean(NFI250_home), sd = sd(NFI250_home)) %>% 
     mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
-    mutate(variable1 = "") %>% mutate(variable2 = "Normalized flooding index") %>% 
+    mutate(variable1 = "") %>% mutate(variable2 = "Flooding index (NFI)") %>% 
     select(variable1, variable2, visit, col_summary) %>% 
     pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
     mutate(pred_names = "Normalized flooding index")
@@ -1348,8 +1352,6 @@ write.csv(main_results_table, here("output", "main-model-results-table.csv"))
 
 
 ```{r main-model-results-table, eval = TRUE}
-main_results_table <- readRDS(here("output", "main-model-results-table.RDS"))
-
 main_results_table %>% 
   select(-c("variable1")) %>% 
 kbl(
@@ -1365,8 +1367,9 @@ kbl(
       " " = 1,
       "Insecticide" = 2,
       "Larvicide" = 2,
-      " " = 3,
-      "Wet season" = 2
+      " " = 2,
+      "Wet season" = 2,
+      " " = 1
     ), 
     bold = FALSE
   )
