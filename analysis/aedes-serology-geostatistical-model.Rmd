@@ -1191,16 +1191,16 @@ pred_rownames_ordered <- c(
 pred_names_vec = c(
   "(Intercept)",
   "Male", 
-  "Age (centered at 7)", 
+  "Age", 
   "Insecticide used",
   "Larvicide used",
-  "Number of toilets in home",
-  "Number of water containers in home",
+  "Number of toilets",
+  "Number of water containers",
   "Rice paddy",
   "Cropland",
-  "Distance to river (std. dev.)", 
+  "Distance to river (std.)", 
   "Wet season",
-  "Normalized flooding index"
+  "Flooding index (NFI)"
 )
 
 
@@ -1359,6 +1359,11 @@ kbl(
   col.names = c(" ", "Visit 1", "Visit 2", "Visit 3", "Visit 4", "Mean Estimate (95% BCI)")
 ) %>% 
   kable_styling() %>% 
+  add_header_above(
+    c(" ", " " = 4, "Mean Estimate" = 1), 
+    line = FALSE,
+    align = "l"
+  ) %>% 
   pack_rows(
     index = c(
       "Gender" = 2,
@@ -1383,7 +1388,19 @@ pdf(here("output", "main-model-forest-plot-wo-v5.pdf"))
 main_fit_plot_df <- main_fit_df %>% 
   filter(pred_names != "(Intercept)") %>% 
   add_row(pred_names = "Sex [ref: Female]", .before = 1) %>% 
-  add_row(pred_names = "Modal land type [ref: Urban]", .before = 4) %>% 
+  add_row(pred_names = "Insecticide used [ref: No]", .before = 4) %>% 
+  add_row(pred_names = "Larvicide used [ref: No]", .before = 6) %>% 
+  add_row(pred_names = "Modal land type [ref: Urban]", .before = 10) %>%
+  add_row(pred_names = "Wet season [ref: No]", .before = 14)
+
+main_fit_plot_df$pred_names[2]  <- "     Male"
+main_fit_plot_df$pred_names[5]  <- "     Yes"
+main_fit_plot_df$pred_names[7]  <- "     Yes "
+main_fit_plot_df$pred_names[11] <- "     Rice paddy"
+main_fit_plot_df$pred_names[12] <- "     Cropland"
+main_fit_plot_df$pred_names[15] <- "     Yes  "
+
+main_fit_plot_df <- main_fit_plot_df %>% 
   mutate(pred_names = factor(pred_names, levels = pred_names))
 
 main_fit_plot_df %>% 
@@ -1391,12 +1408,12 @@ main_fit_plot_df %>%
     geom_point() +
     geom_linerange(aes(xmin = quant025, xmax = quant975)) +
     geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw(base_size = 12, base_family = 'Times New Roman') +
+    theme_bw(base_size = 14, base_family = 'Times New Roman') +
     theme(
       panel.border = element_blank(),
-      axis.text.y = element_text(hjust = 0, color = "black"),
+      axis.text.y = element_text(hjust = 0),
       axis.ticks.y = element_blank(),
-      axis.text.x=element_text(color = "black"),
+      axis.text.x=element_text(),
       panel.grid.major = element_line(colour = "gray90")
     ) +
     xlab("") +
