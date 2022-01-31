@@ -641,8 +641,8 @@ if(!params$refit_full_model_w_larval) {
   larval_pred_est[2, ] <- fit_full_w_larval_no_pred$summary.fixed["ave_larv_cont", c("mean", "0.025quant", "0.975quant")]
   
   
-  fit_full_w_larval_no_pred_temp <- fit_full_w_larval_no_pred_all$summary.fixed %>% 
-    mutate(unordered_names = rownames(fit_full_w_larval_no_pred_all$summary.fixed)) %>% 
+  fit_full_w_larval_no_pred_temp <- fit_full_w_larval_no_pred$summary.fixed %>% 
+    mutate(unordered_names = rownames(fit_full_w_larval_no_pred$summary.fixed)) %>% 
     mutate(pred_names = factor(
       unordered_names,
       levels = c(pred_rownames_ordered, "ave_larv_cont"),
