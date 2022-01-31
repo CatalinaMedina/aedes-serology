@@ -15,17 +15,22 @@ knitr::opts_chunk$set(
 ```{r Load libraries}
 library(here)
 library(tidyverse)
+library(viridis)
+library(extrafont)
+
+loadfonts(device = "win")
+windowsFonts(Times = windowsFont("TT Times New Roman"))
 ```
 
 
 ```{r Prep data}
 main_fit_df <- read.csv(here("output", "main_fit_df.csv")) %>% 
-  mutate(model = "main") %>% 
+  mutate(Model = "Main") %>% 
   select(-X)
 larval_fit_df <- read.csv(here("output", "fit_full_w_larval_no_pred.csv")) %>% 
-  mutate(model = "larval")
+  mutate(Model = "Larval")
 adult_fit_df <- read.csv(here("output", "fit_full_w_adult_no_pred.csv")) %>% 
-  mutate(model = "adult")
+  mutate(Model = "Adult")
 
 
 display_names_vec <- c(
@@ -74,32 +79,91 @@ all_results <- main_fit_df %>%
   bind_rows(larval_fit_df) %>% 
   bind_rows(adult_fit_df) %>% 
   filter(pred_names != "(Intercept)") %>% 
-  add_row(pred_names = "Rice paddy", model = "adult") %>% 
-  add_row(pred_names = "Wet season", model = "adult") %>%
-  add_row(pred_names = "Ave. larvae contaminated containers", model = "main") %>% 
-  add_row(pred_names = "Ave. larvae contaminated containers", model = "adult") %>%
-  add_row(pred_names = "Ave. trapped mosquitos", model = "main") %>%
-  add_row(pred_names = "Ave. trapped mosquitos", model = "larval") %>%
-  add_row(pred_names = "Sex [ref: Female]", model = "main") %>% # Sex [ref: Female]
-  add_row(pred_names = "Sex [ref: Female]", model = "larval") %>% 
-  add_row(pred_names = "Sex [ref: Female]", model = "adult") %>% 
-  add_row(pred_names = "Insecticide used [ref: No]", model = "main") %>% # Insecticide used [ref: No]
-  add_row(pred_names = "Insecticide used [ref: No]", model = "larval") %>% 
-  add_row(pred_names = "Insecticide used [ref: No]", model = "adult") %>% 
-  add_row(pred_names = "Larvicide used [ref: No]", model = "main") %>% # Larvicide used [ref: No]
-  add_row(pred_names = "Larvicide used [ref: No]", model = "larval") %>% 
-  add_row(pred_names = "Larvicide used [ref: No]", model = "adult") %>% 
-  add_row(pred_names = "Modal land type [ref: Urban]", model = "main") %>% # Modal land type [ref: Urban]
-  add_row(pred_names = "Modal land type [ref: Urban]", model = "larval") %>% 
-  add_row(pred_names = "Modal land type [ref: Urban]", model = "adult") %>% 
-  add_row(pred_names = "Wet season [ref: No]", model = "main") %>% # Wet season [ref: No]
-  add_row(pred_names = "Wet season [ref: No]", model = "larval") %>% 
-  add_row(pred_names = "Wet season [ref: No]", model = "adult") %>% 
+  add_row(pred_names = "Rice paddy", Model = "Adult") %>% 
+  add_row(pred_names = "Wet season", Model = "Adult") %>%
+  add_row(pred_names = "Ave. larvae contaminated containers", Model = "Main") %>% 
+  add_row(pred_names = "Ave. larvae contaminated containers", Model = "Adult") %>%
+  add_row(pred_names = "Ave. trapped mosquitos", Model = "Main") %>%
+  add_row(pred_names = "Ave. trapped mosquitos", Model = "Larval") %>%
+  add_row(pred_names = "Sex [ref: Female]", Model = "Main") %>% # Sex [ref: Female]
+  add_row(pred_names = "Sex [ref: Female]", Model = "Larval") %>% 
+  add_row(pred_names = "Sex [ref: Female]", Model = "Adult") %>% 
+  add_row(pred_names = "Insecticide used [ref: No]", Model = "Main") %>% # Insecticide used [ref: No]
+  add_row(pred_names = "Insecticide used [ref: No]", Model = "Larval") %>% 
+  add_row(pred_names = "Insecticide used [ref: No]", Model = "Adult") %>% 
+  add_row(pred_names = "Larvicide used [ref: No]", Model = "Main") %>% # Larvicide used [ref: No]
+  add_row(pred_names = "Larvicide used [ref: No]", Model = "Larval") %>% 
+  add_row(pred_names = "Larvicide used [ref: No]", Model = "Adult") %>% 
+  add_row(pred_names = "Modal land type [ref: Urban]", Model = "Main") %>% # Modal land type [ref: Urban]
+  add_row(pred_names = "Modal land type [ref: Urban]", Model = "Larval") %>% 
+  add_row(pred_names = "Modal land type [ref: Urban]", Model = "Adult") %>% 
+  add_row(pred_names = "Wet season [ref: No]", Model = "Main") %>% # Wet season [ref: No]
+  add_row(pred_names = "Wet season [ref: No]", Model = "Larval") %>% 
+  add_row(pred_names = "Wet season [ref: No]", Model = "Adult") %>% 
   mutate(display_names = factor(
     pred_names, 
     levels = pred_names_vec, 
     labels = display_names_vec 
   )) %>% 
+  mutate(Model = factor(Model, levels = c("Main", "Larval", "Adult"))) %>% 
   arrange(display_names)
+```
+
+
+```{r Plot parameters}
+alpha <- 0.8
+
+min_val <- min(
+  all_results$quant025[all_results$display_names != "Flooding index (NFI)"],
+  na.rm = TRUE
+)
+max_val <- max(
+  all_results$quant975[all_results$display_names != "Flooding index (NFI)"],
+  na.rm = TRUE
+)
+```
+
+
+```{r Produce 1 plot}
+all_results %>% 
+  ggplot(aes(x = mean, y = display_names, color = Model)) +
+    geom_point(alpha = alpha) +
+    geom_errorbar(aes(xmin = quant025, xmax = quant975), alpha = alpha) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw(base_size = 14, base_family = 'Times New Roman') +
+    theme(
+      panel.border = element_blank(),
+      axis.text.y = element_text(hjust = 0),
+      axis.ticks.y = element_blank(),
+      axis.text.x=element_text(),
+      panel.grid.major = element_line(colour = "gray90")
+    ) +
+    xlab("") +
+    ylab("") +
+  scale_y_discrete(limits = rev) +
+  scale_color_viridis(discrete = TRUE) +
+  coord_cartesian(xlim=c(min_val, max_val))
+```
+
+
+```{r Produce 3 plots}
+all_results %>% 
+  ggplot(aes(x = mean, y = display_names)) +
+    geom_point() +
+    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw(base_size = 14, base_family = 'Times New Roman') +
+    theme(
+      panel.border = element_blank(),
+      axis.text.y = element_text(hjust = 0),
+      axis.ticks.y = element_blank(),
+      axis.text.x=element_text(),
+      panel.grid.major = element_line(colour = "gray90")
+    ) +
+    xlab("") +
+    ylab("") +
+  scale_y_discrete(limits = rev) +
+  coord_cartesian(xlim=c(min_val, max_val)) +
+  facet_wrap( ~ Model)
 ```
 
