@@ -1,0 +1,105 @@
+---
+title: "Aedes paper images"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  fig.pos = 'H', fig.align = "center",
+  message = FALSE, warning = FALSE
+)
+```
+
+
+```{r Load libraries}
+library(here)
+library(tidyverse)
+```
+
+
+```{r Prep data}
+main_fit_df <- read.csv(here("output", "main_fit_df.csv")) %>% 
+  mutate(model = "main") %>% 
+  select(-X)
+larval_fit_df <- read.csv(here("output", "fit_full_w_larval_no_pred.csv")) %>% 
+  mutate(model = "larval")
+adult_fit_df <- read.csv(here("output", "fit_full_w_adult_no_pred.csv")) %>% 
+  mutate(model = "adult")
+
+
+display_names_vec <- c(
+  "Sex [ref: Female]",
+  "     Male", 
+  "Age", 
+  "Insecticide used [ref: No]",
+  "     Yes",
+  "Larvicide used [ref: No]",
+  "     Yes ",
+  "Number of toilets",
+  "Number of water containers",
+  "Modal land type [ref: Urban]",
+  "     Rice paddy",
+  "     Cropland",
+  "Distance to river (std.)", 
+  "Wet season [ref: No]",
+  "     Yes  ",
+  "Flooding index (NFI)",
+  "Ave. larval containers",
+  "Ave. trapped mosquitos"
+) 
+
+pred_names_vec <- c(
+  "Sex [ref: Female]",
+  "Male", 
+  "Age", 
+  "Insecticide used [ref: No]",
+  "Insecticide used",
+  "Larvicide used [ref: No]",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
+  "Modal land type [ref: Urban]",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "Wet season [ref: No]",
+  "Wet season",
+  "Flooding index (NFI)",
+  "Ave. larvae contaminated containers",
+  "Ave. trapped mosquitos"
+  )
+
+all_results <- main_fit_df %>% 
+  bind_rows(larval_fit_df) %>% 
+  bind_rows(adult_fit_df) %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  add_row(pred_names = "Rice paddy", model = "adult") %>% 
+  add_row(pred_names = "Wet season", model = "adult") %>%
+  add_row(pred_names = "Ave. larvae contaminated containers", model = "main") %>% 
+  add_row(pred_names = "Ave. larvae contaminated containers", model = "adult") %>%
+  add_row(pred_names = "Ave. trapped mosquitos", model = "main") %>%
+  add_row(pred_names = "Ave. trapped mosquitos", model = "larval") %>%
+  add_row(pred_names = "Sex [ref: Female]", model = "main") %>% # Sex [ref: Female]
+  add_row(pred_names = "Sex [ref: Female]", model = "larval") %>% 
+  add_row(pred_names = "Sex [ref: Female]", model = "adult") %>% 
+  add_row(pred_names = "Insecticide used [ref: No]", model = "main") %>% # Insecticide used [ref: No]
+  add_row(pred_names = "Insecticide used [ref: No]", model = "larval") %>% 
+  add_row(pred_names = "Insecticide used [ref: No]", model = "adult") %>% 
+  add_row(pred_names = "Larvicide used [ref: No]", model = "main") %>% # Larvicide used [ref: No]
+  add_row(pred_names = "Larvicide used [ref: No]", model = "larval") %>% 
+  add_row(pred_names = "Larvicide used [ref: No]", model = "adult") %>% 
+  add_row(pred_names = "Modal land type [ref: Urban]", model = "main") %>% # Modal land type [ref: Urban]
+  add_row(pred_names = "Modal land type [ref: Urban]", model = "larval") %>% 
+  add_row(pred_names = "Modal land type [ref: Urban]", model = "adult") %>% 
+  add_row(pred_names = "Wet season [ref: No]", model = "main") %>% # Wet season [ref: No]
+  add_row(pred_names = "Wet season [ref: No]", model = "larval") %>% 
+  add_row(pred_names = "Wet season [ref: No]", model = "adult") %>% 
+  mutate(display_names = factor(
+    pred_names, 
+    levels = pred_names_vec, 
+    labels = display_names_vec 
+  )) %>% 
+  arrange(display_names)
+```
+
