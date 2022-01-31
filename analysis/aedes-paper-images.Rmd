@@ -102,8 +102,8 @@ all_results <- main_fit_df %>%
   add_row(pred_names = "Wet season [ref: No]", Model = "Adult") %>% 
   mutate(display_names = factor(
     pred_names, 
-    levels = pred_names_vec, 
-    labels = display_names_vec 
+    levels = rev(pred_names_vec), 
+    labels = rev(display_names_vec) 
   )) %>% 
   mutate(Model = factor(Model, levels = c("Main", "Larval", "Adult"))) %>% 
   arrange(display_names)
@@ -112,6 +112,8 @@ all_results <- main_fit_df %>%
 
 ```{r Plot parameters}
 alpha <- 0.8
+
+dodge <- 0.8
 
 min_val <- min(
   all_results$quant025[all_results$display_names != "Flooding index (NFI)"],
@@ -127,8 +129,15 @@ max_val <- max(
 ```{r Produce 1 plot}
 all_results %>% 
   ggplot(aes(x = mean, y = display_names, color = Model)) +
-    geom_point(alpha = alpha) +
-    geom_errorbar(aes(xmin = quant025, xmax = quant975), alpha = alpha) +
+    geom_point(
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_linerange(
+      aes(xmin = quant025, xmax = quant975), 
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
     geom_vline(xintercept = 0, linetype = "dashed") +
     theme_bw(base_size = 14, base_family = 'Times New Roman') +
     theme(
@@ -140,30 +149,7 @@ all_results %>%
     ) +
     xlab("") +
     ylab("") +
-  scale_y_discrete(limits = rev) +
   scale_color_viridis(discrete = TRUE) +
   coord_cartesian(xlim=c(min_val, max_val))
-```
-
-
-```{r Produce 3 plots}
-all_results %>% 
-  ggplot(aes(x = mean, y = display_names)) +
-    geom_point() +
-    geom_linerange(aes(xmin = quant025, xmax = quant975)) +
-    geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw(base_size = 14, base_family = 'Times New Roman') +
-    theme(
-      panel.border = element_blank(),
-      axis.text.y = element_text(hjust = 0),
-      axis.ticks.y = element_blank(),
-      axis.text.x=element_text(),
-      panel.grid.major = element_line(colour = "gray90")
-    ) +
-    xlab("") +
-    ylab("") +
-  scale_y_discrete(limits = rev) +
-  coord_cartesian(xlim=c(min_val, max_val)) +
-  facet_wrap( ~ Model)
 ```
 
