@@ -727,6 +727,17 @@ aedes_red_ind <- aedes_red %>%
 ```
 
 
+```{r Response histogram, eval = FALSE}
+aedes_red %>% 
+  filter(visit != "visit5") %>% 
+ggplot(aes(x = log_saliva_elisa)) + 
+  geom_histogram(bins = 30) + 
+  theme_bw() +
+  xlab(expression(paste("Log ", italic("Aedes"), " mosquito saliva specific antibodies"))) +
+  ylab("Count")
+```
+
+
 ## Individual visit surfaces  
 ```{r prep_and_fit_visit_surf_model_func}
 prep_and_fit_visit_surf_model <- function(data = aedes_red, visit_name, mesh_to_grid_dims){
@@ -959,11 +970,6 @@ lon_breaks <- c(
   x_coef[1] + x_coef[2] * lon_labels[2], 
   x_coef[1] + x_coef[2] * lon_labels[3]
 )
-```
-
-
-```{r google-map, eval = FALSE}
-sat_map <- get_googlemap(center = c(lon = 104.53, lat = 11.46), maptype = "terrain")
 ```
 
 
