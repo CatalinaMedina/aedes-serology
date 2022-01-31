@@ -45,9 +45,6 @@ library(extrafont)
 library(tidyverse)
 library(INLA)
 
-loadfonts(device = "win")
-windowsFonts(Times = windowsFont("TT Times New Roman"))
-
 source(here("analysis", "process-modis-data-function.R"))
 ```
 
