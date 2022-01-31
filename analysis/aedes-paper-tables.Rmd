@@ -1,0 +1,86 @@
+---
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  fig.pos = 'H', fig.align = "center",
+  message = FALSE, warning = FALSE
+)
+```
+
+
+```{r load libraries}
+library(knitr)
+library(kableExtra)
+library(here)
+library(tidyverse)
+```
+
+```{r Load in data}
+main_results_table <- read_csv(
+  here("output", "main-model-results-table.csv"),
+  show_col_types = FALSE
+) %>% 
+  select(-c("...1"))
+```
+
+
+```{r Table 1}
+options(knitr.kable.NA = '')
+
+main_results_table %>% 
+  select(-c(variable1, Estimate)) %>% 
+kbl(
+  #booktabs = TRUE, 
+  col.names = c(" ", "Visit 1", "Visit 2", "Visit 3", "Visit 4")
+) %>% 
+  kable_styling() %>% 
+  pack_rows(
+    index = c(
+      "Gender" = 2,
+      " " = 1,
+      "Land type" = 3,
+      " " = 1,
+      "Insecticide" = 2,
+      "Larvicide" = 2,
+      " " = 2,
+      "Wet season" = 2,
+      " " = 1
+    ), 
+    bold = FALSE
+  )
+```
+
+\newpage
+
+```{r Table 2}
+main_results_table %>% 
+  select(variable2, Estimate) %>% 
+kbl(
+  #booktabs = TRUE, 
+  col.names = c(" ", "(95% BCI)")
+) %>% 
+  kable_styling() %>% 
+  add_header_above(
+    c(" ", "Mean Estimate" = 1), 
+    line = FALSE,
+    align = "l"
+  ) %>% 
+  pack_rows(
+    index = c(
+      "Gender" = 2,
+      " " = 1,
+      "Land type" = 3,
+      " " = 1,
+      "Insecticide" = 2,
+      "Larvicide" = 2,
+      " " = 2,
+      "Wet season" = 2,
+      " " = 1
+    ), 
+    bold = FALSE
+  )
+```
+
