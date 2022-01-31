@@ -60,30 +60,29 @@ pred_rownames_ordered <- c(
   "(Intercept)",
   "genderMale",
   "age_cented7",
-  "modal_land_typerice paddy",
-  "modal_land_typecropland",
-  "distance_to_river_scaled",
   "insecticide_sprayYes",
   "larvicide_applied_to_waterYes",
   "num_toilets_in_home",
   "num_domestic_water_containers_in_home",
-  "NFI250_home",
-  "wet_seasonyes"
+  "modal_land_typerice paddy",
+  "modal_land_typecropland",
+  "distance_to_river_scaled",
+  "wet_seasonyes",
+  "NFI250_home"
 )
-
 pred_names_vec = c(
   "(Intercept)",
   "Male", 
   "Age", 
+  "Insecticide used",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
   "Rice paddy",
   "Cropland",
-  "Distance to river", 
-  "Insecticide",
-  "Larvicide",
-  "Toilets",
-  "Water containers",
-  "NFI",
-  "Wet season"
+  "Distance to river (std.)", 
+  "Wet season",
+  "Flooding index (NFI)"
 )
 ```
 
@@ -449,7 +448,7 @@ if(!params$refit_full_model_w_larval) {
   fit_full_w_larval_preds <- read_csv(file = here("output", "fit_full_w_larval_preds.csv"))
   
   ## Load overall fit without predictions
-  fit_full_w_larval_no_pred <- readRDS(here("output", "fit_full_w_larval_no_pred.rds"))
+  fit_full_w_larval_no_pred <- read_csv(here("output", "fit_full_w_larval_no_pred.csv"))
   
 } else {
   set.seed(1234)
@@ -641,7 +640,21 @@ if(!params$refit_full_model_w_larval) {
     
   larval_pred_est[2, ] <- fit_full_w_larval_no_pred$summary.fixed["ave_larv_cont", c("mean", "0.025quant", "0.975quant")]
   
-  saveRDS(fit_full_w_larval_no_pred, here("output", "fit_full_w_larval_no_pred.rds"))
+  
+  fit_full_w_larval_no_pred_temp <- fit_full_w_larval_no_pred_all$summary.fixed %>% 
+    mutate(unordered_names = rownames(fit_full_w_larval_no_pred_all$summary.fixed)) %>% 
+    mutate(pred_names = factor(
+      unordered_names,
+      levels = c(pred_rownames_ordered, "ave_larv_cont"),
+      labels = c(pred_names_vec, "Ave. larvae contaminated containers")
+    )) %>% 
+    arrange(pred_names) %>% 
+    select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) 
+
+  write_csv(
+    fit_full_w_larval_no_pred_temp,
+    here("output", "fit_full_w_larval_no_pred.csv")
+  )
 }
 ```
 
