@@ -120,8 +120,11 @@ min_val <- min(
   na.rm = TRUE
 )
 max_val <- max(
-  all_results$quant975[all_results$display_names != "Flooding index (NFI)"],
-  na.rm = TRUE
+  max(
+    all_results$quant975[all_results$display_names != "Flooding index (NFI)"],
+    na.rm = TRUE
+  ),
+  0.6
 )
 ```
 
@@ -149,7 +152,8 @@ all_results %>%
     ) +
     xlab("") +
     ylab("") +
-  scale_color_viridis(discrete = TRUE) +
+  scale_color_manual(values = c("#440154FF", "#31688EFF", "#35B779FF")) +
+  #scale_color_manual(values = c("#30123BFF", "#4490FEFF", "#7A0403FF")) +
   coord_cartesian(xlim=c(min_val, max_val))
 ```
 
