@@ -18,6 +18,7 @@ library(here)
 library(tidyverse)
 ```
 
+
 ```{r Load in data}
 main_results_table <- read_csv(
   here("output", "main-model-results-table.csv"),
@@ -55,30 +56,120 @@ kbl(
 
 \newpage
 
+```{r Table 2 data prep}
+main_fit_df <- read_csv(
+  here("output", "main_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Main = paste0(
+    round(mean, 3), " (", round(quant025, 3), ", ", round(quant975, 3), ")"
+  )) %>% 
+    select(pred_names, Main) 
+
+larval_fit_df <- read_csv(
+  here("output", "fit_full_w_larval_no_pred.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Larval = paste0(
+    round(mean, 3), " (", round(quant025, 3), ", ", round(quant975, 3), ")"
+  )) %>% 
+    select(pred_names, Larval) 
+
+adult_fit_df <- read_csv(
+  here("output", "fit_full_w_adult_no_pred.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Adult = paste0(
+    round(mean, 3), " (", round(quant025, 3), ", ", round(quant975, 3), ")"
+  )) %>% 
+    select(pred_names, Adult) 
+
+display_names_vec <- c(
+  "Female",
+  "Male", 
+  "Age", 
+  "No", # Insecticide
+  "Yes",
+  "No ", # Larvicide
+  "Yes ",
+  "Number of toilets",
+  "Number of water containers",
+  "Urban",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "No  ",
+  "Yes  ",
+  "Flooding index (NFI)",
+  "Ave. larval containers",
+  "Ave. trapped mosquitos"
+) 
+
+pred_names_vec <- c(
+  "Female",
+  "Male", 
+  "Age", 
+  "No",
+  "Insecticide used",
+  "No ",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
+  "Urban",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "No  ",
+  "Wet season",
+  "Flooding index (NFI)",
+  "Ave. larvae contaminated containers",
+  "Ave. trapped mosquitos"
+  )
+
+
+all_results <- main_fit_df %>% 
+  full_join(larval_fit_df) %>% 
+  full_join(adult_fit_df) %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  add_row(pred_names = "Female", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No ", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No  ", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "Urban", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  mutate(display_names = factor(
+    pred_names, 
+    levels = pred_names_vec, 
+    labels = display_names_vec 
+  )) %>% 
+  arrange(display_names) %>% 
+  select(pred_names, display_names, Main, Larval, Adult)
+```
+
+
 ```{r Table 2}
-main_results_table %>% 
-  select(variable2, Estimate) %>% 
+all_results %>% 
+  select(display_names, Main, Larval, Adult) %>% 
 kbl(
   #booktabs = TRUE, 
-  col.names = c(" ", "(95% BCI)")
+  col.names = c(" ", "Main Model", "Larval Model", "Adult Model")
 ) %>% 
   kable_styling() %>% 
   add_header_above(
-    c(" ", "Mean Estimate" = 1), 
+    c(" " = 1, "Mean Estimate (95% BCI)" = 3), 
     line = FALSE,
-    align = "l"
+    align = "c"
   ) %>% 
   pack_rows(
     index = c(
       "Gender" = 2,
       " " = 1,
-      "Land type" = 3,
-      " " = 1,
       "Insecticide" = 2,
       "Larvicide" = 2,
       " " = 2,
+      "Land type" = 3,
+      " " = 1,
       "Wet season" = 2,
-      " " = 1
+      " " = 3
     ), 
     bold = FALSE
   )
