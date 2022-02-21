@@ -9,6 +9,8 @@ data/
 *.PNG
 output/
 *.tex
+*.aux
+*.out
 *.log
 *.docx
 inla-script-help/

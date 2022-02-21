@@ -72,12 +72,12 @@ pred_names_vec = c(
   "Age", 
   "Rice paddy",
   "Cropland",
-  "Distance to river", 
-  "Insecticide",
-  "Larvicide",
-  "Toilets",
-  "Water containers",
-  "NFI",
+  "Distance to river (std.)", 
+  "Insecticide used",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
+  "Flooding index (NFI)",
   "Wet season"
 )
 ```
@@ -599,7 +599,7 @@ if(!params$refit_full_model_w_adult) {
 ```{r full model without enviro preds}
 if(!params$refit_model_w_adult_wo_enviro) {
   ## Load predictions df
-  fit_full_wo_enviro_preds <- read_csv(file = here("output", "fit_full_wo_enviro_preds.csv"))
+  fit_adult_full_wo_enviro_preds <- read_csv(file = here("output", "fit_adult_full_wo_enviro_preds.csv"))
   
 } else {
   set.seed(1234)
@@ -607,7 +607,7 @@ if(!params$refit_model_w_adult_wo_enviro) {
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
   
-  fit_full_wo_enviro_preds <- NULL
+  fit_adult_full_wo_enviro_preds <- NULL
   
   for(j in 1:num_coss_validation_reps){
     ### Model prep
@@ -743,12 +743,12 @@ if(!params$refit_model_w_adult_wo_enviro) {
     )
     
     
-    fit_full_wo_enviro_preds <- bind_rows(fit_full_wo_enviro_preds, preds_df)
+    fit_adult_full_wo_enviro_preds <- bind_rows(fit_adult_full_wo_enviro_preds, preds_df)
   }
   
   
   ## Saves predictions
-  write.csv(fit_full_wo_enviro_preds, file = here("output", "fit_full_wo_enviro_preds.csv"), row.names = FALSE)
+  write.csv(fit_adult_full_wo_enviro_preds, file = here("output", "fit_adult_full_wo_enviro_preds.csv"), row.names = FALSE)
   
   
   ### Fit model on full data yto get adult preds
@@ -788,7 +788,7 @@ if(!params$refit_model_w_adult_wo_enviro) {
 bind_rows(
   data.frame(fit_full_wo_adult_preds, model = "Full wo adult"),
   data.frame(fit_full_w_adult_preds, model = "Full w adult"),
-  data.frame(fit_full_wo_enviro_preds, model = "No enviro w adult")
+  data.frame(fit_adult_full_wo_enviro_preds, model = "No enviro w adult")
 ) %>% 
 ggplot(aes(x = obs, y = pred, color = model)) +
   geom_point(alpha = 0.8) +
@@ -812,14 +812,14 @@ adult_MSE <- c(
     mutate(mse_wo_sum = (pred - obs)^2) %>% 
     select(mse_wo_sum) %>% 
     sum() / nrow(fit_full_w_adult_preds),
-  fit_full_wo_enviro_preds %>% 
+  fit_adult_full_wo_enviro_preds %>% 
     mutate(mse_wo_sum = (pred - obs)^2) %>% 
     select(mse_wo_sum) %>% 
-    sum() / nrow(fit_full_wo_enviro_preds)
+    sum() / nrow(fit_adult_full_wo_enviro_preds)
 )
 
 
-data.frame(
+adult_pred_mse_df <- data.frame(
   "Model" = c("Without adult", "With adult", "With adult and without environmental"),
   "MSE" = round(adult_MSE, 4), 
   adult_pred_est
@@ -831,7 +831,14 @@ data.frame(
       round(mean, 3), " (", round(X0.025quant, 3), ", ", round(X0.975quant, 3), ")"
     )
   )) %>% 
-  select("Full model" = Model, "Prediction MSE" = MSE, "adult predictor estimate (95% BCI)") %>% 
+  select("Full model" = Model, "Prediction MSE" = MSE, "adult predictor estimate (95% BCI)")
+
+write_csv(
+  adult_pred_mse_df, 
+  file = here("output", "adult_pred_mse_df.csv")
+)
+
+adult_pred_mse_df %>% 
 kbl(booktabs = TRUE) %>% 
   kable_styling()
 ```

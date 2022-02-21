@@ -75,6 +75,7 @@ pred_names_vec <- c(
   "Ave. trapped mosquitos"
   )
 
+
 all_results <- main_fit_df %>% 
   bind_rows(larval_fit_df) %>% 
   bind_rows(adult_fit_df) %>% 
@@ -150,10 +151,10 @@ all_results %>%
       axis.text.x=element_text(),
       panel.grid.major = element_line(colour = "gray90")
     ) +
-    xlab("") +
-    ylab("") +
-  #scale_color_manual(values = c("#440154FF", "#31688EFF", "#35B779FF")) +
-  scale_color_manual(values = c("#3F3994FF", "#7A0403FF", "#2DB17EFF")) +
+    xlab("Effect size") +
+    ylab("Covariate") +
+  scale_color_manual(values = c("#440154FF", "#31688EFF", "#35B779FF")) +
+  #scale_color_manual(values = c("#3F3994FF", "#7A0403FF", "#2DB17EFF")) +
   coord_cartesian(xlim=c(min_val, max_val))
 ```
 

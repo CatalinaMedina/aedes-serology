@@ -1,5 +1,7 @@
 ---
-output: pdf_document
+output: 
+  pdf_document:
+    keep_tex:  true
 ---
 
 ```{r setup, include=FALSE}
@@ -19,7 +21,7 @@ library(tidyverse)
 ```
 
 
-```{r Load in data}
+```{r Load in estimate results}
 main_results_table <- read_csv(
   here("output", "main-model-results-table.csv"),
   show_col_types = FALSE
@@ -28,7 +30,7 @@ main_results_table <- read_csv(
 ```
 
 
-```{r Table 1}
+```{r Table 1 Summary stats}
 options(knitr.kable.NA = '')
 
 main_results_table %>% 
@@ -146,7 +148,7 @@ all_results <- main_fit_df %>%
 ```
 
 
-```{r Table 2}
+```{r Table 2 Model estimates}
 all_results %>% 
   select(display_names, Main, Larval, Adult) %>% 
 kbl(
@@ -175,3 +177,26 @@ kbl(
   )
 ```
 
+\newpage
+
+```{r Load in prediction results}
+larval_pred_mse_df <- read_csv(here("output", "larval_pred_mse_df.csv"))
+
+adult_pred_mse_df <- read_csv(here("output", "adult_pred_mse_df.csv"))
+```
+
+
+```{r Table 3a Larval and adult predictors}
+larval_pred_mse_df %>% 
+kbl(booktabs = TRUE) %>% 
+  kable_styling()
+
+# "Prediction MSE from cross validation with a 95%-5% split on the larval and adult subsetted data."
+```
+
+
+```{r Table 3b Larval and adult predictors}
+adult_pred_mse_df %>% 
+kbl(booktabs = TRUE) %>% 
+  kable_styling()
+```

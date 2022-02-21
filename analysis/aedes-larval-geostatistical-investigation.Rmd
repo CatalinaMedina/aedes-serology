@@ -271,7 +271,7 @@ include_graphics(here("output", "larval-subsetting-plot2.pdf"))
 ```
 
 
-```{r saliva-vs-larvae, eval = FALSE}
+```{r saliva-vs-larvae plot, eval = FALSE}
 ggplot(aedes_larval_red, aes(x = ave_larv_cont, y = log_saliva_elisa)) +
   geom_point() +
   xlab("Average number of water containers with larae found in 250m radius") +
@@ -662,7 +662,7 @@ if(!params$refit_full_model_w_larval) {
 ```{r full model without enviro preds}
 if(!params$refit_model_w_larval_wo_enviro) {
   ## Load predictions df
-  fit_full_wo_enviro_preds <- read_csv(file = here("output", "fit_full_wo_enviro_preds.csv"))
+  fit_larval_full_wo_enviro_preds <- read_csv(file = here("output", "fit_larval_full_wo_enviro_preds.csv"))
   
 } else {
   set.seed(1234)
@@ -670,7 +670,7 @@ if(!params$refit_model_w_larval_wo_enviro) {
   ## Repeat multiple times for cross validation
   num_coss_validation_reps <- 10
   
-  fit_full_wo_enviro_preds <- NULL
+  fit_larval_full_wo_enviro_preds <- NULL
   
   for(j in 1:num_coss_validation_reps){
     ### Model prep
@@ -814,12 +814,12 @@ if(!params$refit_model_w_larval_wo_enviro) {
     )
     
     
-    fit_full_wo_enviro_preds <- bind_rows(fit_full_wo_enviro_preds, preds_df)
+    fit_larval_full_wo_enviro_preds <- bind_rows(fit_larval_full_wo_enviro_preds, preds_df)
   }
   
   
   ## Saves predictions
-  write.csv(fit_full_wo_enviro_preds, file = here("output", "fit_full_wo_enviro_preds.csv"), row.names = FALSE)
+  write.csv(fit_larval_full_wo_enviro_preds, file = here("output", "fit_larval_full_wo_enviro_preds.csv"), row.names = FALSE)
   
   
   ### Fit model on full data yto get larval preds
@@ -860,7 +860,7 @@ if(!params$refit_model_w_larval_wo_enviro) {
 bind_rows(
   data.frame(fit_full_wo_larval_preds, model = "Full wo larval"),
   data.frame(fit_full_w_larval_preds, model = "Full w larval"),
-  data.frame(fit_full_wo_enviro_preds, model = "No enviro w larval")
+  data.frame(fit_larval_full_wo_enviro_preds, model = "No enviro w larval")
 ) %>% 
 ggplot(aes(x = obs, y = pred, color = model)) +
   geom_point(alpha = 0.8) +
@@ -871,9 +871,6 @@ ggplot(aes(x = obs, y = pred, color = model)) +
 
 
 ```{r cross validation comparison table}
-write.csv(larval_pred_est, here("output", "larval_pred_est.csv"), row.names = FALSE)
-
-
 larval_MSE <- c(
   fit_full_wo_larval_preds %>% 
     mutate(mse_wo_sum = (pred - obs)^2) %>% 
@@ -883,14 +880,14 @@ larval_MSE <- c(
     mutate(mse_wo_sum = (pred - obs)^2) %>% 
     select(mse_wo_sum) %>% 
     sum() / nrow(fit_full_w_larval_preds),
-  fit_full_wo_enviro_preds %>% 
+  fit_larval_full_wo_enviro_preds %>% 
     mutate(mse_wo_sum = (pred - obs)^2) %>% 
     select(mse_wo_sum) %>% 
-    sum() / nrow(fit_full_wo_enviro_preds)
+    sum() / nrow(fit_larval_full_wo_enviro_preds)
 )
 
 
-data.frame(
+larval_pred_mse_df <- data.frame(
   "Model" = c("Without larval", "With larval", "With larval and without environmental"),
   "MSE" = round(larval_MSE, 4), 
   larval_pred_est
@@ -902,7 +899,11 @@ data.frame(
       round(mean, 3), " (", round(X0.025quant, 3), ", ", round(X0.975quant, 3), ")"
     )
   )) %>% 
-  select("Full model" = Model, "Prediction MSE" = MSE, "Larval predictor estimate (95% BCI)") %>% 
+  select("Full model" = Model, "Prediction MSE" = MSE, "Larval predictor estimate (95% BCI)")
+
+write.csv(larval_pred_mse_df, here("output", "larval_pred_mse_df.csv"), row.names = FALSE)
+
+larval_pred_mse_df %>% 
 kbl(booktabs = TRUE) %>% 
   kable_styling()
 ```

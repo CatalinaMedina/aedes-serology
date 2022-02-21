@@ -1,0 +1,135 @@
+---
+title: "Fingerprick time series with lowess smooth"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  fig.pos = 'H', fig.align = "center",
+  message = FALSE, warning = FALSE
+)
+```
+
+
+```{r Load libraries}
+library(here)
+library(tidyverse)
+library(readxl)
+library(viridis)
+```
+
+
+```{r Load data}
+f_dates_og <- read_excel(
+  here("data", "Finger Prick dataset_Dates.xlsx"),
+  na = c("NA", "Confuse")
+)
+
+f_dates <- f_dates_og %>% 
+  pivot_longer(
+    cols = paste0("Date_E_M", 1:12), 
+    names_to = "month",
+    names_prefix = "Date_E_M", 
+    values_to = "visit_date"
+  ) %>% 
+  mutate(visit_date = as.Date(visit_date)) %>% 
+  rename(id = `Sample ID`)
+
+fld_og <- read_csv(
+  here("data", "Fingerprick Location Data.csv"),
+  na = c("", "NA", "."),
+  show_col_types = FALSE
+)
+
+f_data <- fld_og %>% 
+  pivot_longer(
+    cols = paste0("Aedes_SGH_ELISA_M", 1:12), 
+    names_to = "month", 
+    names_prefix = "Aedes_SGH_ELISA_M",
+    values_to = "ELISA"
+  ) %>% 
+  rename(id = `Sample ID`, school = `School attended`, lon = Lat, lat = Lon) %>% # Lat and Lon are switched!! 
+  mutate(log_elisa = log(ELISA + 0.0001)) %>% 
+  mutate(Village = factor(Village)) %>% 
+  left_join(f_dates, by = c("id", "month")) %>% 
+  filter(!is.na(Village)) %>% 
+  filter(!is.na(ELISA)) %>% 
+  filter(!is.na(visit_date))
+```
+
+
+```{r Produce lowess plot}
+ggplot(f_data, aes(x = visit_date, y = ELISA)) +
+  geom_point() + 
+  facet_wrap(~ Village) +
+  geom_smooth(method = "loess") +
+  theme_bw() +
+  ylab("ELISA") +
+  xlab("Date")
+
+ggplot(f_data, aes(x = visit_date, y = log_elisa)) +
+  geom_point() + 
+  facet_wrap(~ Village) +
+  geom_smooth(method = "loess") +
+  theme_bw() +
+  ylab("log(ELISA)") +
+  xlab("Date")
+```
+
+
+```{r Load visit prediction surface data}
+aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds"))
+  
+ind_visit_surf_df <- readRDS(here("output", "ind_visit_surf_df.rds"))
+
+```
+
+``` {r Plot visit prediction surface}
+fit_y <- lm(y_m ~ lat, data = ind_visit_surf_df)
+
+y_coef <- as.vector(fit_y$coefficients)
+
+lat_labels <- c(11.45, 11.46, 11.47)
+
+lat_breaks <- y_coef[1] + y_coef[2] * lat_labels
+
+fit_x <- lm(x_m ~ lon, data = ind_visit_surf_df)
+
+x_coef <- as.vector(fit_x$coefficients)
+
+lon_labels <- c(104.51, 104.53, 104.55)
+
+lon_breaks <- x_coef[1] + x_coef[2] * lon_labels
+
+
+f_data <- f_data %>% 
+  mutate(x_m = x_coef[1] + x_coef[2] * lon) %>% 
+  mutate(y_m = y_coef[1] + y_coef[2] * lat)
+
+ind_visit_surf_df %>% 
+  filter(type == "Mean") %>% 
+  filter(visit == "Visit 4") %>% 
+  filter(x_m >= x_coef[1] + x_coef[2] * 104.50 & x_m <= x_coef[1] + x_coef[2] * 104.56) %>% 
+  filter(y_m >= y_coef[1] + y_coef[2] * 11.44 & y_m <= y_coef[1] + y_coef[2] * 11.48) %>% 
+ggplot() +
+  geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
+  coord_equal() +
+  scale_fill_viridis() +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "white"),
+    panel.background = element_rect(fill = NA),
+    panel.ontop = TRUE,
+    panel.border = element_blank(),
+    legend.position = "bottom"
+  ) +
+  scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
+  scale_x_continuous(breaks = lon_breaks, labels = lon_labels) +
+  geom_point(data = f_data, mapping = aes(x = x_m, y = y_m, color = Village))
+```
+
