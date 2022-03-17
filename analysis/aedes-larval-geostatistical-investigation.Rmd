@@ -252,8 +252,6 @@ pdf(here("output", "larval-subsetting-plot3.pdf"), width = 10)
       ) +
       ggtitle("Larval data")
   
-
-
 dev.off()
 ```
 
@@ -910,7 +908,7 @@ kbl(booktabs = TRUE) %>%
 
 \newpage
 
-```{r larval-model-forest_plot}
+```{r larval-model-forest_plot, eval = FALSE}
 larval_fit <- fit_full_w_larval_no_pred
 
 larval_fit_df <- larval_fit$summary.fixed %>% 
@@ -941,7 +939,7 @@ dev.off()
 ```
 
 
-```{r load-larval-model-forest-plot, eval = TRUE, fig.cap="Full model results with larvae containg water containers added."}
+```{r load-larval-model-forest-plot, eval = FALSE, fig.cap="Full model results with larvae containg water containers added."}
 include_graphics(here("output", "larval-model-forest-plot.pdf"))
 ```
 \newpage
@@ -1119,7 +1117,7 @@ include_graphics(here("output", "larval-res-model-forest-plot.pdf"))
 
 
 
-```{r}
+```{r, eval = FALSE}
 library(splines)
 
 spline_larval_res_fit <- lm(
