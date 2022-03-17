@@ -15,8 +15,10 @@ knitr::opts_chunk$set(
 ```{r Load libraries}
 library(here)
 library(tidyverse)
+library(lubridate)
 library(readxl)
 library(viridis)
+library(gridExtra)
 ```
 
 
@@ -62,19 +64,20 @@ f_data <- fld_og %>%
 ```{r Produce lowess plot}
 ggplot(f_data, aes(x = visit_date, y = ELISA)) +
   geom_point() + 
-  facet_wrap(~ Village) +
+  facet_wrap(~ Village, nrow = 1) +
   geom_smooth(method = "loess") +
   theme_bw() +
   ylab("ELISA") +
   xlab("Date")
 
-ggplot(f_data, aes(x = visit_date, y = log_elisa)) +
+smooth_plot <- ggplot(f_data, aes(x = visit_date, y = log_elisa)) +
   geom_point() + 
-  facet_wrap(~ Village) +
+  facet_wrap(~ Village, nrow = 1) +
   geom_smooth(method = "loess") +
   theme_bw() +
   ylab("log(ELISA)") +
-  xlab("Date")
+  xlab("Sample collection date") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
 
 
@@ -107,13 +110,14 @@ f_data <- f_data %>%
   mutate(x_m = x_coef[1] + x_coef[2] * lon) %>% 
   mutate(y_m = y_coef[1] + y_coef[2] * lat)
 
-ind_visit_surf_df %>% 
+surface_plot <- ind_visit_surf_df %>% 
+  mutate("Predicted Exposure" = Prediction) %>% 
   filter(type == "Mean") %>% 
   filter(visit == "Visit 4") %>% 
   filter(x_m >= x_coef[1] + x_coef[2] * 104.50 & x_m <= x_coef[1] + x_coef[2] * 104.56) %>% 
   filter(y_m >= y_coef[1] + y_coef[2] * 11.44 & y_m <= y_coef[1] + y_coef[2] * 11.48) %>% 
 ggplot() +
-  geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
+  geom_raster(mapping = aes(x = x_m, y = y_m, fill = `Predicted Exposure`)) +
   coord_equal() +
   scale_fill_viridis() +
   xlab("Longitude") +
@@ -126,10 +130,45 @@ ggplot() +
     panel.background = element_rect(fill = NA),
     panel.ontop = TRUE,
     panel.border = element_blank(),
-    legend.position = "bottom"
+    legend.position = "left",
+    legend.direction = "vertical",
+    legend.box = "horizontal"
   ) +
   scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
   scale_x_continuous(breaks = lon_breaks, labels = lon_labels) +
   geom_point(data = f_data, mapping = aes(x = x_m, y = y_m, color = Village))
+```
+
+
+```{r}
+grid.arrange(
+  smooth_plot, surface_plot, 
+  nrow = 2, 
+  heights = c(4, 5)
+)
+```
+
+
+```{r}
+wet_months <- as.character(5:10)
+
+f_data <- f_data %>% 
+  mutate(Season = ifelse(
+    month(visit_date) %in% wet_months,
+    yes = "Wet",
+    no = "Dry"
+  ))
+
+f_data %>% 
+  ggplot(aes(x = Season, y = log_elisa)) +
+  geom_boxplot() +
+  theme_bw() +
+  ylab("Log(ELISA)")
+
+f_data %>% 
+  ggplot(aes(x = log_elisa, color = Season, fill = Season)) +
+  geom_histogram(alpha = 0.5, position = "identity") +
+  theme_bw() +
+  xlab("Log(ELISA)")
 ```
 
