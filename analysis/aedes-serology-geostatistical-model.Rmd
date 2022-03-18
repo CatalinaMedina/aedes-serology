@@ -41,7 +41,6 @@ library(magrittr)
 library(knitr)
 library(kableExtra)
 library(INLAutils)
-library(extrafont)
 library(tidyverse)
 library(INLA)
 
@@ -51,7 +50,6 @@ source(here("analysis", "process-modis-data-function.R"))
 
 ```{r read-process-data}
 if (!params$rerun_data) {
-  
   aedes_red <- readRDS(file = here("data", "processed_aedes_data.rds"))
   
   aedes_red_ind <- aedes_red %>%
@@ -730,6 +728,7 @@ aedes_red %>%
 ggplot(aes(x = log_saliva_elisa)) + 
   geom_histogram(bins = 30) + 
   theme_bw() +
+  theme(axis.ticks.length=unit(.25, "cm")) +
   xlab(expression(paste("Log ", italic("Aedes"), " mosquito saliva specific antibodies"))) +
   ylab("Count")
 ```
@@ -1024,7 +1023,8 @@ ggplot() +
     panel.background = element_rect(fill = NA),
     panel.ontop = TRUE,
     panel.border = element_blank(),
-    legend.position = "bottom"
+    legend.position = "bottom",
+    axis.ticks.length=unit(.25, "cm")
   ) +
   scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
   scale_x_continuous(breaks = lon_breaks, labels = lon_labels)
