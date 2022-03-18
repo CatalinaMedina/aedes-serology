@@ -132,7 +132,8 @@ ggplot() +
     panel.border = element_blank(),
     legend.position = "left",
     legend.direction = "vertical",
-    legend.box = "horizontal"
+    legend.box = "horizontal",
+    axis.ticks.length=unit(.25, "cm")
   ) +
   scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
   scale_x_continuous(breaks = lon_breaks, labels = lon_labels) +

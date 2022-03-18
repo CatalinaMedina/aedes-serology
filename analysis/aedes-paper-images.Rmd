@@ -16,10 +16,10 @@ knitr::opts_chunk$set(
 library(here)
 library(tidyverse)
 library(viridis)
-library(extrafont)
+#library(extrafont)
 
-loadfonts(device = "win")
-windowsFonts(Times = windowsFont("TT Times New Roman"))
+#loadfonts(device = "win")
+#windowsFonts(Times = windowsFont("TT Times New Roman"))
 ```
 
 
@@ -143,13 +143,14 @@ all_results %>%
       position = position_dodge2(width = dodge, reverse = TRUE)
     ) +
     geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw(base_size = 14, base_family = 'Times New Roman') +
+    theme_bw(base_size = 12) +
     theme(
       panel.border = element_blank(),
       axis.text.y = element_text(hjust = 0),
       axis.ticks.y = element_blank(),
       axis.text.x=element_text(),
-      panel.grid.major = element_line(colour = "gray90")
+      panel.grid.major = element_line(colour = "gray90"),
+      axis.ticks.length=unit(.25, "cm")
     ) +
     xlab("Effect size") +
     ylab("Covariate") +
