@@ -69,7 +69,7 @@ main_fit_df <- read_csv(
     select(pred_names, Main) 
 
 larval_fit_df <- read_csv(
-  here("output", "fit_full_w_larval_no_pred.csv"),
+  here("output", "fit_with_container_index_df.csv"),
   show_col_types = FALSE
 ) %>% 
   mutate(Larval = paste0(
@@ -103,7 +103,7 @@ display_names_vec <- c(
   "No  ",
   "Yes  ",
   "Flooding index (NFI)",
-  "Ave. larval containers",
+  "Larval container index",
   "Ave. trapped mosquitos"
 ) 
 
@@ -124,7 +124,7 @@ pred_names_vec <- c(
   "No  ",
   "Wet season",
   "Flooding index (NFI)",
-  "Ave. larvae contaminated containers",
+  "Container index",
   "Ave. trapped mosquitos"
   )
 
@@ -162,6 +162,7 @@ kbl(
     align = "c"
   ) %>% 
   pack_rows(
+    bold = FALSE,
     index = c(
       "Gender" = 2,
       " " = 1,
@@ -172,8 +173,7 @@ kbl(
       " " = 1,
       "Wet season" = 2,
       " " = 3
-    ), 
-    bold = FALSE
+    )
   )
 ```
 

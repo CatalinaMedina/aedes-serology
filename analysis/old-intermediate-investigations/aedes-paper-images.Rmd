@@ -27,7 +27,7 @@ library(viridis)
 main_fit_df <- read.csv(here("output", "main_fit_df.csv")) %>% 
   mutate(Model = "Main") %>% 
   select(-X)
-larval_fit_df <- read.csv(here("output", "fit_full_w_larval_no_pred.csv")) %>% 
+larval_fit_df <- read.csv(here("output", "fit_with_container_index_df.csv")) %>% 
   mutate(Model = "Larval")
 adult_fit_df <- read.csv(here("output", "fit_full_w_adult_no_pred.csv")) %>% 
   mutate(Model = "Adult")
@@ -50,7 +50,7 @@ display_names_vec <- c(
   "Wet season [ref: No]",
   "     Yes  ",
   "Flooding index (NFI)",
-  "Ave. larval containers",
+  "Larval container index",
   "Ave. trapped mosquitos"
 ) 
 
@@ -71,7 +71,7 @@ pred_names_vec <- c(
   "Wet season [ref: No]",
   "Wet season",
   "Flooding index (NFI)",
-  "Ave. larvae contaminated containers",
+  "Container index",
   "Ave. trapped mosquitos"
   )
 
@@ -82,8 +82,8 @@ all_results <- main_fit_df %>%
   filter(pred_names != "(Intercept)") %>% 
   add_row(pred_names = "Rice paddy", Model = "Adult") %>% 
   add_row(pred_names = "Wet season", Model = "Adult") %>%
-  add_row(pred_names = "Ave. larvae contaminated containers", Model = "Main") %>% 
-  add_row(pred_names = "Ave. larvae contaminated containers", Model = "Adult") %>%
+  add_row(pred_names = "Container index", Model = "Main") %>% 
+  add_row(pred_names = "Container index", Model = "Adult") %>%
   add_row(pred_names = "Ave. trapped mosquitos", Model = "Main") %>%
   add_row(pred_names = "Ave. trapped mosquitos", Model = "Larval") %>%
   add_row(pred_names = "Sex [ref: Female]", Model = "Main") %>% # Sex [ref: Female]

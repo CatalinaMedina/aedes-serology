@@ -1,0 +1,1210 @@
+---
+title: "Aedes Serology Geostatistical Analysis"
+output: pdf_document
+classoption: landscape
+params:
+  reprocess_pagodas_data: FALSE
+  reprocess_house_data: FALSE
+  reprocess_trap_data: FALSE
+  remake_summary_table: FALSE
+  refit_prediction_surfaces: FALSE
+  refit_main_model: FALSE
+  refit_larval_model: FALSE
+  refit_adult_model: FALSE
+  remake_estimates_table: FALSE
+  remake_estimates_plot: FALSE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  fig.pos = 'H', fig.align = "center",
+  message = FALSE, warning = FALSE
+)
+```
+
+
+```{r Load libraries}
+library(here)
+library(knitr)
+library(kableExtra)
+library(viridis)
+library(INLA)
+library(tidyverse)
+
+source(here("helper-functions", "data-wrangling.R"))
+```
+
+## Read in data
+### Prepare pagodas data
+```{r Prepare pagodas data}
+if (params$reprocess_pagodas_data) {
+  pagodas <- process_padagodas_survey_data(
+    padagodas_survey_path = here("data", "pagodas_combined_data3.xlsx"),
+    padagodas_repeat_ELISA_path = here("data", "Saliva ELISA V1-6 INDEX.csv"),
+    padagodas_coordinates_path = here("data", "PAGODAS_Coordinates.csv"),
+    padagodas_river_distance_path = here("data", "DistPHHtoRiver.csv"),
+    padagodas_repeat_risk_factors_path = here("data", "AllVisitDataWithScheDengueRiskFactors.xlsx"),
+    padagodas_land_type_path = here("data", "PAGODAS_Landtype.csv"),
+    modis_home_500m_path = here("data", "MODIS_500m.csv"),
+    modis_home_250m_path = here("data", "MODIS_250m.csv"),
+    modis_school_250m_path = here("data", "SchoolsMODIS_250m.csv")
+  )
+    
+  write_csv(pagodas, here("data", "processed_pagodas_data.csv"))
+
+} 
+
+pagodas <- read_csv(
+  here("data", "processed_pagodas_data.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(modal_land_type = factor(
+    modal_land_type, 
+    levels = c("urban", "rice paddy", "cropland")
+  )) %>% 
+  mutate(gender = factor(gender, levels = c("Female", "Male"))) %>% 
+  mutate(insecticide_spray = factor(
+    insecticide_spray, 
+    levels = c("No", "Yes")
+  )) %>% 
+  mutate(larvicide_applied_to_water = factor(
+    larvicide_applied_to_water,
+    levels = c("No", "Yes")
+  )) %>% 
+  mutate(visit_date = as.Date(visit_date)) %>% 
+  mutate(wet_season = factor(wet_season, levels = c("no", "yes"))) %>% 
+  filter(visit5 == "no") %>% 
+  mutate(visit = factor(visit)) %>% 
+  select(
+    study_id,
+    x, y, 
+    lon, lat,
+    saliva_elisa_value, log_saliva_elisa,
+    visit, time,
+    gender,
+    age, age_cented7,
+    distance_to_river, distance_to_river_scaled,
+    modal_land_type,
+    num_toilets_in_home,
+    num_domestic_water_containers_in_home,
+    insecticide_spray,
+    larvicide_applied_to_water,
+    NFI250_home,
+    wet_season
+  ) %>% 
+  arrange(study_id, time)
+```
+
+```{r Prepare larval house survey data}
+if (params$reprocess_house_data) {
+  larval_house <- process_larval_house_survey_data(
+    cleaned_pagodas_data = pagodas,
+    house_coordinates_path = here("data", "HH_Surveys_19Jan_UTM48N.csv"),
+    house_survey_path = here("data", "House Survey Data_Extracted 03May2021.xlsx")
+  )
+  
+  write_csv(larval_house, here("data", "processed_larval_house_data.csv"))
+} 
+
+larval_house <- read_csv(
+  here("data", "processed_larval_house_data.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(modal_land_type = factor(
+    modal_land_type, 
+    levels = c("urban", "rice paddy", "cropland")
+  )) %>% 
+  mutate(gender = factor(gender, levels = c("Female", "Male"))) %>% 
+  mutate(insecticide_spray = factor(
+    insecticide_spray, 
+    levels = c("No", "Yes")
+  )) %>% 
+  mutate(larvicide_applied_to_water = factor(
+    larvicide_applied_to_water,
+    levels = c("No", "Yes")
+  )) %>% 
+  mutate(wet_season = factor(wet_season, levels = c("no", "yes"))) %>% 
+  mutate(visit = factor(visit)) %>% 
+  select(
+    study_id,
+    x, y, 
+    lon, lat,
+    saliva_elisa_value, log_saliva_elisa,
+    visit, time,
+    gender,
+    age, age_cented7,
+    distance_to_river, distance_to_river_scaled,
+    modal_land_type,
+    num_toilets_in_home,
+    num_domestic_water_containers_in_home,
+    insecticide_spray,
+    larvicide_applied_to_water,
+    NFI250_home,
+    wet_season,
+    per_larv_cont, # Also known as container index by entomologists
+    ave_larv_cont,
+    per_larv_houses,
+    ave_pci
+  ) %>% 
+  arrange(study_id, time)
+```
+
+```{r Reprocess adult mosquito trap data}
+if (params$reprocess_trap_data) {
+  adult_trapped <- process_adult_mosquito_trap_data(
+    cleaned_pagodas_data,
+    adult_mosquito_trap_path = here("data", "MosqAdultData_UTM48N.csv")
+  )
+  
+  write_csv(adult_trapped, here("data", "processed_adult_trapped_data.csv"))
+
+}
+
+adult_trapped <- read_csv(
+  here("data", "processed_adult_trapped_data.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(modal_land_type = factor(
+    modal_land_type, 
+    levels = c("urban", "cropland")
+  )) %>% 
+  mutate(gender = factor(gender, levels = c("Female", "Male"))) %>% 
+  mutate(insecticide_spray = factor(
+    insecticide_spray, 
+    levels = c("No", "Yes")
+  )) %>% 
+  mutate(larvicide_applied_to_water = factor(
+    larvicide_applied_to_water,
+    levels = c("No", "Yes")
+  )) %>% 
+  select(
+    study_id,
+    x, y, 
+    lon, lat,
+    saliva_elisa_value, log_saliva_elisa,
+    gender,
+    age, age_cented7,
+    distance_to_river, distance_to_river_scaled,
+    modal_land_type,
+    num_toilets_in_home,
+    num_domestic_water_containers_in_home,
+    insecticide_spray,
+    larvicide_applied_to_water,
+    NFI250_home,
+    ave_adult_count
+  ) %>% 
+  arrange(study_id)
+```
+
+
+## Response histogram
+```{r Response histogram}
+pagodas %>% 
+  filter(visit != "visit5") %>% 
+ggplot(aes(x = log_saliva_elisa)) + 
+  geom_histogram(bins = 30) + 
+  theme_bw() +
+  theme(axis.ticks.length=unit(.25, "cm")) +
+  xlab(expression(paste("Log ", italic("Aedes"), " mosquito saliva specific antibodies"))) +
+  ylab("Count")
+```
+
+\newpage
+## Table 1 (Summary of participants)
+```{r Prepare summary of participants table}
+if (params$remake_summary_table) {
+  pagodas_visit1 <- filter(pagodas, visit == "visit1")
+    
+  visit_n_df <- group_by(pagodas, visit) %>% summarize(group_n = n())
+  
+  total_n <- nrow(pagodas_visit1)
+  
+  
+  ## Visit 1 summary statistics
+  visit1_summary <- bind_rows(
+    ## Gender
+    pagodas_visit1 %>% group_by(gender) %>% summarize(count_n = n()) %>% 
+      mutate(variable1 = "Gender") %>% mutate(variable2 = gender) %>% 
+      mutate(visit1 = paste0(
+        count_n, " (", round(100 * count_n / total_n, 2), "%)")
+      ) %>% 
+      select(variable1, variable2, visit1) %>% 
+      mutate(pred_names = c("Female", "Male")),
+    ## Age
+    data.frame(
+      variable1 = " ", 
+      variable2 = "Age",
+      visit1 = paste0(
+        round(mean(pagodas_visit1$age), 2), " (", round(sd(pagodas_visit1$age), 2), ")"
+      )
+    ) %>% 
+      mutate(pred_names = "Age (centered at 7)"),
+    ## Land type
+    pagodas_visit1 %>% group_by(modal_land_type) %>% summarize(count_n = n()) %>% 
+      mutate(variable1 = "Land type") %>% mutate(variable2 = modal_land_type) %>% 
+      mutate(visit1 = paste0(
+        count_n, " (", round(100 * count_n / total_n, 2), "%)"
+      )) %>% 
+      select(variable1, variable2, visit1) %>% 
+      mutate(pred_names = c("Urban", "Rice paddy", "Cropland")),
+    ## Distance to river
+    data.frame(
+      variable1 = " ", 
+      variable2 = "Distance to river (std. dev.)",
+      visit1 = paste0(
+        round(mean(pagodas_visit1$distance_to_river_scaled), 2), " (", round(sd(pagodas_visit1$distance_to_river_scaled), 2), ")"
+      )
+    ) %>% 
+      mutate(pred_names = "Distance to river (std. dev.)")
+  ) %>% 
+    mutate(variable2 = str_to_sentence(variable2)) %>% 
+    mutate(visit2 = "") %>% mutate(visit3 = "") %>% mutate(visit4 = "")
+  
+  
+  all_visits_summary <- bind_rows(
+    ## Insecticide spray
+    pagodas %>% 
+      group_by(visit, insecticide_spray) %>% summarize(count_n = n()) %>% 
+      left_join(visit_n_df) %>% 
+      mutate(col_summary = paste0(
+        count_n, " (", round(100 * count_n / group_n, 2), "%)"
+      )) %>%
+      mutate(variable1 = "Insecticide") %>% mutate(variable2 = insecticide_spray) %>% 
+      select(variable1, variable2, visit, col_summary) %>% 
+      pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+      mutate(pred_names = c("Insecticide not used", "Insecticide used")),
+    ## Larvicide spray
+     pagodas %>% 
+      group_by(visit, larvicide_applied_to_water) %>% summarize(count_n = n()) %>% 
+      left_join(visit_n_df) %>% 
+      mutate(col_summary = paste0(
+        count_n, " (", round(100 * count_n / group_n, 2), "%)"
+      )) %>%
+      mutate(variable1 = "Larvicide") %>% mutate(variable2 = larvicide_applied_to_water) %>% 
+      select(variable1, variable2, visit, col_summary) %>% 
+      pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+      mutate(pred_names = c("Larvicide not used", "Larvicide used")),
+    ## Toilets
+    pagodas %>% 
+      group_by(visit) %>% 
+      summarize(mean = mean(num_toilets_in_home), sd = sd(num_toilets_in_home)) %>% 
+      mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
+      mutate(variable1 = "") %>% mutate(variable2 = "Toilets") %>% 
+      select(variable1, variable2, visit, col_summary) %>% 
+      pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+      mutate(pred_names = "Number of toilets in home"),
+    ## Water containers
+    pagodas %>% 
+      group_by(visit) %>% 
+      summarize(mean = mean(num_domestic_water_containers_in_home), sd = sd(num_domestic_water_containers_in_home)) %>% 
+      mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
+      mutate(variable1 = "") %>% mutate(variable2 = "Water containers") %>% 
+      select(variable1, variable2, visit, col_summary) %>% 
+      pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+      mutate(pred_names = "Number of water containers in home"),
+    ## Wet season
+    bind_rows(data.frame(
+      variable1 = rep("Wet season", 2),
+      variable2 = c("No", "Yes"),
+      visit1 = c("0", paste0(visit_n_df$group_n[1])),
+      visit2 = c(paste0(visit_n_df$group_n[2]), "0"),
+      visit3 = c("0", paste0(visit_n_df$group_n[3])),
+      visit4 = c(paste0(visit_n_df$group_n[4]), "0")
+    )) %>% 
+      mutate(pred_names = c("Wet season no", "Wet season")),
+    ## NFI
+    pagodas %>% 
+      group_by(visit) %>% 
+      summarize(mean = mean(NFI250_home), sd = sd(NFI250_home)) %>% 
+      mutate(col_summary = paste0(round(mean, 2), " (", round(sd, 2), ")")) %>% 
+      mutate(variable1 = "") %>% mutate(variable2 = "Flooding index (NFI)") %>% 
+      select(variable1, variable2, visit, col_summary) %>% 
+      pivot_wider(names_from = visit, values_from = col_summary, values_fill = "") %>% 
+      mutate(pred_names = "Normalized flooding index")
+  )
+  
+  table1 <- bind_rows(visit1_summary, all_visits_summary) %>% 
+    select(-pred_names) 
+  
+  write.csv(table1, here("output", "table1.csv"))
+}
+```
+
+```{r Print Summary table}
+options(knitr.kable.NA = '')
+
+read_csv(here("output", "table1.csv"), show_col_types = FALSE) %>% 
+  select(variable2, visit1, visit2, visit3, visit4) %>%  
+  kbl(
+    #booktabs = TRUE, 
+    col.names = c(" ", "Visit 1", "Visit 2", "Visit 3", "Visit 4")
+  ) %>% 
+    kable_styling() %>% 
+    pack_rows(
+      index = c(
+        "Gender" = 2,
+        " " = 1,
+        "Land type" = 3,
+        " " = 1,
+        "Insecticide" = 2,
+        "Larvicide" = 2,
+        " " = 2,
+        "Wet season" = 2,
+        " " = 1
+      ), 
+      bold = FALSE
+    )
+```
+
+\newpage
+
+## Individual visit surfaces
+```{r prep_and_fit_visit_surf_model function}
+prep_and_fit_visit_surf_model <- function(
+    all_data = pagodas, 
+    visit_name, 
+    mesh_to_grid_dims
+){
+  
+  grid_dims_prod <- mesh_to_grid_dims[1] * mesh_to_grid_dims[2]
+  
+  # Extract relevant all_data (not sure if sorting is necessary)
+  coords_st <- all_data %>% 
+    arrange(study_id) %>% 
+    filter(visit == visit_name) %>% 
+    select(lon = x, lat = y, log_saliva_elisa)
+    
+  # Specify df of covariate values including intercept
+  covar_df <- data.frame(
+    Intercept = rep(1, nrow(coords_st)),
+    select(coords_st, -c(lon, lat, log_saliva_elisa))
+  )
+      
+  # Extract coordinates as matrix, ignoring repeats
+  coords <- select(coords_st, lon, lat) %>% 
+    distinct() %>% 
+    as.matrix()
+    
+  # Create mesh, good documentation available to understand all options
+  mesh <- inla.mesh.2d(
+    loc = coords,
+    max.edge = c(300, 600)
+  )
+    
+  # Specify spde
+  spde <- inla.spde2.matern(mesh)
+    
+  # Need to specify index with spde and group (if there are replicates)
+  s.index <- inla.spde.make.index(
+    "spatial.field", 
+    n.spde = spde$n.spde,
+    n.group = 1
+  )
+    
+  # A specifies something about edge length based on the mesh
+  A <- inla.spde.make.A(
+    mesh = mesh, 
+    loc = as.matrix(select(coords_st, lon, lat))
+  )
+    
+  # specify model formula, 'f()' incorporates spatial effect and replicate 
+  formula <- y ~ 0 + Intercept + f(spatial.field, model = spde)
+    
+  # fixed effect priors
+  coeff_priors <- list(
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(default = 0),
+    prec = list(default = 1/(2.5^2))
+  )
+    
+  # Prep data_stack for inla call, "A" needs to have a 1 for each list element in effects, aside from index. 
+  data_stack <- inla.stack(
+    data = list(y = coords_st$log_saliva_elisa),
+    A = list(A, 1),
+    effects = list(s.index, list(covar_df = covar_df)),
+    tag = "est"
+  )
+    
+  # This is with a grid
+  proj_grid <- inla.mesh.projector(
+    mesh, 
+    # xlim = range(mesh$loc[, 1]), 
+    # ylim = range(mesh$loc[, 2]),
+    dims = mesh_to_grid_dims
+  )
+    
+  # Data to do predictions on, response is NA
+  pred_stack <- inla.stack(
+    data = list(y = NA),
+    A = list(proj_grid$proj$A, 1),
+    effects = list(
+      s.index, 
+      Intercept = rep(1, grid_dims_prod)
+    ),
+    tag = "pred"
+  )
+    
+  # Prepare data to estimate coefficient and make predictions
+  full_stack <- inla.stack(data_stack, pred_stack)
+    
+    
+  # Fit model
+  visit_fit <- inla(
+    formula, 
+    data = inla.stack.data(full_stack),
+    control.predictor = list(A = inla.stack.A(full_stack), compute = TRUE),
+    control.fixed = coeff_priors,
+    control.results = list(
+      return.marginals.random = FALSE,
+      return.marginals.predictor = TRUE
+    )
+  )
+    
+  # Extract indices of observations predictions were made for
+  pred_index <- inla.stack.index(full_stack, "pred")$data
+    
+    
+  # Extract prediction means, sd, and 0.025 and 0.975 quantiles
+  visit_preds <- visit_fit$summary.fitted.values[pred_index, c(1:3, 5)]
+  
+  # Prepare mean and BCI into a data frame
+  preds_df <- bind_rows(
+    data.frame(proj_grid$lattice$loc, "pred" = visit_preds$`0.025quant`) %>% 
+      select(lon = X1, lat = X2, pred) %>% 
+      mutate(type = rep("ci_lb0.025", grid_dims_prod)),
+    data.frame(proj_grid$lattice$loc, "pred" = visit_preds$`0.975quant`) %>% 
+        select(lon = X1, lat = X2, pred) %>% 
+        mutate(type = rep("ci_ub0.975", grid_dims_prod)),
+    data.frame(proj_grid$lattice$loc, "pred" = visit_preds$mean) %>% 
+      select(lon = X1, lat = X2, pred) %>% 
+      mutate(type = rep("mean", grid_dims_prod))
+  ) %>% 
+    mutate(type = factor(type, levels = c("ci_lb0.025", "mean", "ci_ub0.975")))
+  
+  
+  list("visit_fit" = visit_fit, "preds_df" = preds_df)
+}
+```
+
+```{r Fit the individual prediction surfaces}
+if (params$refit_prediction_surfaces) {
+  set.seed(1234)
+    
+  v1_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit1", 
+    mesh_to_grid_dims = c(101, 101)
+  )
+    
+  v2_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit2",
+    mesh_to_grid_dims = c(101, 101)
+    )
+    
+  v3_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit3",
+    mesh_to_grid_dims = c(101, 101)
+  )
+     
+  v4_fit <- prep_and_fit_visit_surf_model(
+    visit_name = "visit4",
+    mesh_to_grid_dims = c(101, 101)
+  )
+    
+  ind_visit_surf_df_og <- rbind(
+    cbind(v1_fit$preds_df, "visit" = rep("Visit 1", nrow(v1_fit$preds_df))), 
+    cbind(v2_fit$preds_df, "visit" = rep("Visit 2", nrow(v2_fit$preds_df))), 
+    cbind(v3_fit$preds_df, "visit" = rep("Visit 3", nrow(v3_fit$preds_df))), 
+    cbind(v4_fit$preds_df, "visit" = rep("Visit 4", nrow(v4_fit$preds_df)))
+  ) %>% 
+    mutate(type = factor(
+      case_when(
+        type == "ci_lb0.025" ~ "CI 95% LB", 
+        type == "mean" ~ "Mean",
+        type == "ci_ub0.975" ~ "CI 95% UB"
+      ),
+      levels = c("CI 95% LB", "Mean", "CI 95% UB")
+    )) %>% 
+    mutate(Prediction = pred) %>% 
+    mutate(x_m = lon) %>%
+    mutate(y_m = lat) %>% 
+    select(-c("pred", "lon", "lat"))
+    
+  # Get UTMs from coordinates
+  utm_ex <- SpatialPoints(
+    as.matrix(select(ind_visit_surf_df_og, x_m, y_m)),
+    proj4string = CRS("+proj=utm +zone=48")
+  )
+    
+  lat_lon <- coordinates(spTransform(utm_ex, CRS("+proj=longlat")))
+    
+  ind_visit_surf_df <- data.frame(
+    ind_visit_surf_df_og,
+    lon = lat_lon[, "x_m"],
+    lat = lat_lon[, "y_m"]
+  )
+    
+  saveRDS(ind_visit_surf_df, here("output", "ind_visit_surf_df.rds"))
+}
+```
+
+```{r Prepare prediction surface data}
+ind_visit_surf_df <- readRDS(here("output", "ind_visit_surf_df.rds"))
+
+# Converting between lon and lat and UTMS (x and y). Okay because study area is small
+fit_y <- lm(y_m ~ lat, data = ind_visit_surf_df)
+
+y_coef <- as.vector(fit_y$coefficients)
+
+lat_labels <- c(11.45, 11.46, 11.47)
+
+lat_breaks <- c(
+  y_coef[1] + y_coef[2] * lat_labels[1], 
+  y_coef[1] + y_coef[2] * lat_labels[2], 
+  y_coef[1] + y_coef[2] * lat_labels[3]
+)
+
+fit_x <- lm(x_m ~ lon, data = ind_visit_surf_df)
+
+x_coef <- as.vector(fit_x$coefficients)
+
+lon_labels <- c(104.51, 104.53, 104.55)
+
+lon_breaks <- c(
+  x_coef[1] + x_coef[2] * lon_labels[1], 
+  x_coef[1] + x_coef[2] * lon_labels[2], 
+  x_coef[1] + x_coef[2] * lon_labels[3]
+)
+```
+
+```{r Plot visit predictions with BCIs}
+pdf(here("output", "visit-prediction-surfaces-w-ci.pdf"), width = 10)
+
+ind_visit_surf_df %>% 
+  filter(visit != "Visit 5") %>% 
+  filter(x_m >= x_coef[1] + x_coef[2] * 104.50 & x_m <= x_coef[1] + x_coef[2] * 104.56) %>% 
+  filter(y_m >= y_coef[1] + y_coef[2] * 11.44 & y_m <= y_coef[1] + y_coef[2] * 11.48) %>% 
+ggplot() +
+  geom_raster(mapping = aes(x = x_m, y = y_m, fill = Prediction)) +
+  facet_grid(type ~ visit) +
+  coord_equal() +
+  scale_fill_viridis() +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme_bw() +
+  theme(
+    strip.background = element_rect(fill = NA),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "white"),
+    panel.background = element_rect(fill = NA),
+    panel.ontop = TRUE,
+    panel.border = element_blank(),
+    legend.position = "bottom",
+    axis.ticks.length=unit(.25, "cm")
+  ) +
+  scale_y_continuous(breaks = lat_breaks, labels = lat_labels) +
+  scale_x_continuous(breaks = lon_breaks, labels = lon_labels)
+
+dev.off()
+```
+
+```{r Display visit prediction surfaces with BCIs, out.width='100%'}
+knitr::include_graphics(here("output", "visit-prediction-surfaces-w-ci.pdf"))
+```
+
+
+\newpage 
+
+## Fit geostatistical models
+```{r fit_multi_visit_inla_model function}
+fit_multi_visit_inla_model <- function(all_data, formula, seed) {
+  set.seed(seed)
+  
+  # extract coordinates as matrix, ignoring repeats
+  coords_df <- all_data %>% 
+    filter(time == 1) %>% 
+    select(lon, lat) %>% 
+    as.matrix()
+  
+  # create mesh, good documentation available to understand all options
+  mesh <- inla.mesh.2d(
+    loc = coords_df,
+    max.edge = c(300, 600)
+  )
+  
+  # Specify spde
+  spde <- inla.spde2.matern(mesh)
+  
+  # Need to specify index with spde and group (if there are replicates)
+  s.index <- inla.spde.make.index(
+    "spatial.field", 
+    n.spde = spde$n.spde,
+    n.group = length(unique(all_data$time))
+  )
+  
+  # A specifies something about edge length based on the mesh
+  all_A <- inla.spde.make.A(
+    mesh = mesh, 
+    loc = as.matrix(select(all_data, lon, lat)),
+    group = all_data$time
+  )
+  
+  # Specify df of covariate values
+  covar_df <- data.frame(
+    select(all_data, -c(time, lon, lat, log_saliva_elisa))
+  )
+  
+  # Fixed effect priors
+  coeff_priors <- list(
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(default = 0),
+    prec = list(default = 1/(2.5^2))
+  )
+  
+  # Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+  data_stack <- inla.stack(
+    data = list(y = all_data$log_saliva_elisa),
+    A = list(all_A, 1),
+    effects = list(
+      s.index,
+      list(covar_df = covar_df)
+    ),
+    tag = "est"
+  )
+  
+  # Fit model
+  inla(
+    formula, 
+    data = inla.stack.data(data_stack),
+    control.predictor = list(
+      A = inla.stack.A(data_stack),
+      compute = TRUE
+    ),
+    control.fixed = coeff_priors
+  )
+  
+}
+```
+
+```{r fit_single_visit_inla_model function}
+fit_single_visit_inla_model <- function(all_data, formula, seed){
+  # Specify df of covariate values
+  all_covar_df <- all_data %>% 
+    select(-c(lon, lat, log_saliva_elisa)) %>% 
+    data.frame()
+      
+  # Extract coordinates as matrix, ignoring repeats
+  all_coords <- all_data %>% 
+    select(lon, lat) %>% 
+    as.matrix()
+    
+  # Create mesh, good documentation available to understand all options
+  mesh <- inla.mesh.2d(loc = all_coords, max.edge = c(300, 600))
+    
+  # specify spde
+  spde <- inla.spde2.matern(mesh)
+    
+  # Need to specify index with spde and group (if there are replicates)
+  s.index <- inla.spde.make.index("spatial.field", n.spde = spde$n.spde)
+  
+  # Fixed effect priors
+  coeff_priors <- list(
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(default = 0),
+    prec = list(default = 1/(2.5^2))
+  )
+  
+  # A specifies something about edge length based on the mesh
+  all_A <- inla.spde.make.A(mesh = mesh, loc = all_coords)
+
+  # Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+  data_stack <- inla.stack(
+    data = list(y = all_data$log_saliva_elisa),
+    A = list(all_A, 1),
+    effects = list(
+      s.index,
+      list(all_covar_df = all_covar_df)
+    ),
+    tag = "est"
+  )
+  
+  # Fit model
+  inla(
+    formula, 
+    data = inla.stack.data(data_stack),
+    control.predictor = list(
+      A = inla.stack.A(data_stack),
+      compute = TRUE
+    ),
+    control.fixed = coeff_priors
+  )
+}
+```
+
+```{r Vectors of variable names to match for display}
+pred_rownames_ordered <- c(
+  "(Intercept)",
+  "genderMale",
+  "age_cented7",
+  "insecticide_sprayYes",
+  "larvicide_applied_to_waterYes",
+  "num_toilets_in_home",
+  "num_domestic_water_containers_in_home",
+  "modal_land_typerice paddy",
+  "modal_land_typecropland",
+  "distance_to_river_scaled",
+  "wet_seasonyes",
+  "NFI250_home"
+)
+
+pred_names_vec = c(
+  "(Intercept)",
+  "Male", 
+  "Age", 
+  "Insecticide used",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "Wet season",
+  "Flooding index (NFI)"
+)
+```
+
+```{r Fit main model}
+if (params$refit_main_model) {
+  # Extract relevant data
+  main_data <- pagodas %>% 
+    select(
+      time, 
+      lon = x, lat = y, 
+      log_saliva_elisa,
+      gender,
+      age_cented7, distance_to_river_scaled,
+      modal_land_type,
+      num_toilets_in_home, num_domestic_water_containers_in_home,
+      insecticide_spray, larvicide_applied_to_water,
+      NFI250_home,
+      wet_season
+    )
+  
+  # Specify model formula, 'f()' incorporates spatial effect and replicate 
+  main_formula <- y ~ #0 + Intercept
+    gender + 
+    age_cented7  + distance_to_river_scaled +
+    modal_land_type +
+    num_toilets_in_home + num_domestic_water_containers_in_home +
+    insecticide_spray + larvicide_applied_to_water  +
+    NFI250_home  +
+    wet_season +
+    f(
+      spatial.field, 
+      model = spde, 
+      group = spatial.field.group, 
+      control.group = list(model = "iid")
+    )
+  
+  main_fit <- fit_multi_visit_inla_model(
+    all_data = main_data, 
+    formula = main_formula, 
+    seed = 1234
+  )
+  
+  main_fit_df <- main_fit$summary.fixed %>% 
+    mutate(unordered_names = rownames(main_fit$summary.fixed)) %>% 
+    mutate(pred_names = factor(
+      unordered_names,
+      levels = pred_rownames_ordered,
+      labels = pred_names_vec
+    )) %>% 
+    arrange(pred_names) %>% 
+    select(
+      quant025 = "0.025quant", 
+      mean = "mean", 
+      quant975 = "0.975quant", 
+      pred_names
+    )
+  
+  write_csv(main_fit_df, here("output", "main_fit_df.csv"))
+}
+```
+
+```{r Fit larval model}
+if (params$refit_larval_model) {
+  # Extract relevant data
+  data_with_container_index <- larval_house %>% 
+    select(
+      time, 
+      lon = x, lat = y, 
+      log_saliva_elisa,
+      gender,
+      age_cented7, distance_to_river_scaled,
+      modal_land_type,
+      num_toilets_in_home, num_domestic_water_containers_in_home,
+      insecticide_spray, larvicide_applied_to_water,
+      NFI250_home,
+      wet_season,
+      per_larv_cont
+    )
+  
+  # Specify model formula, 'f()' incorporates spatial effect and replicate 
+  formula_with_container_index <- y ~ #0 + Intercept
+    gender + 
+    age_cented7  + distance_to_river_scaled +
+    modal_land_type +
+    num_toilets_in_home + num_domestic_water_containers_in_home +
+    insecticide_spray + larvicide_applied_to_water  +
+    NFI250_home  +
+    wet_season +
+    per_larv_cont +
+    f(
+      spatial.field, 
+      model = spde, 
+      group = spatial.field.group, 
+      control.group = list(model = "iid")
+    )
+  
+  larval_fit <- fit_multi_visit_inla_model(
+    all_data = data_with_container_index, 
+    formula = formula_with_container_index,
+    seed = 1234
+  )
+  
+  larval_fit_df <- larval_fit$summary.fixed %>% 
+    mutate(unordered_names = rownames(larval_fit$summary.fixed)) %>% 
+    mutate(pred_names = factor(
+      unordered_names,
+      levels = c(pred_rownames_ordered, "per_larv_cont"),
+      labels = c(pred_names_vec, "Container index")
+    )) %>% 
+    arrange(pred_names) %>% 
+    select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) 
+  
+  write_csv(larval_fit_df, here("output", "larval_fit_df.csv"))
+}
+```
+
+```{r Fit adult model}
+if (params$refit_adult_model) {
+  data_with_ave_adult <- adult_trapped %>% 
+    select(
+      lon = x, lat = y, 
+      log_saliva_elisa,
+      gender,
+      age_cented7, distance_to_river_scaled,
+      modal_land_type,
+      num_toilets_in_home, num_domestic_water_containers_in_home,
+      insecticide_spray, larvicide_applied_to_water,
+      NFI250_home,
+      ave_adult_count
+    )
+  
+  formula_with_ave_adult <- y ~ #0 + Intercept
+    gender + 
+    age_cented7  + distance_to_river_scaled +
+    modal_land_type +
+    num_toilets_in_home + num_domestic_water_containers_in_home +
+    insecticide_spray + larvicide_applied_to_water  +
+    NFI250_home  +
+    ave_adult_count +
+    f(spatial.field, model = spde)
+  
+  adult_fit <- fit_single_visit_inla_model(
+    all_data = data_with_ave_adult,
+    formula = formula_with_ave_adult,
+    seed = 1234
+  )
+  
+  adult_fit_df <- adult_fit$summary.fixed %>% 
+    mutate(unordered_names = rownames(adult_fit$summary.fixed)) %>% 
+    mutate(pred_names = factor(
+      unordered_names,
+      levels = c(pred_rownames_ordered, "ave_adult_count"),
+      labels = c(pred_names_vec, "Ave. trapped mosquitos")
+    )) %>% 
+    arrange(pred_names) %>% 
+    select(
+      quant025 = "0.025quant", 
+      mean = "mean", 
+      quant975 = "0.975quant", 
+      pred_names
+    ) 
+  
+  write_csv(adult_fit_df, here("output", "adult_fit_df.csv"))
+}
+```
+
+
+## Forest plot
+```{r Prepare forest plot data}
+main_fit_df <- read_csv(
+  here("output", "main_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Model = "Main") 
+
+larval_fit_df <- read_csv(
+  here("output", "larval_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Model = "Larval")
+
+adult_fit_df <- read_csv(
+  here("output", "adult_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Model = "Adult")
+
+
+display_names_vec <- c(
+  "Sex [ref: Female]",
+  "     Male", 
+  "Age", 
+  "Insecticide used [ref: No]",
+  "     Yes",
+  "Larvicide used [ref: No]",
+  "     Yes ",
+  "Number of toilets",
+  "Number of water containers",
+  "Modal land type [ref: Urban]",
+  "     Rice paddy",
+  "     Cropland",
+  "Distance to river (std.)", 
+  "Wet season [ref: No]",
+  "     Yes  ",
+  "Flooding index (NFI)",
+  "Larval container index",
+  "Ave. trapped mosquitos"
+) 
+
+pred_names_vec <- c(
+  "Sex [ref: Female]",
+  "Male", 
+  "Age", 
+  "Insecticide used [ref: No]",
+  "Insecticide used",
+  "Larvicide used [ref: No]",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
+  "Modal land type [ref: Urban]",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "Wet season [ref: No]",
+  "Wet season",
+  "Flooding index (NFI)",
+  "Container index",
+  "Ave. trapped mosquitos"
+  )
+
+
+all_results <- main_fit_df %>% 
+  bind_rows(larval_fit_df) %>% 
+  bind_rows(adult_fit_df) %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  add_row(pred_names = "Rice paddy", Model = "Adult") %>% 
+  add_row(pred_names = "Wet season", Model = "Adult") %>%
+  add_row(pred_names = "Container index", Model = "Main") %>% 
+  add_row(pred_names = "Container index", Model = "Adult") %>%
+  add_row(pred_names = "Ave. trapped mosquitos", Model = "Main") %>%
+  add_row(pred_names = "Ave. trapped mosquitos", Model = "Larval") %>%
+  add_row(pred_names = "Sex [ref: Female]", Model = "Main") %>% # Sex [ref: Female]
+  add_row(pred_names = "Sex [ref: Female]", Model = "Larval") %>% 
+  add_row(pred_names = "Sex [ref: Female]", Model = "Adult") %>% 
+  add_row(pred_names = "Insecticide used [ref: No]", Model = "Main") %>% # Insecticide used [ref: No]
+  add_row(pred_names = "Insecticide used [ref: No]", Model = "Larval") %>% 
+  add_row(pred_names = "Insecticide used [ref: No]", Model = "Adult") %>% 
+  add_row(pred_names = "Larvicide used [ref: No]", Model = "Main") %>% # Larvicide used [ref: No]
+  add_row(pred_names = "Larvicide used [ref: No]", Model = "Larval") %>% 
+  add_row(pred_names = "Larvicide used [ref: No]", Model = "Adult") %>% 
+  add_row(pred_names = "Modal land type [ref: Urban]", Model = "Main") %>% # Modal land type [ref: Urban]
+  add_row(pred_names = "Modal land type [ref: Urban]", Model = "Larval") %>% 
+  add_row(pred_names = "Modal land type [ref: Urban]", Model = "Adult") %>% 
+  add_row(pred_names = "Wet season [ref: No]", Model = "Main") %>% # Wet season [ref: No]
+  add_row(pred_names = "Wet season [ref: No]", Model = "Larval") %>% 
+  add_row(pred_names = "Wet season [ref: No]", Model = "Adult") %>% 
+  mutate(display_names = factor(
+    pred_names, 
+    levels = rev(pred_names_vec), 
+    labels = rev(display_names_vec) 
+  )) %>% 
+  mutate(Model = factor(Model, levels = c("Main", "Larval", "Adult"))) %>% 
+  arrange(display_names)
+```
+
+```{r Produce forest plot}
+alpha <- 0.8
+
+dodge <- 0.8
+
+min_val <- min(
+  all_results$quant025[all_results$display_names != "Flooding index (NFI)"],
+  na.rm = TRUE
+)
+max_val <- max(
+  max(
+    all_results$quant975[all_results$display_names != "Flooding index (NFI)"],
+    na.rm = TRUE
+  ),
+  0.6
+)
+
+all_results %>% 
+  ggplot(aes(x = mean, y = display_names, color = Model)) +
+    geom_point(
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_linerange(
+      aes(xmin = quant025, xmax = quant975), 
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw(base_size = 12) +
+    theme(
+      panel.border = element_blank(),
+      axis.text.y = element_text(hjust = 0),
+      axis.ticks.y = element_blank(),
+      axis.text.x=element_text(),
+      panel.grid.major = element_line(colour = "gray90"),
+      axis.ticks.length=unit(.25, "cm")
+    ) +
+    xlab("Effect size") +
+    ylab("Covariate") +
+  scale_color_manual(values = c("#440154FF", "#31688EFF", "#35B779FF")) +
+  #scale_color_manual(values = c("#3F3994FF", "#7A0403FF", "#2DB17EFF")) +
+  coord_cartesian(xlim=c(min_val, max_val))
+```
+
+
+
+\newpage
+## Estimates table
+
+```{r Prepare estimates table}
+main_fit_df <- read_csv(
+  here("output", "main_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Main = paste0(
+    round(mean, 3), " (", round(quant025, 3), ", ", round(quant975, 3), ")"
+  )) %>% 
+    select(pred_names, Main) 
+
+larval_fit_df <- read_csv(
+  here("output", "larval_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Larval = paste0(
+    round(mean, 3), " (", round(quant025, 3), ", ", round(quant975, 3), ")"
+  )) %>% 
+    select(pred_names, Larval) 
+
+adult_fit_df <- read_csv(
+  here("output", "adult_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(Adult = paste0(
+    round(mean, 3), " (", round(quant025, 3), ", ", round(quant975, 3), ")"
+  )) %>% 
+    select(pred_names, Adult) 
+
+display_names_vec <- c(
+  "Female",
+  "Male", 
+  "Age", 
+  "No", # Insecticide
+  "Yes",
+  "No ", # Larvicide
+  "Yes ",
+  "Number of toilets",
+  "Number of water containers",
+  "Urban",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "No  ",
+  "Yes  ",
+  "Flooding index (NFI)",
+  "Larval container index",
+  "Ave. trapped mosquitos"
+) 
+
+pred_names_vec <- c(
+  "Female",
+  "Male", 
+  "Age", 
+  "No",
+  "Insecticide used",
+  "No ",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
+  "Urban",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "No  ",
+  "Wet season",
+  "Flooding index (NFI)",
+  "Container index",
+  "Ave. trapped mosquitos"
+  )
+
+
+all_results <- main_fit_df %>% 
+  full_join(larval_fit_df) %>% 
+  full_join(adult_fit_df) %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  add_row(pred_names = "Female", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No ", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No  ", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "Urban", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  mutate(display_names = factor(
+    pred_names, 
+    levels = pred_names_vec, 
+    labels = display_names_vec 
+  )) %>% 
+  arrange(display_names) %>% 
+  select(pred_names, display_names, Main, Larval, Adult)
+```
+
+
+```{r Produce estimates table}
+all_results %>% 
+  select(display_names, Main, Larval, Adult) %>% 
+kbl(
+  #booktabs = TRUE, 
+  col.names = c(" ", "Main Model", "Larval Model", "Adult Model")
+) %>% 
+  kable_styling() %>% 
+  add_header_above(
+    c(" " = 1, "Mean Estimate (95% BCI)" = 3), 
+    line = FALSE,
+    align = "c"
+  ) %>% 
+  pack_rows(
+    bold = FALSE,
+    index = c(
+      "Gender" = 2,
+      " " = 1,
+      "Insecticide" = 2,
+      "Larvicide" = 2,
+      " " = 2,
+      "Land type" = 3,
+      " " = 1,
+      "Wet season" = 2,
+      " " = 3
+    )
+  )
+```
+
+

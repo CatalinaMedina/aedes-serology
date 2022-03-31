@@ -58,6 +58,3 @@ process_modis_data <- function(
   
   new_df 
 }
-
-
-# example of satellite variable matching by date in aedes-serology-investigation.Rmd file in "read-process-data" chunk
