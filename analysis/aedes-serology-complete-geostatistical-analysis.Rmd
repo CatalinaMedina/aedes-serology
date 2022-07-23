@@ -834,6 +834,143 @@ if (params$refit_main_model) {
 }
 ```
 
+```{r Examine spatial parameters, eval = FALSE}
+all_data <- main_data
+formula <- main_formula
+seed <- 1234
+
+set.seed(seed)
+  
+  # extract coordinates as matrix, ignoring repeats
+  coords_df <- all_data %>% 
+    filter(time == 1) %>% 
+    select(lon, lat) %>% 
+    as.matrix()
+  
+  # create mesh, good documentation available to understand all options
+  mesh <- inla.mesh.2d(
+    loc = coords_df,
+    max.edge = c(300, 600)
+  )
+  
+  # Specify spde
+  spde <- inla.spde2.matern(mesh)
+  
+  # Need to specify index with spde and group (if there are replicates)
+  s.index <- inla.spde.make.index(
+    "spatial.field", 
+    n.spde = spde$n.spde,
+    n.group = length(unique(all_data$time))
+  )
+  
+  # A specifies something about edge length based on the mesh
+  all_A <- inla.spde.make.A(
+    mesh = mesh, 
+    loc = as.matrix(select(all_data, lon, lat)),
+    group = all_data$time
+  )
+  
+  # Specify df of covariate values
+  covar_df <- data.frame(
+    select(all_data, -c(time, lon, lat, log_saliva_elisa))
+  )
+  
+  # Fixed effect priors
+  coeff_priors <- list(
+    mean.intercept = 0,
+    prec.intercept = 1/(2.5^2),
+    mean = list(default = 0),
+    prec = list(default = 1/(2.5^2))
+  )
+  
+  # Prep data for inla call, "A" needs to have a 1 for each list element in effects, aside from index
+  data_stack <- inla.stack(
+    data = list(y = all_data$log_saliva_elisa),
+    A = list(all_A, 1),
+    effects = list(
+      s.index,
+      list(covar_df = covar_df)
+    ),
+    tag = "est"
+  )
+  
+  # Fit model
+  main_fit <- inla(
+    formula, 
+    data = inla.stack.data(data_stack),
+    control.predictor = list(
+      A = inla.stack.A(data_stack),
+      compute = TRUE
+    ),
+    control.fixed = coeff_priors
+  )
+
+spde.est <- inla.spde2.result(
+  inla = main_fit, 
+  name = "spatial.field",
+  spde = spde, 
+  do.transf = TRUE
+)
+
+#Variance: Variation in the spatial field
+print("variance")
+variance_sum <- inla.zmarginal(spde.est$marginals.variance.nominal[[1]])
+
+plot(
+  spde.est[["marginals.variance.nominal"]][[1]], 
+  type = "l",
+  main = "Nominal variance, posterior density",
+  xlab = "Nominal variance variance",
+  ylab = "Density"
+)
+abline(v = variance_sum$quant0.025, lty = 2)
+abline(v = variance_sum$quant0.975, lty = 2)
+
+#Range: Typical distance between high and low regions
+# The range of the process is the distance such that the correlation between values is close to 0.1
+print("range") 
+range_sum <- inla.zmarginal(spde.est$marginals.range.nominal[[1]])
+
+
+plot(
+  spde.est[["marginals.range.nominal"]][[1]], 
+  type = "l",
+  main = "Nominal range, posterior density",
+  xlab = "Nominal range: ie the distance that we have correlation equals 0.1 (meters)",
+  ylab = "Density"
+)
+abline(v = range_sum$quant0.025, lty = 2)
+abline(v = range_sum$quant0.975, lty = 2)
+
+library(gstat)
+res_tab <- data.frame(
+  "lon" = all_data$lon,
+  "lat" = all_data$lat,
+  "log_saliva_elisa" = all_data$log_saliva_elisa,
+  "mu" = main_fit$summary.fitted.values$mean,
+  "sigma2" = main_fit$summary.fitted.values$mean ^ 2 / main_fit$summary.hyperpar[1, "mean"]
+) %>% mutate(
+  pearson_iid = (log_saliva_elisa - mu) / sqrt(sigma2)
+)
+
+inla_vgm <- variogram(
+  pearson_iid ~ 1 ,
+  locations = ~lon + lat,
+  data = res_tab
+)
+
+
+vgm <- variogram(
+  log_saliva_elisa ~ 1, 
+  locations = ~lon + lat,
+  data = all_data,
+)
+fit.vgm <- fit.variogram(vgm, vgm("Sph"))
+fit.vgm
+```
+
+
+
 ```{r Fit larval model}
 if (params$refit_larval_model) {
   # Extract relevant data
@@ -962,7 +1099,7 @@ adult_fit_df <- read_csv(
 
 
 display_names_vec <- c(
-  "Sex [ref: Female]",
+  "Gender [ref: Female]",
   "     Male", 
   "Age", 
   "Insecticide used [ref: No]",
@@ -1207,4 +1344,69 @@ kbl(
   )
 ```
 
+
+
+
+## Sample variogram
+```{r}
+library(gstat)
+library(sp)
+library(spacetime)
+```
+
+```{r}
+get_sample_variogram <- function(v){
+  pagodas_v <- filter(pagodas, visit == paste0("visit", v))
+  coordinates(pagodas_v) <-  data.frame(
+    x = pagodas_v$x, 
+    y = pagodas_v$y
+  )
+  
+  variogram_int_v <- variogram(
+    log_saliva_elisa ~ 1, 
+    data = pagodas_v,
+    cutoff = 2000,
+    width = 40
+  )
+  
+  variogram_preds_v <- variogram(
+    log_saliva_elisa ~ 1 + gender + age_cented7 + insecticide_spray + larvicide_applied_to_water + num_toilets_in_home + num_domestic_water_containers_in_home + modal_land_type + distance_to_river_scaled + NFI250_home, 
+    data = pagodas_v,
+    cutoff = 2000,
+    width = 40
+  )
+  
+  data.frame(
+    Estimate = c(variogram_int_v$gamma, variogram_preds_v$gamma),
+    Distance = c(variogram_int_v$dist, variogram_preds_v$dist),
+    Model = c(
+      rep("Intercept only", length(variogram_int_v$dist)),
+      rep("Full model", length(variogram_preds_v$dist))
+    ),
+    Visit = paste0("Visit ", v)
+  ) 
+}
+
+sample_variogram <- rbind(
+  get_sample_variogram(v = "1"),
+  get_sample_variogram(v = "2"),
+  get_sample_variogram(v = "3"),
+  get_sample_variogram(v = "4")
+) %>% 
+  mutate(Model = factor(
+    Model, 
+    levels = c("Intercept only", "Full model")
+  )) 
+
+sample_variogram %>% 
+ggplot(aes(x = Distance, y = Estimate)) +
+  geom_point(size = 1) +
+  geom_line() +
+  ylim(c(0, 0.225)) +
+  facet_grid(Visit ~ Model) +
+  theme_minimal(base_size = 15) +
+  xlab("Distance (meters)") +
+  ylab("Semivariance") +
+  ggtitle("Empirical Variogram by Visit")
+```
 
