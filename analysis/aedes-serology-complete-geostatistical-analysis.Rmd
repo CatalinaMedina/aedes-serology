@@ -212,25 +212,6 @@ ggplot(aes(x = log_saliva_elisa)) +
 
 \newpage
 
-## Correlation of entomological indicies
-```{r}
-library(corrplot)
-
-indicies <- larval_house %>% 
-  select(
-    house_index = per_larv_houses,
-    container_index = per_larv_cont,
-    ave_larval_containers = ave_larv_cont,
-    ave_pci,
-  )
-inx_corr <- cor(indicies)
-var_names <- c("House index", "Container index", "Ave. larval containers", "Ave. PCI")
-rownames(inx_corr) <- var_names
-colnames(inx_corr) <- var_names
-corrplot(inx_corr, type = "upper", addCoef.col = 'black', tl.col = 'black')
-```
-
-
 ## Table 1 (Summary of participants)
 ```{r Prepare summary of participants table}
 if (params$remake_summary_table) {
@@ -1046,6 +1027,7 @@ if (params$refit_larval_model) {
 }
 ```
 
+
 ```{r Fit adult model}
 if (params$refit_adult_model) {
   data_with_ave_adult <- adult_trapped %>% 
@@ -1430,3 +1412,206 @@ ggplot(aes(x = Distance, y = Estimate)) +
   ggtitle("Empirical Variogram by Visit")
 ```
 
+
+
+## Investigation of entomological indicies
+```{r Correlation of entomological indicies}
+library(corrplot)
+
+indicies <- larval_house %>% 
+  select(
+    house_index = per_larv_houses,
+    container_index = per_larv_cont,
+    ave_larval_containers = ave_larv_cont,
+    ave_pci,
+  )
+inx_corr <- cor(indicies)
+var_names <- c("House index", "Container index", "Ave. larval containers", "Ave. PCI")
+rownames(inx_corr) <- var_names
+colnames(inx_corr) <- var_names
+corrplot(inx_corr, type = "upper", addCoef.col = 'black', tl.col = 'black')
+```
+
+```{r Fit larval model with ave pci}
+if (params$refit_larval_model) {
+  pred_rownames_ordered <- c(
+    "(Intercept)",
+    "genderMale",
+    "age_cented7",
+    "insecticide_sprayYes",
+    "larvicide_applied_to_waterYes",
+    "num_toilets_in_home",
+    "num_domestic_water_containers_in_home",
+    "modal_land_typerice paddy",
+    "modal_land_typecropland",
+    "distance_to_river_scaled",
+    "wet_seasonyes",
+    "NFI250_home"
+  )
+  
+  pred_names_vec = c(
+    "(Intercept)",
+    "Male", 
+    "Age", 
+    "Insecticide used",
+    "Larvicide used",
+    "Number of toilets",
+    "Number of water containers",
+    "Rice paddy",
+    "Cropland",
+    "Distance to river (std.)", 
+    "Wet season",
+    "Flooding index (NFI)"
+  )
+
+  # Extract relevant data
+  data_with_ave_pci <- larval_house %>% 
+    select(
+      time, 
+      lon = x, lat = y, 
+      log_saliva_elisa,
+      gender,
+      age_cented7, distance_to_river_scaled,
+      modal_land_type,
+      num_toilets_in_home, num_domestic_water_containers_in_home,
+      insecticide_spray, larvicide_applied_to_water,
+      NFI250_home,
+      wet_season,
+      ave_pci
+    )
+  
+  # Specify model formula, 'f()' incorporates spatial effect and replicate 
+  formula_with_ave_pci <- y ~ #0 + Intercept
+    gender + 
+    age_cented7  + distance_to_river_scaled +
+    modal_land_type +
+    num_toilets_in_home + num_domestic_water_containers_in_home +
+    insecticide_spray + larvicide_applied_to_water  +
+    NFI250_home  +
+    wet_season +
+    ave_pci +
+    f(
+      spatial.field, 
+      model = spde, 
+      group = spatial.field.group, 
+      control.group = list(model = "iid")
+    )
+  
+  larval_fit_pci <- fit_multi_visit_inla_model(
+    all_data = data_with_ave_pci, 
+    formula = formula_with_ave_pci,
+    seed = 1234
+  )
+  
+  larval_fit_pci_df <- larval_fit_pci$summary.fixed %>% 
+    mutate(unordered_names = rownames(larval_fit_pci$summary.fixed)) %>% 
+    mutate(pred_names = factor(
+      unordered_names,
+      levels = c(pred_rownames_ordered, "ave_pci"),
+      labels = c(pred_names_vec, "Average PCI")
+    )) %>% 
+    arrange(pred_names) %>% 
+    select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) 
+  
+  write_csv(larval_fit_pci_df, here("output", "larval_fit_pci_df.csv"))
+}
+```
+
+```{r Prepare larval pci output for forest plot}
+display_names_vec <- c(
+  "Gender [ref: Female]",
+  "     Male", 
+  "Age", 
+  "Insecticide used [ref: No]",
+  "     Yes",
+  "Larvicide used [ref: No]",
+  "     Yes ",
+  "Number of toilets",
+  "Number of water containers",
+  "Modal land type [ref: Urban]",
+  "     Rice paddy",
+  "     Cropland",
+  "Distance to river (std.)", 
+  "Wet season [ref: No]",
+  "     Yes  ",
+  "Flooding index (NFI)",
+  "Average PCI"
+) 
+
+pred_names_vec <- c(
+  "Sex [ref: Female]",
+  "Male", 
+  "Age", 
+  "Insecticide used [ref: No]",
+  "Insecticide used",
+  "Larvicide used [ref: No]",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
+  "Modal land type [ref: Urban]",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "Wet season [ref: No]",
+  "Wet season",
+  "Flooding index (NFI)",
+  "Average PCI"
+  )
+
+cleaned_results <- larval_fit_pci_df %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  add_row(pred_names = "Sex [ref: Female]") %>% # Sex [ref: Female]
+  add_row(pred_names = "Insecticide used [ref: No]") %>% # Insecticide used [ref: No]
+  add_row(pred_names = "Larvicide used [ref: No]") %>% # Larvicide used [ref: No]
+  add_row(pred_names = "Modal land type [ref: Urban]") %>% # Modal land type [ref: Urban]
+  add_row(pred_names = "Wet season [ref: No]") %>% # Wet season [ref: No]
+  mutate(display_names = factor(
+    pred_names, 
+    levels = rev(pred_names_vec), 
+    labels = rev(display_names_vec) 
+  )) %>% 
+  arrange(display_names)
+```
+
+```{r Produce larval model with pci forest plot}
+alpha <- 0.8
+
+dodge <- 0.8
+
+min_val <- min(
+  cleaned_results$quant025[all_results$display_names != "Flooding index (NFI)"],
+  na.rm = TRUE
+)
+max_val <- max(
+  max(
+    cleaned_results$quant975[all_results$display_names != "Flooding index (NFI)"],
+    na.rm = TRUE
+  ),
+  0.6
+)
+
+cleaned_results %>% 
+  ggplot(aes(x = mean, y = display_names)) +
+    geom_point(
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_linerange(
+      aes(xmin = quant025, xmax = quant975), 
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw(base_size = 12) +
+    theme(
+      panel.border = element_blank(),
+      axis.text.y = element_text(hjust = 0),
+      axis.ticks.y = element_blank(),
+      axis.text.x=element_text(),
+      panel.grid.major = element_line(colour = "gray90"),
+      axis.ticks.length=unit(.25, "cm")
+    ) +
+    xlab("Effect size") +
+    ylab("Covariate") +
+  coord_cartesian(xlim=c(min_val, max_val))
+```
