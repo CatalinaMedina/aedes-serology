@@ -211,6 +211,26 @@ ggplot(aes(x = log_saliva_elisa)) +
 ```
 
 \newpage
+
+## Correlation of entomological indicies
+```{r}
+library(corrplot)
+
+indicies <- larval_house %>% 
+  select(
+    house_index = per_larv_houses,
+    container_index = per_larv_cont,
+    ave_larval_containers = ave_larv_cont,
+    ave_pci,
+  )
+inx_corr <- cor(indicies)
+var_names <- c("House index", "Container index", "Ave. larval containers", "Ave. PCI")
+rownames(inx_corr) <- var_names
+colnames(inx_corr) <- var_names
+corrplot(inx_corr, type = "upper", addCoef.col = 'black', tl.col = 'black')
+```
+
+
 ## Table 1 (Summary of participants)
 ```{r Prepare summary of participants table}
 if (params$remake_summary_table) {
