@@ -1174,7 +1174,10 @@ all_results <- main_fit_df %>%
     labels = rev(display_names_vec) 
   )) %>% 
   mutate(Model = factor(Model, levels = c("Main", "Larval", "Adult"))) %>% 
-  arrange(display_names)
+  arrange(display_names) %>% 
+  mutate(per_change_lb = 100 * (exp(quant025) - 1)) %>% 
+  mutate(per_change_mean = 100 * (exp(mean) - 1)) %>% 
+  mutate(per_change_ub = 100 * (exp(quant975) - 1)) 
 ```
 
 ```{r Produce forest plot}
@@ -1222,6 +1225,50 @@ all_results %>%
   coord_cartesian(xlim=c(min_val, max_val))
 ```
 
+```{r Produce forest plot with percent change}
+alpha <- 0.8
+
+dodge <- 0.8
+
+min_val <- min(
+  all_results$per_change_lb[all_results$display_names != "Flooding index (NFI)"],
+  na.rm = TRUE
+)
+max_val <- max(
+  max(
+    all_results$per_change_ub[all_results$display_names != "Flooding index (NFI)"],
+    na.rm = TRUE
+  ),
+  0.6
+)
+
+all_results %>% 
+  ggplot(aes(x = per_change_mean , y = display_names, color = Model)) +
+    geom_point(
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_linerange(
+      aes(xmin = per_change_lb, xmax = per_change_ub), 
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw(base_size = 12) +
+    theme(
+      panel.border = element_blank(),
+      axis.text.y = element_text(hjust = 0),
+      axis.ticks.y = element_blank(),
+      axis.text.x=element_text(),
+      panel.grid.major = element_line(colour = "gray90"),
+      axis.ticks.length=unit(.25, "cm")
+    ) +
+    xlab("Estimated percent change in exposure") +
+    ylab("Covariate") +
+  scale_color_manual(values = c("#440154FF", "#31688EFF", "#35B779FF")) +
+  #scale_color_manual(values = c("#3F3994FF", "#7A0403FF", "#2DB17EFF")) +
+  coord_cartesian(xlim=c(min_val, max_val))
+```
 
 
 \newpage
@@ -1313,7 +1360,7 @@ all_results <- main_fit_df %>%
     labels = display_names_vec 
   )) %>% 
   arrange(display_names) %>% 
-  select(pred_names, display_names, Main, Larval, Adult)
+  select(pred_names, display_names, Main, Larval, Adult) 
 ```
 
 
@@ -1346,6 +1393,137 @@ kbl(
   )
 ```
 
+
+```{r Prepare estimates table with percent change in exposure}
+main_fit_df <- read_csv(
+  here("output", "main_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(per_change_lb = 100 * (exp(quant025) - 1)) %>% 
+  mutate(per_change_mean = 100 * (exp(mean) - 1)) %>% 
+  mutate(per_change_ub = 100 * (exp(quant975) - 1)) %>% 
+  mutate(Main = paste0(
+    round(per_change_mean, 2), 
+    " (", round(per_change_lb, 2), ", ", round(per_change_ub, 2), ")"
+  )) %>% 
+    select(pred_names, Main) 
+
+larval_fit_df <- read_csv(
+  here("output", "larval_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(per_change_lb = 100 * (exp(quant025) - 1)) %>% 
+  mutate(per_change_mean = 100 * (exp(mean) - 1)) %>% 
+  mutate(per_change_ub = 100 * (exp(quant975) - 1)) %>% 
+  mutate(Larval = paste0(
+    round(per_change_mean, 2), 
+    " (", round(per_change_lb, 2), ", ", round(per_change_ub, 2), ")"
+  )) %>% 
+    select(pred_names, Larval) 
+
+adult_fit_df <- read_csv(
+  here("output", "adult_fit_df.csv"),
+  show_col_types = FALSE
+) %>% 
+  mutate(per_change_lb = 100 * (exp(quant025) - 1)) %>% 
+  mutate(per_change_mean = 100 * (exp(mean) - 1)) %>% 
+  mutate(per_change_ub = 100 * (exp(quant975) - 1)) %>% 
+  mutate(Adult = paste0(
+    round(per_change_mean, 2), 
+    " (", round(per_change_lb, 2), ", ", round(per_change_ub, 2), ")"
+  )) %>% 
+    select(pred_names, Adult) 
+
+display_names_vec <- c(
+  "Female",
+  "Male", 
+  "Age", 
+  "No", # Insecticide
+  "Yes",
+  "No ", # Larvicide
+  "Yes ",
+  "Number of toilets",
+  "Number of water containers",
+  "Urban",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "No  ",
+  "Yes  ",
+  "Flooding index (NFI)",
+  "Larval container index",
+  "Ave. trapped mosquitos"
+) 
+
+pred_names_vec <- c(
+  "Female",
+  "Male", 
+  "Age", 
+  "No",
+  "Insecticide used",
+  "No ",
+  "Larvicide used",
+  "Number of toilets",
+  "Number of water containers",
+  "Urban",
+  "Rice paddy",
+  "Cropland",
+  "Distance to river (std.)", 
+  "No  ",
+  "Wet season",
+  "Flooding index (NFI)",
+  "Container index",
+  "Ave. trapped mosquitos"
+  )
+
+
+all_results <- main_fit_df %>% 
+  full_join(larval_fit_df) %>% 
+  full_join(adult_fit_df) %>% 
+  filter(pred_names != "(Intercept)") %>% 
+  add_row(pred_names = "Female", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No ", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "No  ", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  add_row(pred_names = "Urban", Main = "Reference", Larval = "Reference", Adult = "Reference") %>% 
+  mutate(display_names = factor(
+    pred_names, 
+    levels = pred_names_vec, 
+    labels = display_names_vec 
+  )) %>% 
+  arrange(display_names) %>% 
+  select(pred_names, display_names, Main, Larval, Adult) 
+```
+
+
+```{r Produce estimates table with percent change in exposure}
+all_results %>% 
+  select(display_names, Main, Larval, Adult) %>% 
+kbl(
+  #booktabs = TRUE, 
+  col.names = c(" ", "Main Model", "Larval Model", "Adult Model")
+) %>% 
+  kable_styling() %>% 
+  add_header_above(
+    c(" " = 1, "Mean Estimate (95% BCI)" = 3), 
+    line = FALSE,
+    align = "c"
+  ) %>% 
+  pack_rows(
+    bold = FALSE,
+    index = c(
+      "Gender" = 2,
+      " " = 1,
+      "Insecticide" = 2,
+      "Larvicide" = 2,
+      " " = 2,
+      "Land type" = 3,
+      " " = 1,
+      "Wet season" = 2,
+      " " = 3
+    )
+  )
+```
 
 
 
@@ -1518,6 +1696,12 @@ if (params$refit_larval_model) {
 ```
 
 ```{r Prepare larval pci output for forest plot}
+
+larval_fit_pci_df <- read_csv(
+  here("output", "larval_fit_pci_df.csv"),
+  show_col_types = FALSE
+)
+
 display_names_vec <- c(
   "Gender [ref: Female]",
   "     Male", 
@@ -1570,7 +1754,10 @@ cleaned_results <- larval_fit_pci_df %>%
     levels = rev(pred_names_vec), 
     labels = rev(display_names_vec) 
   )) %>% 
-  arrange(display_names)
+  arrange(display_names) %>% 
+  mutate(per_change_lb = 100 * (exp(quant025) - 1)) %>% 
+  mutate(per_change_mean = 100 * (exp(mean) - 1)) %>% 
+  mutate(per_change_ub = 100 * (exp(quant975) - 1)) 
 ```
 
 ```{r Produce larval model with pci forest plot}
@@ -1612,6 +1799,49 @@ cleaned_results %>%
       axis.ticks.length=unit(.25, "cm")
     ) +
     xlab("Effect size") +
+    ylab("Covariate") +
+  coord_cartesian(xlim=c(min_val, max_val))
+```
+
+```{r Produce larval model with pci forest plot with percent change in exposure}
+alpha <- 0.8
+
+dodge <- 0.8
+
+min_val <- min(
+  cleaned_results$per_change_lb[all_results$display_names != "Flooding index (NFI)"],
+  na.rm = TRUE
+)
+max_val <- max(
+  max(
+    cleaned_results$per_change_ub[all_results$display_names != "Flooding index (NFI)"],
+    na.rm = TRUE
+  ),
+  0.6
+)
+
+cleaned_results %>% 
+  ggplot(aes(x = per_change_mean, y = display_names)) +
+    geom_point(
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_linerange(
+      aes(xmin = per_change_lb, xmax = per_change_ub), 
+      alpha = alpha, 
+      position = position_dodge2(width = dodge, reverse = TRUE)
+    ) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    theme_bw(base_size = 12) +
+    theme(
+      panel.border = element_blank(),
+      axis.text.y = element_text(hjust = 0),
+      axis.ticks.y = element_blank(),
+      axis.text.x=element_text(),
+      panel.grid.major = element_line(colour = "gray90"),
+      axis.ticks.length=unit(.25, "cm")
+    ) +
+    xlab("Estimated percent change in exposure") +
     ylab("Covariate") +
   coord_cartesian(xlim=c(min_val, max_val))
 ```
