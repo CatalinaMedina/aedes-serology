@@ -1521,7 +1521,13 @@ if (params$refit_larval_model) {
       labels = c(pred_names_vec, "Average PCI")
     )) %>% 
     arrange(pred_names) %>% 
-    select(quant025 = "0.025quant", mean = "mean", quant975 = "0.975quant", pred_names) 
+    select(
+      quant025 = "0.025quant", 
+      mean = "mean", 
+      median = "0.5quant",
+      quant975 = "0.975quant", 
+      pred_names
+    ) 
   
   write_csv(larval_fit_pci_df, here("output", "larval_fit_pci_df.csv"))
 }
@@ -1586,10 +1592,7 @@ cleaned_results <- larval_fit_pci_df %>%
     levels = rev(pred_names_vec), 
     labels = rev(display_names_vec) 
   )) %>% 
-  arrange(display_names) %>% 
-  mutate(per_change_lb = 100 * (exp(quant025) - 1)) %>% 
-  mutate(per_change_mean = 100 * (exp(mean) - 1)) %>% 
-  mutate(per_change_ub = 100 * (exp(quant975) - 1)) 
+  arrange(display_names)
 ```
 
 ```{r Produce larval model with pci forest plot}
@@ -1635,45 +1638,3 @@ cleaned_results %>%
   coord_cartesian(xlim=c(min_val, max_val))
 ```
 
-```{r Produce larval model with pci forest plot with percent change in exposure}
-alpha <- 0.8
-
-dodge <- 0.8
-
-min_val <- min(
-  cleaned_results$per_change_lb[all_results$display_names != "Flooding index (NFI)"],
-  na.rm = TRUE
-)
-max_val <- max(
-  max(
-    cleaned_results$per_change_ub[all_results$display_names != "Flooding index (NFI)"],
-    na.rm = TRUE
-  ),
-  0.6
-)
-
-cleaned_results %>% 
-  ggplot(aes(x = per_change_mean, y = display_names)) +
-    geom_point(
-      alpha = alpha, 
-      position = position_dodge2(width = dodge, reverse = TRUE)
-    ) +
-    geom_linerange(
-      aes(xmin = per_change_lb, xmax = per_change_ub), 
-      alpha = alpha, 
-      position = position_dodge2(width = dodge, reverse = TRUE)
-    ) +
-    geom_vline(xintercept = 0, linetype = "dashed") +
-    theme_bw(base_size = 12) +
-    theme(
-      panel.border = element_blank(),
-      axis.text.y = element_text(hjust = 0),
-      axis.ticks.y = element_blank(),
-      axis.text.x=element_text(),
-      panel.grid.major = element_line(colour = "gray90"),
-      axis.ticks.length=unit(.25, "cm")
-    ) +
-    xlab("Estimated percent change in exposure") +
-    ylab("Covariate") +
-  coord_cartesian(xlim=c(min_val, max_val))
-```
