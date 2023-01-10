@@ -31,4 +31,4 @@ JEM: jessica.manning@nih.gov
 
 ## Content
 
-Analysis code and paper images for [Manuscript](https://doi.org/10.1101/2022.09.12.22278870) accepted to be published in Acta Tropica
+Analysis code and paper images for [manuscript](https://doi.org/10.1101/2022.09.12.22278870) accepted to be published in Acta Tropica
