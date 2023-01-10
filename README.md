@@ -2,7 +2,7 @@
 
 ## Authors
 
-Daniel M. Parker<sup>1</sup>, [Catalina Medina](https://catalinamedina.github.io/)<sup>1,2</sup>, Jennifer Bohl<sup>3</sup>, Chanthap Lon<sup>3,5</sup>, Sophana Chea<sup>4,5</sup>, Sreyngim Lay<sup>4,5</sup>, Dara Kong<sup>4</sup>, Sreynik Nhek<sup>5</sup>, Somnang Man<sup>4,5</sup>, Johannes S. P. Doehl<sup>3</sup>, Rithea Leang<sup>4</sup>, Hok Kry<sup>6</sup>, Huy Rekol<sup>4</sup>, Fabiano Oliveira<sup>3,5</sup>, Vladimir Minin<sup>2</sup>, and Jessica E. Manning<sup>3,5</sup>
+Daniel M. Parker<sup>1</sup>, [Catalina Medina](https://catalinamedina.github.io/)<sup>1,2</sup>, Jennifer Bohl<sup>3</sup>, Chanthap Lon<sup>3,5</sup>, Sophana Chea<sup>4,5</sup>, Sreyngim Lay<sup>4,5</sup>, Dara Kong<sup>4</sup>, Sreynik Nhek<sup>5</sup>, Somnang Man<sup>4,5</sup>, Johannes S. P. Doehl<sup>3</sup>, Rithea Leang<sup>4</sup>, Hok Kry<sup>6</sup>, Huy Rekol<sup>4</sup>, Fabiano Oliveira<sup>3,5</sup>, Volodymyr M. Minin<sup>2</sup>, and Jessica E. Manning<sup>3,5</sup>
 
 <sup>1</sup>Program in Public Health, University of California, Irvine, California, U.S.A  
 <sup>2</sup>Department of Statistics, University of California, Irvine, California, U.S.A  
